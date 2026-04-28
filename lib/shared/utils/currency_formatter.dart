@@ -11,5 +11,5 @@ String formatCurrency(int amount) {
     }
   }
 
-  return '$sign$buffer원';
+  return '$sign₩$buffer';
 }

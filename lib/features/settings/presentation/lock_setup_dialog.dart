@@ -66,7 +66,7 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
     }
 
     if (pin != confirm) {
-      setState(() => _error = 'PIN이 일치하지 않습니다.');
+      setState(() => _error = '두 PIN이 서로 일치하지 않습니다.');
       return;
     }
 

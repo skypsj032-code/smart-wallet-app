@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_section.dart';
+import '../../../shared\widgets/app_metric_strip.dart';
+import '../../../shared\widgets/app_scaffold.dart';
+import '../../../shared\widgets/app_section_intro.dart';
+import '../../../shared\widgets/app_status_chip.dart';
+import '../../../shared\utils\currency_formatter.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../application/timeline_provider.dart';
@@ -26,7 +29,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final timelineAsync = ref.watch(timelineTransactionsProvider);
 
     return AppScaffold(
-      title: '타임라인',
+      title: '내역',
       body: timelineAsync.when(
         data: (items) {
           final filteredItems = _selectedType == null
@@ -46,41 +49,38 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 visibleCount: filteredItems.length,
                 selectedType: _selectedType,
               ),
-              const SizedBox(height: AppSpacing.md),
-              AppSection(
-                title: '거래 보기',
-                child: _TypeFilterBar(
-                  selectedType: _selectedType,
-                  onSelected: (type) => setState(() => _selectedType = type),
-                ),
+              const SizedBox(height: AppSpacing.lg),
+              AppSectionIntro(
+                title: '필터',
+                subtitle: '보고 싶은 흐름만 골라 차분히 훑어보세요.',
+                trailing: filteredItems.isEmpty
+                    ? null
+                    : AppStatusChip(
+                        label: '${filteredItems.length}건',
+                        dotColor: AppColors.primary,
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _TypeFilterBar(
+                selectedType: _selectedType,
+                onSelected: (type) => setState(() => _selectedType = type),
               ),
               const SizedBox(height: AppSpacing.lg),
-              AppSection(
+              const AppSectionIntro(
                 title: '최근 내역',
-                action: filteredItems.isEmpty
-                    ? null
-                    : Text(
-                        '${filteredItems.length}건',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.65),
-                            ),
-                      ),
-                child: filteredItems.isEmpty
-                    ? _TimelineEmptyState(selectedType: _selectedType)
-                    : _TimelineList(
-                        items: filteredItems,
-                        onEdit: (tx) {
-                          ref
-                              .read(quickEntryFormProvider.notifier)
-                              .loadTransaction(tx);
-                          context.pushNamed('quick-entry');
-                        },
-                        onDelete: (tx) => _deleteTransaction(context, tx),
-                      ),
+                subtitle: '정리된 레저처럼 빠르게 읽고, 필요하면 바로 수정할 수 있어야 합니다.',
               ),
+              const SizedBox(height: AppSpacing.sm),
+              filteredItems.isEmpty
+                  ? _TimelineEmptyState(selectedType: _selectedType)
+                  : _TimelineList(
+                      items: filteredItems,
+                      onEdit: (tx) {
+                        ref.read(quickEntryFormProvider.notifier).loadTransaction(tx);
+                        context.pushNamed('quick-entry');
+                      },
+                      onDelete: (tx) => _deleteTransaction(context, tx),
+                    ),
             ],
           );
         },
@@ -88,7 +88,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Text('타임라인을 불러오지 못했습니다.\n$error'),
+            child: Text('내역을 불러오지 못했습니다.\n$error'),
           ),
         ),
       ),
@@ -100,8 +100,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('거래 숨기기'),
-          content: const Text('이 거래를 타임라인에서 숨길까요?'),
+          title: const Text('거래를 숨길까요?'),
+          content: const Text('이 거래는 타임라인에서 숨겨지고, 나중에 다시 복원할 수 있습니다.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -127,7 +127,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('거래를 타임라인에서 숨겼습니다.')),
+      const SnackBar(content: Text('거래가 타임라인에서 숨겨졌습니다.')),
     );
   }
 }
@@ -145,9 +145,8 @@ class _TimelineSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final helperText = selectedType == null
-        ? '최신 거래를 시간순으로 확인할 수 있어요.'
+        ? '최신 거래를 시간순으로 정리해 보여줍니다.'
         : '${_typeLabel(selectedType!)}만 골라 보고 있어요.';
 
     return Card(
@@ -156,31 +155,34 @@ class _TimelineSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '거래 흐름',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            AppStatusChip(
+              label: 'LEDGER VIEW',
+              dotColor: AppColors.primary,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '빠르게 읽고 바로 고칠 수 있는 기록 화면',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               helperText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
-                  child: _SummaryMetric(
+                  child: AppMetricStrip(
                     label: '전체',
                     value: '$totalCount건',
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _SummaryMetric(
+                  child: AppMetricStrip(
                     label: '현재 보기',
                     value: '$visibleCount건',
                     emphasize: true,
@@ -190,52 +192,6 @@ class _TimelineSummaryCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SummaryMetric extends StatelessWidget {
-  const _SummaryMetric({
-    required this.label,
-    required this.value,
-    this.emphasize = false,
-  });
-
-  final String label;
-  final String value;
-  final bool emphasize;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: emphasize
-            ? theme.colorScheme.primary.withValues(alpha: 0.08)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: emphasize ? theme.colorScheme.primary : null,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -337,11 +293,11 @@ class _TimelineEmptyState extends StatelessWidget {
             Icon(
               isFiltered ? Icons.filter_alt_off : Icons.receipt_long_outlined,
               size: 32,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              isFiltered ? '이 조건엔 아직 해당하는 내역이 없어요.' : '기록이 쌓이면 여기서 흐름이 보여요.',
+              isFiltered ? '선택한 조건에 맞는 내역이 아직 없어요' : '기록이 쌓이면 여기에 시간의 흐름이 정리돼요',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -350,11 +306,9 @@ class _TimelineEmptyState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               isFiltered
-                  ? '필터를 바꾸면 더 보일 거예요.'
-                  : '오늘 뭔가 썼다면 여기서 시간순으로 볼 수 있어요.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
+                  ? '필터를 바꾸면 다른 기록을 볼 수 있어요.'
+                  : '첫 기록이 남겨지는 순간부터 내역은 신뢰할 수 있는 레저가 됩니다.',
+              style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
           ],
@@ -447,7 +401,11 @@ class _TimelineTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTransfer = transaction.type == 'transfer' || transaction.type == 'transfer_reserved';
-    const accentColor = AppColors.primary;
+    final accentColor = isTransfer
+        ? AppColors.primary
+        : transaction.type == 'expense'
+            ? AppColors.expense
+            : AppColors.income;
     final icon = isTransfer
         ? Icons.swap_horiz_rounded
         : transaction.type == 'expense'
@@ -455,7 +413,10 @@ class _TimelineTile extends StatelessWidget {
             : Icons.arrow_upward_rounded;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: accentColor.withValues(alpha: 0.12),
@@ -470,12 +431,12 @@ class _TimelineTile extends StatelessWidget {
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
         child: Text(
-          '${_typeLabel(transaction.type)} | ${_timeLabel(transaction.occurredAt)}',
+          '${_typeLabel(transaction.type)} · ${_timeLabel(transaction.occurredAt)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ),
       trailing: SizedBox(
-        width: 118,
+        width: 132,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -486,8 +447,9 @@ class _TimelineTile extends StatelessWidget {
                 children: [
                   Text(
                     _formatAmount(transaction.type, transaction.amount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
+                      color: accentColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -495,12 +457,7 @@ class _TimelineTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _counterpartyLabel(transaction),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.65),
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -559,7 +516,7 @@ String _counterpartyLabel(dynamic tx) {
 }
 
 String _formatAmount(String type, int amount) {
-  final formatted = _won(amount);
+  final formatted = formatCurrency(amount);
   switch (type) {
     case 'expense':
       return '-$formatted';
@@ -568,21 +525,6 @@ String _formatAmount(String type, int amount) {
     default:
       return formatted;
   }
-}
-
-String _won(int amount) {
-  final digits = amount.abs().toString();
-  final buffer = StringBuffer();
-
-  for (var index = 0; index < digits.length; index++) {
-    final remaining = digits.length - index;
-    buffer.write(digits[index]);
-    if (remaining > 1 && remaining % 3 == 1) {
-      buffer.write(',');
-    }
-  }
-
-  return '$buffer원';
 }
 
 String _timeLabel(DateTime dateTime) {

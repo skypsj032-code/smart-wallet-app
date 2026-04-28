@@ -3,13 +3,16 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_mood.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared\widgets/app_brand_mark.dart';
+import '../../../shared\widgets/app_status_chip.dart';
 import '../application/settings_provider.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
@@ -122,7 +125,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         timer.cancel();
         setState(() {
           _cooldownUntil = null;
-          _message = '다시 시도할 수 있습니다.';
+          _message = '다시 입력할 수 있어요.';
           _messageIsError = false;
         });
         return;
@@ -166,7 +169,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       _input = '';
       _message = cooldownDuration == null
           ? 'PIN이 올바르지 않습니다. 다시 시도해 주세요.'
-          : '시도 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.';
+          : '시도 횟수가 너무 많아요. 잠시 후 다시 시도해 주세요.';
       _messageIsError = true;
     });
 
@@ -178,11 +181,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   Widget build(BuildContext context) {
     final appSettingsAsync = ref.watch(appSettingsProvider);
+    final mood = Theme.of(context).extension<AppMood>()!;
     final helperText = _isCoolingDown
-        ? '시도 횟수 초과. $_cooldownSecondsRemaining초 후 다시 시도해 주세요.'
-        : (_message ?? 'PIN 4자리를 입력해 주세요.');
-    final helperStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: _messageIsError ? AppColors.expense : null,
+        ? '시도 제한 중입니다. $_cooldownSecondsRemaining초 후 다시 입력할 수 있어요.'
+        : (_message ?? '앱을 다시 열려면 PIN 4자리를 입력해 주세요.');
+    final helperStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: _messageIsError ? AppColors.expense : Theme.of(context).colorScheme.onSurfaceVariant,
         );
 
     return Scaffold(
@@ -198,7 +202,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: AppSpacing.md),
-                    Text('잠금이 설정되어 있지 않습니다. 앱으로 돌아갑니다...'),
+                    Text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
                   ],
                 ),
               );
@@ -210,30 +214,35 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(),
+                  AppStatusChip(
+                    label: 'LOCKED SESSION',
+                    dotColor: mood.lockedAccent,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   Container(
-                    width: 88,
-                    height: 88,
+                    width: 124,
+                    height: 124,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                     ),
-                    child: const Icon(
-                      Icons.lock_outline,
-                      size: 40,
-                      color: AppColors.primary,
+                    child: const Center(
+                      child: AppBrandMark(size: 76, withBadge: true),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    '잠금 해제',
+                    '지갑을 다시 여는 중입니다',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    '앱을 다시 열려면 PIN 4자리를 입력해 주세요.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    '오늘의 기록과 잔액 흐름을 보호하기 위해 짧은 확인이 필요해요.',
+                    style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xl),
@@ -247,12 +256,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         width: 16,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: isFilled ? AppColors.primary : Colors.transparent,
+                          color: isFilled ? mood.lockedAccent : Colors.transparent,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _messageIsError
-                                ? AppColors.expense
-                                : AppColors.primary,
+                            color: _messageIsError ? AppColors.expense : mood.lockedAccent,
                             width: 2,
                           ),
                         ),
@@ -272,7 +279,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   if (_failedAttempts > 0)
                     Text(
-                      '이번 세션 실패 횟수: $_failedAttempts회',
+                      '이번 세션의 실패 횟수: $_failedAttempts회',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   const Spacer(),
@@ -307,7 +314,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                               size: 28,
                               color: _isCoolingDown
                                   ? Theme.of(context).disabledColor
-                                  : null,
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -317,7 +324,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: _isCoolingDown ? null : _clearInput,
-                    child: const Text('지우기'),
+                    child: const Text('모두 지우기'),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                 ],
@@ -353,31 +360,36 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 class _LockKey extends StatelessWidget {
   const _LockKey({
     required this.label,
-    required this.onTap,
     required this.enabled,
+    required this.onTap,
   });
 
   final String label;
-  final VoidCallback onTap;
   final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: enabled
-          ? Theme.of(context).colorScheme.surface
-          : Theme.of(context).disabledColor.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(40),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(40),
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: theme.colorScheme.outline),
+        ),
         child: Center(
           child: Text(
             label,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: enabled ? null : Theme.of(context).disabledColor,
-                ),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: enabled
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),
