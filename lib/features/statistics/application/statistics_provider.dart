@@ -41,6 +41,7 @@ class StatisticsSnapshot {
   final List<CategoryStat> categories;
 
   CategoryStat? get topCategory => categories.isEmpty ? null : categories.first;
+
   double get savingsRate {
     if (totalIncome <= 0) {
       return 0;
@@ -92,29 +93,35 @@ final statisticsProvider = StreamProvider.autoDispose<StatisticsSnapshot>((ref) 
 
   if (start != null && end != null) {
     baseQuery.where(
-      (t) => t.occurredAt.isBiggerOrEqualValue(start!) & t.occurredAt.isSmallerThanValue(end!),
+      (t) => t.occurredAt.isBiggerOrEqualValue(start!) &
+          t.occurredAt.isSmallerThanValue(end!),
     );
   }
 
-  final txStream = baseQuery.watch();
+  final transactionStream = baseQuery.watch();
   final categoryStream = (database.select(database.categories)
         ..where((c) => c.isActive.equals(true)))
       .watch();
 
-  return txStream.combineLatest(categoryStream, (rows, categories) {
-    final categoryNames = {for (final category in categories) category.localId: category.name};
+  return transactionStream.combineLatest(categoryStream, (rows, categories) {
+    final categoryNames = {
+      for (final category in categories) category.localId: category.name,
+    };
 
     final totalIncome = rows
-        .where((tx) => tx.type == 'income')
-        .fold<int>(0, (sum, tx) => sum + tx.amount);
+        .where((transaction) => transaction.type == 'income')
+        .fold<int>(0, (sum, transaction) => sum + transaction.amount);
     final totalExpense = rows
-        .where((tx) => tx.type == 'expense')
-        .fold<int>(0, (sum, tx) => sum + tx.amount);
+        .where((transaction) => transaction.type == 'expense')
+        .fold<int>(0, (sum, transaction) => sum + transaction.amount);
 
     final expenseByCategory = <String, int>{};
-    for (final tx in rows.where((tx) => tx.type == 'expense')) {
-      final key = tx.categoryId == null ? '미분류' : (categoryNames[tx.categoryId] ?? '미분류');
-      expenseByCategory[key] = (expenseByCategory[key] ?? 0) + tx.amount;
+    for (final transaction in rows.where((tx) => tx.type == 'expense')) {
+      final key = transaction.categoryId == null
+          ? '미분류'
+          : (categoryNames[transaction.categoryId] ?? '미분류');
+      expenseByCategory[key] =
+          (expenseByCategory[key] ?? 0) + transaction.amount;
     }
 
     final categoriesList = expenseByCategory.entries

@@ -11,14 +11,15 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
-import '../../../shared\widgets/app_hero_panel.dart';
-import '../../../shared\widgets/app_scaffold.dart';
-import '../../../shared\widgets/app_section_intro.dart';
-import '../../../shared\widgets/app_status_chip.dart';
-import '../../../shared\widgets/app_utility_group.dart';
+import '../../../shared/widgets/app_hero_panel.dart';
+import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/app_section_intro.dart';
+import '../../../shared/widgets/app_status_chip.dart';
+import '../../../shared/widgets/app_utility_group.dart';
 import '../application/backup_service.dart';
 import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
+import 'csv_export_options_dialog.dart';
 import 'lock_setup_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -30,15 +31,15 @@ class SettingsScreen extends ConsumerWidget {
     final sessionUnlocked = ref.watch(sessionUnlockedProvider);
 
     return AppScaffold(
-      title: '전체',
+      title: '설정',
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           const _SettingsHeroCard(),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
-            title: '빠른 이동',
-            subtitle: '자주 여는 화면은 여기에서 바로 연결합니다.',
+            title: '일상 이동',
+            subtitle: '자주 쓰는 화면으로 조용하게 이동합니다.',
           ),
           const SizedBox(height: AppSpacing.sm),
           AppUtilityGroup(
@@ -47,36 +48,36 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.search_rounded,
                 color: AppColors.primary,
                 title: '거래 검색',
-                subtitle: '필요한 기록만 빠르게 찾습니다.',
+                subtitle: '필요한 기록을 빠르게 찾습니다.',
                 onTap: () => context.go('/search'),
               ),
               _SettingsActionTile(
                 icon: Icons.account_balance_wallet_outlined,
                 color: AppColors.primary,
                 title: '계좌 관리',
-                subtitle: '현금, 통장, 카드 흐름을 관리합니다.',
+                subtitle: '현금, 통장, 카드의 흐름을 정리합니다.',
                 onTap: () => context.go('/accounts'),
               ),
               _SettingsActionTile(
                 icon: Icons.savings_outlined,
                 color: AppColors.primary,
                 title: '예산 관리',
-                subtitle: '이번 달 압박과 여유를 더 또렷하게 봅니다.',
+                subtitle: '이번 달 계획을 차분하게 점검합니다.',
                 onTap: () => context.go('/budgets'),
               ),
               _SettingsActionTile(
                 icon: Icons.document_scanner_outlined,
                 color: AppColors.primary,
                 title: '영수증 스캔',
-                subtitle: '모바일에서 영수증 내용을 바로 불러옵니다.',
+                subtitle: '영수증 내용을 바로 불러옵니다.',
                 onTap: () => context.go('/ocr-capture'),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
-            title: '데이터 관리',
-            subtitle: '내 기록을 안전하게 보관하고, 필요한 형식으로 내보냅니다.',
+            title: '데이터 안전',
+            subtitle: '내보내기는 가볍게, 복원은 가장 신중하게 다룹니다.',
           ),
           const SizedBox(height: AppSpacing.sm),
           AppUtilityGroup(
@@ -85,15 +86,8 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.file_upload_outlined,
                 color: AppColors.primary,
                 title: 'JSON 백업 만들기',
-                subtitle: '앱 데이터를 통째로 저장합니다.',
+                subtitle: '현재 데이터를 안전한 파일로 저장합니다.',
                 onTap: () => _exportBackup(context, ref),
-              ),
-              _SettingsActionTile(
-                icon: Icons.file_download_outlined,
-                color: AppColors.primary,
-                title: '백업 복원',
-                subtitle: '저장된 백업으로 현재 데이터를 바꿉니다.',
-                onTap: () => _restoreBackup(context, ref),
               ),
               _SettingsActionTile(
                 icon: Icons.table_view_outlined,
@@ -104,10 +98,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
+          _RestoreActionCard(
+            onTap: () => _restoreBackup(context, ref),
+          ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '보안',
-            subtitle: '잠금과 세션 상태를 여기서 관리합니다.',
+            subtitle: '앱 잠금과 PIN 상태를 한 번에 관리합니다.',
           ),
           const SizedBox(height: AppSpacing.sm),
           appSettingsAsync.when(
@@ -137,14 +135,14 @@ class SettingsScreen extends ConsumerWidget {
             error: (error, stackTrace) => Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text('잠금 설정을 불러오지 못했습니다.\n$error'),
+                child: Text('보안 설정을 불러오지 못했습니다.\n$error'),
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
-            title: '화면 설정',
-            subtitle: '앱의 톤을 기기 환경에 맞춰 조정합니다.',
+            title: '화면',
+            subtitle: '앱의 분위기를 현재 환경에 맞게 조정합니다.',
           ),
           const SizedBox(height: AppSpacing.sm),
           appSettingsAsync.when(
@@ -152,7 +150,8 @@ class SettingsScreen extends ConsumerWidget {
               children: [
                 _ThemeModeTile(
                   currentMode: settings.themeMode,
-                  onChanged: (mode) => _updateThemeMode(context, ref, settings, mode),
+                  onChanged: (mode) =>
+                      _updateThemeMode(context, ref, settings, mode),
                 ),
               ],
             ),
@@ -162,7 +161,7 @@ class SettingsScreen extends ConsumerWidget {
                 child: LinearProgressIndicator(),
               ),
             ),
-            error: (e, _) => const SizedBox.shrink(),
+            error: (error, stackTrace) => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -210,7 +209,7 @@ class SettingsScreen extends ConsumerWidget {
   void _lockNow(BuildContext context, WidgetRef ref) {
     ref.read(sessionUnlockedProvider.notifier).state = false;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('현재 세션이 잠겼습니다.')),
+      const SnackBar(content: Text('현재 세션을 잠갔습니다.')),
     );
   }
 
@@ -223,7 +222,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('앱 잠금을 끌까요?'),
+          title: const Text('앱 잠금 해제'),
           content: const Text(
             'PIN 잠금을 끄면 다음부터는 추가 인증 없이 앱이 바로 열립니다.',
           ),
@@ -234,7 +233,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('끄기'),
+              child: const Text('해제'),
             ),
           ],
         );
@@ -282,12 +281,12 @@ class SettingsScreen extends ConsumerWidget {
           child: Text(
             '파일 이름: ${payload.fileName}\n'
             '저장 위치: ${file.path}\n\n'
-            '포함된 항목\n'
-            '- 거래 ${payload.summary.transactionCount}건\n'
+            '포함 항목\n'
+            '- 거래 ${payload.summary.transactionCount}개\n'
             '- 카테고리 ${payload.summary.categoryCount}개\n'
             '- 예산 ${payload.summary.budgetCount}개\n'
             '- 계좌 ${payload.summary.accountCount}개\n\n'
-            '이 파일은 공유 시트를 통해 구글 드라이브, 카카오톡, 메일 등으로 바로 보낼 수 있습니다.',
+            '이 파일은 공유 시트를 통해 드라이브, 메일, 메신저로 보낼 수 있습니다.',
           ),
         ),
         actions: [
@@ -295,7 +294,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     file,
-                    text: '공유 시트에서 구글 드라이브를 선택해 백업 파일을 저장해 보세요.',
+                    text: '공유용으로 만든 Smart Wallet 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -343,7 +342,11 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      final shouldRestore = await _confirmRestore(context, preview, fileInfo.path);
+      final shouldRestore = await _confirmRestore(
+        context,
+        preview,
+        fileInfo.path,
+      );
       if (shouldRestore != true) {
         return;
       }
@@ -401,19 +404,18 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('백업을 복원할까요?'),
+          title: const Text('백업에서 복원할까요?'),
           content: SingleChildScrollView(
             child: Text(
-              '복원을 시작하면 현재 데이터가 선택한 백업 내용으로 바뀝니다.\n'
-              '그 전에 현재 상태를 안전 백업으로 한 번 더 저장합니다.\n'
-              '안전 백업을 만들지 못하면 복원은 시작하지 않습니다.\n\n'
+              '복원을 시작하면 현재 데이터가 선택한 백업 내용으로 교체됩니다.\n'
+              '문제가 생기면 복원 직전에 만든 안전 백업으로 되돌릴 수 있습니다.\n\n'
               '파일: $filePath\n'
               '백업 버전: ${preview.backupVersion}\n'
               '스키마 버전: ${preview.schemaVersion}\n'
               '앱 버전: ${preview.appVersion}\n'
               '생성 시각: ${preview.createdAt.toLocal()}\n\n'
-              '포함된 항목\n'
-              '- 거래 ${preview.summary.transactionCount}건\n'
+              '포함 항목\n'
+              '- 거래 ${preview.summary.transactionCount}개\n'
               '- 카테고리 ${preview.summary.categoryCount}개\n'
               '- 예산 ${preview.summary.budgetCount}개\n'
               '- 계좌 ${preview.summary.accountCount}개',
@@ -438,10 +440,10 @@ class SettingsScreen extends ConsumerWidget {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('복원이 중단되었습니다'),
+        title: const Text('복원을 멈췄습니다'),
         content: Text(
-          '안전 백업을 만들지 못해 복원을 시작하지 않았습니다.\n\n'
-          '현재 데이터는 그대로 유지되었습니다.\n'
+          '안전 백업을 만들지 못해서 복원을 시작하지 않았습니다.\n\n'
+          '데이터는 변경되지 않았습니다.\n'
           '오류: $error',
         ),
         actions: [
@@ -466,11 +468,11 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('복원이 완료되었습니다'),
         content: SingleChildScrollView(
           child: Text(
-            '복원 전에 현재 상태를 안전 백업으로 저장했습니다.\n\n'
+            '현재 데이터가 백업 내용으로 교체되었습니다.\n\n'
             '안전 백업 위치: ${safetyBackup.file.path}\n'
             '안전 백업 파일명: ${safetyBackup.payload.fileName}\n\n'
             '복원된 항목\n'
-            '- 거래 ${summary.transactionCount}건\n'
+            '- 거래 ${summary.transactionCount}개\n'
             '- 카테고리 ${summary.categoryCount}개\n'
             '- 예산 ${summary.budgetCount}개\n'
             '- 계좌 ${summary.accountCount}개\n\n'
@@ -482,7 +484,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: 'Smart Wallet 복원 전에 자동으로 만든 안전 백업 파일입니다.',
+                    text: '복원 직전에 만든 Smart Wallet 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -511,7 +513,7 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('복원에 실패했습니다'),
         content: SingleChildScrollView(
           child: Text(
-            '복원은 끝나지 않았지만, 시작 전에 만든 안전 백업 파일은 남아 있습니다.\n\n'
+            '복원은 끝나지 않았지만, 시작 직전에 만든 안전 백업은 남아 있습니다.\n\n'
             '안전 백업 위치: ${safetyBackup.file.path}\n'
             '안전 백업 파일명: ${safetyBackup.payload.fileName}\n\n'
             '오류: $error',
@@ -522,7 +524,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: 'Smart Wallet 복원 실패 전에 자동으로 만든 안전 백업 파일입니다.',
+                    text: 'Smart Wallet 복원 실패 시 보관한 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -540,13 +542,22 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
-    final payload =
-        await ref.read(transactionExportServiceProvider).exportTransactionsCsv();
-    final file = await ref.read(transactionExportServiceProvider).saveCsvFile(payload);
+    final options = await CsvExportOptionsDialog.show(context);
+    if (options == null) {
+      return;
+    }
+
+    final exportService = ref.read(transactionExportServiceProvider);
+    final payload = await exportService.exportTransactionsCsv(options: options);
+    final file = await exportService.saveCsvFile(payload);
 
     if (!context.mounted) {
       return;
     }
+
+    final filterLine = payload.filterDescription == null
+        ? ''
+        : '내보내기 범위: ${payload.filterDescription}\n';
 
     await showDialog<void>(
       context: context,
@@ -556,9 +567,10 @@ class SettingsScreen extends ConsumerWidget {
           child: Text(
             '파일 이름: ${payload.fileName}\n'
             '저장 위치: ${file.path}\n\n'
-            '내보낸 거래 수: ${payload.rowCount}건\n'
+            '$filterLine'
+            '내보낸 거래 수: ${payload.rowCount}개\n'
             '거래 내역을 CSV 파일로 저장했습니다.\n\n'
-            '이 파일은 공유 시트를 통해 구글 드라이브, 카카오톡, 메일 등으로 바로 보낼 수 있습니다.',
+            '이 파일은 공유 시트를 통해 드라이브, 메일, 메신저로 보낼 수 있습니다.',
           ),
         ),
         actions: [
@@ -566,7 +578,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(transactionExportServiceProvider).shareCsvFile(
                     file,
-                    text: '공유 시트에서 구글 드라이브를 선택해 CSV 파일을 저장해 보세요.',
+                    text: '공유용으로 만든 Smart Wallet CSV 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -603,8 +615,8 @@ class _SettingsHeroCard extends StatelessWidget {
         label: 'UTILITY HUB',
         dotColor: AppColors.primary,
       ),
-      title: '설정과 백업은 조용하지만 확실해야 해요',
-      body: '자주 쓰는 이동, 데이터 보관, 보안, 화면 모드를 한 곳에서 차분하게 관리합니다.',
+      title: '조용한 지원 허브',
+      body: '일상 이동, 데이터 안전, 보안, 화면 모드를 한곳에서 차분하게 관리합니다.',
     );
   }
 }
@@ -637,19 +649,19 @@ class _AppLockCard extends StatelessWidget {
               value: enabled,
               onChanged: onToggle,
               secondary: const Icon(Icons.lock_outline),
-              title: const Text('PIN 잠금'),
+              title: const Text('앱 잠금'),
               subtitle: Text(
                 enabled
-                    ? '앱을 다시 열 때 4자리 PIN 입력이 필요합니다.'
-                    : '이 기기에만 저장되는 로컬 PIN으로 앱을 보호합니다.',
+                    ? '앱을 다시 열 때 4자리 PIN을 요청합니다.'
+                    : '기기에서만 잠금을 사용하지 않는 상태입니다.',
               ),
             ),
             Text(
               enabled
                   ? sessionUnlocked
-                      ? '현재 상태: 이번 세션은 잠금 해제됨'
-                      : '현재 상태: 잠금됨, 다음 화면에서 PIN 필요'
-                  : 'PIN 정보는 기기 안에만 저장됩니다. 아직 생체 인증은 지원하지 않습니다.',
+                      ? '현재 세션은 잠금이 해제된 상태입니다.'
+                      : '현재 세션은 잠겨 있습니다. 다음 화면 전환부터 PIN이 필요합니다.'
+                  : '앱 잠금을 다시 켜면 민감한 화면을 한 겹 더 보호할 수 있습니다.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (enabled) ...[
@@ -674,10 +686,97 @@ class _AppLockCard extends StatelessWidget {
             ] else ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '설정을 켜도 현재 세션은 바로 잠기지 않고, 앱을 다시 열 때부터 적용됩니다.',
+                '잠금을 켜도 현재 세션은 바로 닫히지 않습니다. 설정한 뒤에는 다음 사용부터 적용됩니다.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RestoreActionCard extends StatelessWidget {
+  const _RestoreActionCard({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = AppColors.expense;
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  child: const Icon(Icons.restore_rounded, color: color),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '백업에서 복원',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '선택한 JSON 백업으로 현재 데이터를 교체합니다.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                const AppStatusChip(
+                  label: '신중',
+                  dotColor: AppColors.warning,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '복원 전에 자동으로 안전 백업을 한 번 더 남기므로, 실수했을 때 되돌릴 여지를 확보합니다.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.md,
+                    horizontal: AppSpacing.md,
+                  ),
+                ),
+                onPressed: onTap,
+                icon: const Icon(Icons.file_download_outlined),
+                label: const Text('복원 시작'),
+              ),
+            ),
           ],
         ),
       ),
@@ -784,11 +883,11 @@ class _ThemeModeTile extends StatelessWidget {
   String _modeLabel(String mode) {
     switch (mode) {
       case 'light':
-        return '항상 밝은 화면으로 표시합니다.';
+        return '밝은 화면으로 표시합니다.';
       case 'dark':
-        return '항상 어두운 화면으로 표시합니다.';
+        return '어두운 화면으로 표시합니다.';
       default:
-        return '기기 설정에 따라 자동으로 전환합니다.';
+        return '기기 설정에 따라 자동으로 맞춥니다.';
     }
   }
 }

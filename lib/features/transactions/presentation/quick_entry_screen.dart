@@ -6,8 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/app_status_chip.dart';
 import '../application/quick_entry_category_actions_provider.dart';
 import '../application/quick_entry_form_provider.dart';
 import '../application/quick_entry_options_provider.dart';
@@ -64,7 +67,6 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           if (form.fromAccountId == null) {
             notifier.setFromAccount(accounts.first.id);
           }
-
           if (accounts.length > 1 && form.toAccountId == null) {
             notifier.setToAccount(accounts[1].id);
           }
@@ -90,57 +92,54 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final accountOptions = accountsAsync.asData?.value ?? const <QuickEntryAccountOption>[];
     final categoryOptions =
         categoriesAsync.asData?.value ?? const <QuickEntryCategoryOption>[];
+    final selectedAccountName = _selectedAccountName(accountOptions, form.accountId);
     final selectedSourceName = _selectedAccountName(accountOptions, form.fromAccountId);
     final selectedDestinationName = _selectedAccountName(accountOptions, form.toAccountId);
-
-    final validationMessages = <String>[
-      if (form.amount.trim().isEmpty) '금액을 입력해 주세요.',
-      if (form.needsTransferSource) '보내는 계좌를 선택해 주세요.',
-      if (form.needsTransferDestination) '받는 계좌를 선택해 주세요.',
-      if (form.hasTransferAccountConflict)
-        '보내는 계좌와 받는 계좌는 서로 달라야 합니다.',
-      if (form.needsCategory) '카테고리를 선택해 주세요.',
-    ];
+    final selectedCategoryName = _selectedCategoryName(categoryOptions, form.categoryId);
+    final validationMessages = _validationMessages(form);
 
     return AppScaffold(
       title: isEditing ? '거래 수정' : '빠른 입력',
       hideGlobalQuickPanel: true,
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
-          if (!isEditing) ...[
-            Text(
-              '금액과 기본 정보만 빠르게 입력한 뒤 바로 저장할 수 있어요.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
-                  ),
+          AppHeroPanel(
+            eyebrow: AppStatusChip(
+              label: isEditing ? 'EDIT ENTRY' : 'EXPANDED ENTRY',
+              dotColor: isEditing ? AppColors.primary : _chipColorFor(form.type),
             ),
-            const SizedBox(height: AppSpacing.md),
-          ],
+            title: _heroTitleFor(form.type, isEditing),
+            body: _heroBodyFor(form.type, isEditing),
+            footer: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                AppStatusChip(
+                  label: _labelForType(form.type),
+                  dotColor: _chipColorFor(form.type),
+                ),
+                AppStatusChip(
+                  label: _heroDateLabel(occurredAt),
+                  foregroundColor: Colors.white.withValues(alpha: 0.88),
+                  backgroundColor: Colors.white.withValues(alpha: 0.06),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           if (isEditing) ...[
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.edit_outlined),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Expanded(
-                    child: Text('기존 거래를 수정 중입니다. 저장하면 현재 거래가 바로 업데이트됩니다.'),
-                  ),
-                  TextButton(
-                    onPressed:
-                        isSubmitting ? null : () => ref.read(quickEntryFormProvider.notifier).reset(),
-                    child: const Text('취소'),
-                  ),
-                ],
-              ),
+            _EditingBanner(
+              isSubmitting: isSubmitting,
+              onReset: () => ref.read(quickEntryFormProvider.notifier).reset(),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
+          const _CompactSectionHeader(
+            title: '기록 방식',
+            subtitle: '지금 흐름에 맞는 종류만 먼저 고르면 아래 입력이 자연스럽게 따라옵니다.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
           SegmentedButton<TransactionEntryType>(
             segments: const [
               ButtonSegment(
@@ -161,216 +160,183 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
               ref.read(quickEntryFormProvider.notifier).setType(selection.first);
             },
           ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  '금액',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: _amountController,
-                  onChanged: ref.read(quickEntryFormProvider.notifier).setAmount,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        letterSpacing: -1,
-                      ),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    fillColor: Colors.transparent,
-                    hintText: '0',
-                    hintStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
-                      letterSpacing: -1,
-                    ),
-                    prefixText: '₩ ',
-                    prefixStyle: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                ),
-                Container(
-                  height: 2,
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        AppColors.primary,
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: AppSpacing.lg),
+          _AmountPanel(
+            controller: _amountController,
+            memoController: _memoController,
+            form: form,
+            occurredAt: occurredAt,
+            selectedAccountName: selectedAccountName,
+            selectedSourceName: selectedSourceName,
+            selectedDestinationName: selectedDestinationName,
+            selectedCategoryName: selectedCategoryName,
+            onAmountChanged: ref.read(quickEntryFormProvider.notifier).setAmount,
+            onMemoChanged: ref.read(quickEntryFormProvider.notifier).setMemo,
           ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _memoController,
-            onChanged: ref.read(quickEntryFormProvider.notifier).setMemo,
-            decoration: const InputDecoration(labelText: '메모'),
+          const SizedBox(height: AppSpacing.lg),
+          const _CompactSectionHeader(
+            title: '기록을 마무리할 정보',
+            subtitle: '핵심 입력은 이미 끝났고, 이제 어디에서 생긴 흐름인지 붙여주면 다시 찾기 쉬워집니다.',
           ),
-          const SizedBox(height: AppSpacing.md),
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: isSubmitting ? null : () => _pickOccurredAt(context, ref, occurredAt),
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: '날짜와 시간',
-                suffixIcon: Icon(Icons.schedule_outlined),
-              ),
-              child: Text(_formatOccurredAt(occurredAt)),
-            ),
-          ),
-          if (form.type == TransactionEntryType.transfer) ...[
-            const SizedBox(height: AppSpacing.md),
-            if (accountsAsync.asData != null && accountOptions.length < 2)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _InlineWarningCard(
-                  icon: Icons.account_balance_outlined,
-                  title: '이체하려면 계좌가 두 개 이상 필요합니다',
-                  message:
-                      '계좌 사이로 돈을 옮기려면 먼저 다른 계좌를 하나 더 만들어 주세요.',
-                  actionLabel: '자산 관리 열기',
-                  onPressed: () => context.push('/accounts'),
-                ),
-              ),
-            accountsAsync.when(
-              data: (accounts) => Column(
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
                 children: [
-                  _AccountPickerField(
-                    label: '보내는 계좌',
-                    value: selectedSourceName ?? '계좌를 선택해 주세요',
-                    onTap: () => _openAccountPicker(
-                      context,
-                      ref,
-                      accounts,
-                      form.fromAccountId,
-                      isSource: true,
-                    ),
+                  _PickerField(
+                    label: '날짜와 시간',
+                    value: _formatOccurredAt(occurredAt),
+                    icon: Icons.schedule_outlined,
+                    onTap: isSubmitting
+                        ? null
+                        : () => _pickOccurredAt(context, ref, occurredAt),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  _AccountPickerField(
-                    label: '받는 계좌',
-                    value: selectedDestinationName ?? '계좌를 선택해 주세요',
-                    onTap: () => _openAccountPicker(
-                      context,
-                      ref,
-                      accounts,
-                      form.toAccountId,
-                      isSource: false,
-                    ),
-                  ),
-                ],
-              ),
-              loading: () => const LinearProgressIndicator(),
-              error: (error, stackTrace) => Text('계좌를 불러오지 못했습니다: $error'),
-            ),
-          ] else ...[
-            const SizedBox(height: AppSpacing.md),
-            if (categoriesAsync.asData != null && categoryOptions.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _InlineWarningCard(
-                  icon: Icons.category_outlined,
-                  title: '카테고리가 아직 없습니다',
-                  message:
-                      '${form.type == TransactionEntryType.income ? '수입' : '지출'} 카테고리를 먼저 하나 만들어 주세요.',
-                  actionLabel: '카테고리 만들기',
-                  onPressed: () => _createCategoryFromEmptyState(context, ref, form),
-                ),
-              ),
-            categoriesAsync.when(
-              data: (categories) {
-                if (categories.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-
-                QuickEntryCategoryOption? selectedCategory;
-                for (final item in categories) {
-                  if (item.id == form.categoryId) {
-                    selectedCategory = item;
-                    break;
-                  }
-                }
-
-                return InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _openCategoryPicker(context, ref, categories, form),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: '카테고리',
-                      suffixIcon: Icon(Icons.expand_more),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(selectedCategory?.name ?? '카테고리를 선택해 주세요'),
-                        const SizedBox(height: 4),
-                        Text(
-                          '길게 누르면 이름 변경이나 삭제를 할 수 있습니다.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (error, stackTrace) => Text('카테고리를 불러오지 못했습니다: $error'),
-            ),
-          ],
-          if (validationMessages.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.expense.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.expense.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.expense),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        validationMessages.join(' '),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.expense,
+                  if (form.type == TransactionEntryType.transfer) ...[
+                    if (accountsAsync.asData != null && accountOptions.length < 2)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _InlineWarningCard(
+                          icon: Icons.account_balance_outlined,
+                          title: '이체를 기록하려면 계좌가 두 개 이상 있어야 해요.',
+                          message:
+                              '보내는 곳과 받는 곳이 나뉘어야 흐름이 또렷해져요. 자주 쓰는 계좌를 하나 더 만들어두면 바로 이어서 기록할 수 있어요.',
+                          actionLabel: '계좌 관리 열기',
+                          onPressed: () => context.push('/accounts'),
                         ),
                       ),
+                    accountsAsync.when(
+                      data: (accounts) => Column(
+                        children: [
+                          _PickerField(
+                            label: '보내는 계좌',
+                            value: selectedSourceName ?? '계좌를 선택해 주세요',
+                            icon: Icons.call_made_rounded,
+                            onTap: () => _openTransferAccountPicker(
+                              context,
+                              ref,
+                              accounts,
+                              form.fromAccountId,
+                              isSource: true,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _PickerField(
+                            label: '받는 계좌',
+                            value: selectedDestinationName ?? '계좌를 선택해 주세요',
+                            icon: Icons.call_received_rounded,
+                            onTap: () => _openTransferAccountPicker(
+                              context,
+                              ref,
+                              accounts,
+                              form.toAccountId,
+                              isSource: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                      loading: () => const LinearProgressIndicator(),
+                      error: (error, stackTrace) =>
+                          _InlineErrorText(message: '계좌를 불러오지 못했어요. $error'),
+                    ),
+                  ] else ...[
+                    if (accountsAsync.asData != null && accountOptions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _InlineWarningCard(
+                          icon: Icons.account_balance_wallet_outlined,
+                          title: '먼저 연결할 계좌가 필요해요.',
+                          message:
+                              '현금, 카드, 통장 중에서 자주 쓰는 흐름 하나만 먼저 만들어도 기록은 바로 이어갈 수 있어요.',
+                          actionLabel: '계좌 관리 열기',
+                          onPressed: () => context.push('/accounts'),
+                        ),
+                      ),
+                    accountsAsync.when(
+                      data: (accounts) {
+                        if (accounts.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return _PickerField(
+                          label: '기록할 계좌',
+                          value: selectedAccountName ?? '계좌를 선택해 주세요',
+                          icon: Icons.account_balance_wallet_outlined,
+                          onTap: () => _openSingleAccountPicker(
+                            context,
+                            ref,
+                            accounts,
+                            form.accountId,
+                          ),
+                        );
+                      },
+                      loading: () => const LinearProgressIndicator(),
+                      error: (error, stackTrace) =>
+                          _InlineErrorText(message: '계좌를 불러오지 못했어요. $error'),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (categoriesAsync.asData != null && categoryOptions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _InlineWarningCard(
+                          icon: Icons.category_outlined,
+                          title: '이 흐름을 담을 카테고리가 아직 없어요.',
+                          message:
+                              '${form.type == TransactionEntryType.income ? '수입' : '지출'} 카테고리를 하나만 만들어두면 같은 기록이 다음부터 훨씬 빨라집니다.',
+                          actionLabel: '카테고리 만들기',
+                          onPressed: () => _createCategoryFromEmptyState(
+                            context,
+                            ref,
+                            form,
+                          ),
+                        ),
+                      ),
+                    categoriesAsync.when(
+                      data: (categories) {
+                        if (categories.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return _PickerField(
+                          label: '카테고리',
+                          value: selectedCategoryName ?? '카테고리를 선택해 주세요',
+                          icon: Icons.category_outlined,
+                          helper:
+                              '길게 누르면 이름을 고치거나 지울 수 있고, 아래 목록에서 바로 새 카테고리도 만들 수 있어요.',
+                          onTap: () => _openCategoryPicker(
+                            context,
+                            ref,
+                            categories,
+                            form,
+                          ),
+                        );
+                      },
+                      loading: () => const LinearProgressIndicator(),
+                      error: (error, stackTrace) =>
+                          _InlineErrorText(message: '카테고리를 불러오지 못했어요. $error'),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _EntryReadinessCard(
+            form: form,
+            occurredAt: occurredAt,
+            selectedAccountName: selectedAccountName,
+            selectedSourceName: selectedSourceName,
+            selectedDestinationName: selectedDestinationName,
+            selectedCategoryName: selectedCategoryName,
+            validationMessages: validationMessages,
+          ),
+          if (validationMessages.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _ValidationCard(messages: validationMessages),
+          ],
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             height: 56,
@@ -399,11 +365,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(isEditing ? Icons.check_rounded : Icons.save_rounded, size: 20),
+                        Icon(
+                          isEditing ? Icons.check_rounded : Icons.save_rounded,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           isEditing ? '거래 수정하기' : '거래 저장하기',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -412,6 +384,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         ],
       ),
     );
+  }
+
+  List<String> _validationMessages(QuickEntryFormState form) {
+    return <String>[
+      if (form.amount.trim().isEmpty) '금액을 먼저 적어 주세요.',
+      if (form.type != TransactionEntryType.transfer && form.needsAccount)
+        '어느 계좌의 흐름인지 선택해 주세요.',
+      if (form.needsTransferSource) '보내는 계좌를 골라 주세요.',
+      if (form.needsTransferDestination) '받는 계좌를 골라 주세요.',
+      if (form.hasTransferAccountConflict) '보내는 계좌와 받는 계좌는 서로 달라야 해요.',
+    ];
   }
 
   void _syncController(TextEditingController controller, String value) {
@@ -525,6 +508,39 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     ref.read(quickEntryFormProvider.notifier).setCategory(selected);
   }
 
+  Future<void> _openSingleAccountPicker(
+    BuildContext context,
+    WidgetRef ref,
+    List<QuickEntryAccountOption> accounts,
+    String? selectedId,
+  ) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        final navigator = Navigator.of(context);
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final account in accounts)
+                ListTile(
+                  title: Text(account.name),
+                  selected: account.id == selectedId,
+                  onTap: () => navigator.pop(account.id),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!context.mounted || selected == null) {
+      return;
+    }
+
+    ref.read(quickEntryFormProvider.notifier).setAccount(selected);
+  }
+
   String? _selectedAccountName(
     List<QuickEntryAccountOption> accounts,
     String? selectedId,
@@ -538,7 +554,20 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     return null;
   }
 
-  Future<void> _openAccountPicker(
+  String? _selectedCategoryName(
+    List<QuickEntryCategoryOption> categories,
+    String? selectedId,
+  ) {
+    for (final category in categories) {
+      if (category.id == selectedId) {
+        return category.name;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _openTransferAccountPicker(
     BuildContext context,
     WidgetRef ref,
     List<QuickEntryAccountOption> accounts,
@@ -778,6 +807,55 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     }
   }
 
+  String _heroTitleFor(TransactionEntryType type, bool isEditing) {
+    if (isEditing) {
+      return '${_labelForType(type)} 기록을 차분하게 다듬고 있어요';
+    }
+
+    switch (type) {
+      case TransactionEntryType.expense:
+        return '지출 흐름을 조금 더 또렷하게 남겨둘게요';
+      case TransactionEntryType.income:
+        return '들어온 흐름을 놓치지 않게 바로 적어둘게요';
+      case TransactionEntryType.transfer:
+        return '계좌 사이의 움직임을 한 번에 정리할 수 있어요';
+    }
+  }
+
+  String _heroBodyFor(TransactionEntryType type, bool isEditing) {
+    if (isEditing) {
+      return '금액은 그대로 중심에 두고, 메모와 계좌만 다시 맞춰도 기록은 곧바로 반영됩니다.';
+    }
+
+    switch (type) {
+      case TransactionEntryType.expense:
+        return '급하게 적은 전역 입력을 여기서 한 번만 다듬으면, 나중에 다시 찾을 때 훨씬 덜 헷갈립니다.';
+      case TransactionEntryType.income:
+        return '수입 기록은 타이밍이 중요해요. 금액부터 붙잡고, 필요한 정보만 짧게 이어서 채우면 충분합니다.';
+      case TransactionEntryType.transfer:
+        return '보내는 곳과 받는 곳만 명확하면 이체 기록은 빠르게 끝낼 수 있어요. 흐름이 끊기지 않게 핵심만 남겨둘게요.';
+    }
+  }
+
+  Color _chipColorFor(TransactionEntryType type) {
+    switch (type) {
+      case TransactionEntryType.expense:
+        return AppColors.expense;
+      case TransactionEntryType.income:
+        return AppColors.income;
+      case TransactionEntryType.transfer:
+        return AppColors.primary;
+    }
+  }
+
+  String _heroDateLabel(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$month.$day $hour:$minute';
+  }
+
   String _categoryTypeFor(TransactionEntryType type) {
     switch (type) {
       case TransactionEntryType.expense:
@@ -814,8 +892,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           SnackBar(
             content: Text(
               form.editingId != null
-                  ? '${_labelForType(form.type)} 거래를 수정했습니다.'
-                  : '${_labelForType(form.type)} 거래를 저장했습니다.',
+                  ? '${_labelForType(form.type)} 거래를 수정했어요.'
+                  : '${_labelForType(form.type)} 거래를 저장했어요.',
             ),
           ),
         );
@@ -825,14 +903,19 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         }
       }
     } catch (error, stackTrace) {
-      developer.log('quick_entry_submit_failed error=$error', name: 'quick_entry', error: error, stackTrace: stackTrace);
+      developer.log(
+        'quick_entry_submit_failed error=$error',
+        name: 'quick_entry',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               form.editingId != null
-                  ? '거래를 수정하지 못했습니다.'
-                  : '거래를 저장하지 못했습니다.',
+                  ? '거래를 수정하지 못했어요.'
+                  : '거래를 저장하지 못했어요.',
             ),
           ),
         );
@@ -888,29 +971,510 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 }
 
-class _AccountPickerField extends StatelessWidget {
-  const _AccountPickerField({
+class _EditingBanner extends StatelessWidget {
+  const _EditingBanner({
+    required this.isSubmitting,
+    required this.onReset,
+  });
+
+  final bool isSubmitting;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.edit_outlined),
+          const SizedBox(width: AppSpacing.sm),
+          const Expanded(
+            child: Text(
+              '기존 거래를 다듬는 중이에요. 저장하면 바로 현재 기록으로 반영됩니다.',
+            ),
+          ),
+          TextButton(
+            onPressed: isSubmitting ? null : onReset,
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactSectionHeader extends StatelessWidget {
+  const _CompactSectionHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AmountPanel extends StatelessWidget {
+  const _AmountPanel({
+    required this.controller,
+    required this.memoController,
+    required this.form,
+    required this.occurredAt,
+    required this.selectedAccountName,
+    required this.selectedSourceName,
+    required this.selectedDestinationName,
+    required this.selectedCategoryName,
+    required this.onAmountChanged,
+    required this.onMemoChanged,
+  });
+
+  final TextEditingController controller;
+  final TextEditingController memoController;
+  final QuickEntryFormState form;
+  final DateTime occurredAt;
+  final String? selectedAccountName;
+  final String? selectedSourceName;
+  final String? selectedDestinationName;
+  final String? selectedCategoryName;
+  final ValueChanged<String> onAmountChanged;
+  final ValueChanged<String> onMemoChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              '금액',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.48),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: controller,
+              onChanged: onAmountChanged,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineLarge?.copyWith(
+                    fontSize: 46,
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -1.2,
+                  ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                fillColor: Colors.transparent,
+                hintText: '0',
+                hintStyle: theme.textTheme.headlineLarge?.copyWith(
+                  fontSize: 46,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.14),
+                  letterSpacing: -1.2,
+                ),
+                prefixText: '₩ ',
+                prefixStyle: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.44),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            Container(
+              height: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    AppColors.primary,
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: memoController,
+              onChanged: onMemoChanged,
+              maxLines: 2,
+              minLines: 1,
+              decoration: const InputDecoration(
+                labelText: '메모',
+                hintText: '예: 점심, 병원, 급여, 카드값 정리',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: _summaryChips(
+                  occurredAt: occurredAt,
+                  selectedAccountName: selectedAccountName,
+                  selectedSourceName: selectedSourceName,
+                  selectedDestinationName: selectedDestinationName,
+                  selectedCategoryName: selectedCategoryName,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _summaryChips({
+    required DateTime occurredAt,
+    required String? selectedAccountName,
+    required String? selectedSourceName,
+    required String? selectedDestinationName,
+    required String? selectedCategoryName,
+  }) {
+    final chips = <Widget>[
+      _SoftChip(
+        icon: Icons.schedule_outlined,
+        label:
+            '${occurredAt.month.toString().padLeft(2, '0')}.${occurredAt.day.toString().padLeft(2, '0')} ${occurredAt.hour.toString().padLeft(2, '0')}:${occurredAt.minute.toString().padLeft(2, '0')}',
+      ),
+    ];
+
+    if (form.type == TransactionEntryType.transfer) {
+      if (selectedSourceName != null) {
+        chips.add(
+          _SoftChip(
+            icon: Icons.call_made_rounded,
+            label: selectedSourceName,
+          ),
+        );
+      }
+      if (selectedDestinationName != null) {
+        chips.add(
+          _SoftChip(
+            icon: Icons.call_received_rounded,
+            label: selectedDestinationName,
+          ),
+        );
+      }
+      return chips;
+    }
+
+    if (selectedAccountName != null) {
+      chips.add(
+        _SoftChip(
+          icon: Icons.account_balance_wallet_outlined,
+          label: selectedAccountName,
+        ),
+      );
+    }
+    if (selectedCategoryName != null) {
+      chips.add(
+        _SoftChip(
+          icon: Icons.category_outlined,
+          label: selectedCategoryName,
+        ),
+      );
+    }
+    return chips;
+  }
+}
+
+class _PickerField extends StatelessWidget {
+  const _PickerField({
     required this.label,
     required this.value,
+    required this.icon,
     required this.onTap,
+    this.helper,
   });
 
   final String label;
   final String value;
-  final VoidCallback onTap;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String? helper;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       onTap: onTap,
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
+          prefixIcon: Icon(icon),
           suffixIcon: const Icon(Icons.expand_more),
         ),
-        child: Text(value),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value),
+            if (helper != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                helper!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _SoftChip extends StatelessWidget {
+  const _SoftChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.softHighlight.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EntryReadinessCard extends StatelessWidget {
+  const _EntryReadinessCard({
+    required this.form,
+    required this.occurredAt,
+    required this.selectedAccountName,
+    required this.selectedSourceName,
+    required this.selectedDestinationName,
+    required this.selectedCategoryName,
+    required this.validationMessages,
+  });
+
+  final QuickEntryFormState form;
+  final DateTime occurredAt;
+  final String? selectedAccountName;
+  final String? selectedSourceName;
+  final String? selectedDestinationName;
+  final String? selectedCategoryName;
+  final List<String> validationMessages;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isReady = validationMessages.isEmpty && form.amount.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isReady
+            ? AppColors.income.withValues(alpha: 0.08)
+            : AppColors.softHighlight.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isReady
+              ? AppColors.income.withValues(alpha: 0.18)
+              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isReady ? '지금 저장해도 흐름이 충분히 남아요' : '저장 전에 이것만 가볍게 확인할게요',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            isReady
+                ? '핵심 정보가 이미 붙어 있어서, 지금 저장하면 나중에 다시 찾을 때도 흐름이 바로 이어집니다.'
+                : '지금 입력은 잘 이어지고 있어요. 아래 빠진 항목만 채우면 같은 자리에서 바로 저장할 수 있어요.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _SoftChip(
+                icon: Icons.swap_horiz_rounded,
+                label: _typeLabel(form.type),
+              ),
+              _SoftChip(
+                icon: Icons.schedule_outlined,
+                label:
+                    '${occurredAt.month.toString().padLeft(2, '0')}.${occurredAt.day.toString().padLeft(2, '0')} ${occurredAt.hour.toString().padLeft(2, '0')}:${occurredAt.minute.toString().padLeft(2, '0')}',
+              ),
+              if (form.type == TransactionEntryType.transfer) ...[
+                if (selectedSourceName != null)
+                  _SoftChip(
+                    icon: Icons.call_made_rounded,
+                    label: selectedSourceName!,
+                  ),
+                if (selectedDestinationName != null)
+                  _SoftChip(
+                    icon: Icons.call_received_rounded,
+                    label: selectedDestinationName!,
+                  ),
+              ] else ...[
+                if (selectedAccountName != null)
+                  _SoftChip(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: selectedAccountName!,
+                  ),
+                if (selectedCategoryName != null)
+                  _SoftChip(
+                    icon: Icons.category_outlined,
+                    label: selectedCategoryName!,
+                  ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _typeLabel(TransactionEntryType type) {
+    switch (type) {
+      case TransactionEntryType.expense:
+        return '지출';
+      case TransactionEntryType.income:
+        return '수입';
+      case TransactionEntryType.transfer:
+        return '이체';
+    }
+  }
+}
+
+class _ValidationCard extends StatelessWidget {
+  const _ValidationCard({required this.messages});
+
+  final List<String> messages;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.expense.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: AppColors.expense.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.info_outline_rounded,
+              size: 16,
+              color: AppColors.expense,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              messages.join(' '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.expense,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineErrorText extends StatelessWidget {
+  const _InlineErrorText({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      message,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.expense,
+          ),
     );
   }
 }
@@ -936,7 +1500,7 @@ class _InlineWarningCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -9,11 +9,13 @@ import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
-import '../../../shared\widgets/app_scaffold.dart';
-import '../../../shared\widgets/app_section_intro.dart';
-import '../../../shared\widgets/app_status_chip.dart';
+import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/app_section_intro.dart';
+import '../../../shared/widgets/app_status_chip.dart';
+import '../../../shared/widgets/wealth_hero_backdrop.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/dashboard_summary_provider.dart';
+import '../application/wealth_hero_motion.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -21,118 +23,87 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
+    final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
 
     return AppScaffold(
       title: '홈',
       body: summaryAsync.when(
-        data: (summary) => ListView(
+        data: (summary) {
+          final totalBalance = totalBalanceAsync.valueOrNull ?? 0;
+
+          return ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
             AppSpacing.md,
             AppSpacing.md,
-            260,
+            144,
           ),
           children: [
-            _AnimatedBlock(
-              delay: 0,
-              child: _OverviewHero(summary: summary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _AnimatedBlock(
-              delay: 40,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AppMetricStrip(
-                      label: '이번 달 수입',
-                      value: formatCurrency(summary.monthIncome),
-                    ),
+            _OverviewHero(summary: summary, totalBalance: totalBalance),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: AppMetricStrip(
+                    label: '이번 달 수입',
+                    value: formatCurrency(summary.monthIncome),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: AppMetricStrip(
-                      label: '이번 달 지출',
-                      value: formatCurrency(summary.monthExpense),
-                      emphasize: true,
-                    ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppMetricStrip(
+                    label: '이번 달 지출',
+                    value: formatCurrency(summary.monthExpense),
+                    emphasize: true,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _AnimatedBlock(
-              delay: 80,
-              child: _TodayLoopCard(
-                summary: summary,
-                onQuickEntry: () {
-                  ref.read(quickEntryFormProvider.notifier).reset();
-                  context.push('/quick-entry');
-                },
-                onOpenTimeline: () => context.push('/timeline'),
-              ),
+            const SizedBox(height: AppSpacing.md),
+            _TodayLoopCard(
+              summary: summary,
+              onQuickEntry: () {
+                ref.read(quickEntryFormProvider.notifier).reset();
+                context.push('/quick-entry');
+              },
+              onOpenTimeline: () => context.push('/timeline'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const AppSectionIntro(
+              title: '최근 거래',
+              subtitle: '막 기록한 흐름을 바로 훑어보며 비어 있는 거래가 없는지 확인해보세요.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _RecentTransactionsSection(
+              transactions: summary.recentTransactions,
             ),
             if (summary.repeatSuggestions.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _AnimatedBlock(
-                delay: 120,
-                child: _RepeatSuggestionSection(
-                  suggestions: summary.repeatSuggestions,
-                  onRepeat: (transaction) {
-                    ref.read(quickEntryFormProvider.notifier).loadTemplate(transaction);
-                    context.push('/quick-entry');
-                  },
-                ),
+              const SizedBox(height: AppSpacing.md),
+              _RepeatSuggestionSection(
+                suggestions: summary.repeatSuggestions,
+                onRepeat: (transaction) {
+                  ref.read(quickEntryFormProvider.notifier).loadTemplate(transaction);
+                  context.push('/quick-entry');
+                },
               ),
             ],
-            const SizedBox(height: AppSpacing.lg),
-            _AnimatedBlock(
-              delay: 160,
-              child: AppSectionIntro(
-                title: '예산 흐름',
-                subtitle: summary.totalBudget > 0
-                    ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준'
-                    : '아직 예산이 설정되지 않았어요.',
-              ),
+            const SizedBox(height: AppSpacing.md),
+            AppSectionIntro(
+              title: '예산 흐름',
+              subtitle: summary.totalBudget > 0
+                  ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준으로 흐름을 읽어보세요.'
+                  : '아직 예산을 정하지 않았다면 이번 달 흐름부터 가볍게 확인해보세요.',
             ),
             const SizedBox(height: AppSpacing.sm),
-            _AnimatedBlock(
-              delay: 200,
-              child: _BudgetStatusCard(summary: summary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const _AnimatedBlock(
-              delay: 240,
-              child: AppSectionIntro(
-                title: '최근 거래',
-                subtitle: '가장 최근에 기록한 흐름을 차분하게 훑어보세요.',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _AnimatedBlock(
-              delay: 280,
-              child: summary.recentTransactions.isEmpty
-                  ? const _EmptyRecentTransactions()
-                  : Card(
-                      child: Column(
-                        children: [
-                          for (var index = 0; index < summary.recentTransactions.length; index++) ...[
-                            _RecentTransactionTile(
-                              transaction: summary.recentTransactions[index],
-                            ),
-                            if (index != summary.recentTransactions.length - 1)
-                              const Divider(height: 1),
-                          ],
-                        ],
-                      ),
-                    ),
-            ),
+            _BudgetStatusCard(summary: summary),
           ],
-        ),
+        );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text('홈 요약을 불러오지 못했습니다.\n$error'),
+            child: Text('요약 정보를 불러오지 못했습니다.\n$error'),
           ),
         ),
       ),
@@ -140,8 +111,9 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _OverviewHero extends StatelessWidget {
-  const _OverviewHero({required this.summary});
+// ignore: unused_element
+class _LegacyOverviewHero extends StatelessWidget {
+  const _LegacyOverviewHero({required this.summary});
 
   final DashboardSummary summary;
 
@@ -150,49 +122,216 @@ class _OverviewHero extends StatelessWidget {
     final mood = Theme.of(context).extension<AppMood>()!;
     final netPositive = summary.netCashflow >= 0;
     final headlineText = netPositive
-        ? '이번 달은 숨을 고르며 안정적으로 가고 있어요'
-        : '이번 달은 조금 더 의식적으로 살펴보면 좋아요';
+        ? '이번 달은 지금까지 안정적으로 흘러가고 있어요.'
+        : '이번 달은 조금 빠르게 빠져나간 구간이 있었어요.';
     final helperText = summary.todayTransactionCount > 0
-        ? '오늘 기록 ${summary.todayTransactionCount}건, 지출 ${formatCurrency(summary.todayExpense)}'
-        : '오늘 기록이 아직 없어요. 한 건만 남겨도 하루가 또렷해집니다.';
+        ? '오늘 기록 ${summary.todayTransactionCount}건, 지출 ${formatCurrency(summary.todayExpense)}까지 반영되어 있어요.'
+        : '오늘 기록은 아직 비어 있어요. 한 건만 적어도 흐름이 훨씬 또렷해집니다.';
     final monthLabel =
         '${DateTime.now().year}.${DateTime.now().month.toString().padLeft(2, '0')}';
 
-    return AppHeroPanel(
-      eyebrow: AppStatusChip(
-        label: monthLabel,
-        dotColor: netPositive ? mood.positiveAccent : mood.warningAccent,
-        backgroundColor: Colors.white.withValues(alpha: 0.06),
-        foregroundColor: Colors.white,
-      ),
-      title: formatCurrency(summary.netCashflow),
-      body: '$headlineText\n$helperText',
-      footer: Row(
-        children: [
-          Expanded(
-            child: AppMetricStrip(
-              label: '남은 예산',
-              value: summary.totalBudget > 0
-                  ? formatCurrency(summary.remainingBudget)
-                  : '미설정',
-              caption: summary.totalBudget > 0 ? '지금의 속도를 보여줘요' : '설정 후 흐름을 볼 수 있어요',
-              emphasize: true,
+    return RepaintBoundary(
+      child: AppHeroPanel(
+        eyebrow: AppStatusChip(
+          label: monthLabel,
+          dotColor: netPositive ? mood.positiveAccent : mood.warningAccent,
+          backgroundColor: Colors.white.withValues(alpha: 0.06),
+          foregroundColor: Colors.white,
+        ),
+        title: formatCurrency(summary.netCashflow),
+        body: '$headlineText\n$helperText',
+        footer: Row(
+          children: [
+            Expanded(
+              child: AppMetricStrip(
+                label: '남은 예산',
+                value: summary.totalBudget > 0
+                    ? formatCurrency(summary.remainingBudget)
+                    : '미설정',
+                caption: summary.totalBudget > 0
+                    ? '지금 속도로 보면 얼마나 여유가 있는지 보여줘요'
+                    : '예산을 정하면 흐름이 더 선명하게 보여요',
+                emphasize: true,
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: AppMetricStrip(
-              label: '예산 사용률',
-              value: summary.totalBudget > 0
-                  ? '${(summary.budgetUsageRate * 100).clamp(0, 999).toStringAsFixed(0)}%'
-                  : '-',
-              caption: netPositive ? '지출 압박이 낮은 편이에요' : '조금 더 의식적으로 보면 좋아요',
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: AppMetricStrip(
+                label: '예산 사용률',
+                value: summary.totalBudget > 0
+                    ? '${(summary.budgetUsageRate * 100).clamp(0, 999).toStringAsFixed(0)}%'
+                    : '-',
+                caption: netPositive
+                    ? '지금은 크게 무리 없는 흐름이에요'
+                    : '한 번 더 확인해보면 마음이 놓일 수 있어요',
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _OverviewHero extends StatefulWidget {
+  const _OverviewHero({
+    required this.summary,
+    required this.totalBalance,
+  });
+
+  final DashboardSummary summary;
+  final int totalBalance;
+
+  @override
+  State<_OverviewHero> createState() => _OverviewHeroState();
+}
+
+class _OverviewHeroState extends State<_OverviewHero>
+    with SingleTickerProviderStateMixin {
+  late WealthVisualState _visualState;
+  WealthReaction? _reaction;
+  late final AnimationController _reactionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _visualState = buildWealthVisualState(widget.totalBalance);
+    _reactionController = AnimationController(
+      vsync: this,
+      duration: _durationFor(WealthReactionIntensity.small),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() {
+            _reaction = null;
+          });
+        }
+      });
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverviewHero oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.totalBalance == widget.totalBalance) {
+      return;
+    }
+
+    final reaction = classifyWealthReaction(
+      previousBalance: oldWidget.totalBalance,
+      nextBalance: widget.totalBalance,
+    );
+
+    setState(() {
+      _visualState = buildWealthVisualState(widget.totalBalance);
+      _reaction = reaction;
+    });
+
+    if (reaction != null) {
+      _reactionController.duration = _durationFor(reaction.intensity);
+      _reactionController.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _reactionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.summary;
+    final mood = Theme.of(context).extension<AppMood>()!;
+    final netPositive = summary.netCashflow >= 0;
+    final headlineText = netPositive
+        ? '이번 달 흐름은 비교적 안정적으로 이어지고 있어요.'
+        : '이번 달 흐름이 조금 빠르게 빠져나간 구간이 있었어요.';
+    final helperText = summary.todayTransactionCount > 0
+        ? '오늘 기록 ${summary.todayTransactionCount}건이 반영됐어요. 변화가 생길 때마다 자산 분위기도 같이 움직여요.'
+        : '오늘 기록은 아직 비어 있어요. 한 건만 적어도 지금 자산 분위기가 바로 살아납니다.';
+    final monthLabel =
+        '${DateTime.now().year}.${DateTime.now().month.toString().padLeft(2, '0')}';
+
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _reactionController,
+        builder: (context, child) {
+          return AppHeroPanel(
+            animatedBackdrop: WealthHeroBackdrop(
+              coinDensity: _visualState.coinDensity,
+              billDensity: _visualState.billDensity,
+              vaultIntensity: _visualState.assetIntensity,
+              direction: _reaction?.direction == WealthReactionDirection.decrease
+                  ? WealthBackdropDirection.decrease
+                  : WealthBackdropDirection.increase,
+              reactionIntensity: _mapReactionIntensity(
+                _reaction?.intensity ?? WealthReactionIntensity.tiny,
+              ),
+              progress: _reactionController.value,
+              reducedMotion: MediaQuery.maybeOf(context)?.disableAnimations ?? false,
+            ),
+            eyebrow: AppStatusChip(
+              label: monthLabel,
+              dotColor: netPositive ? mood.positiveAccent : mood.warningAccent,
+              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              foregroundColor: Colors.white,
+            ),
+            title: formatCurrency(summary.netCashflow),
+            body: '$headlineText\n$helperText',
+            footer: Row(
+              children: [
+                Expanded(
+                  child: AppMetricStrip(
+                    label: '남은 예산',
+                    value: summary.totalBudget > 0
+                        ? formatCurrency(summary.remainingBudget)
+                        : '미설정',
+                    caption: '자산 배경은 활성 계좌 잔액 합계를 기준으로 천천히 쌓여요.',
+                    emphasize: true,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: AppMetricStrip(
+                    label: '자산 단계',
+                    value: _stageLabel(_visualState.stage),
+                    caption: '돈이 들어오고 빠질 때마다 양과 빛이 함께 달라져요.',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Duration _durationFor(WealthReactionIntensity intensity) {
+    return switch (intensity) {
+      WealthReactionIntensity.tiny => const Duration(milliseconds: 450),
+      WealthReactionIntensity.small => const Duration(milliseconds: 650),
+      WealthReactionIntensity.medium => const Duration(milliseconds: 900),
+      WealthReactionIntensity.large => const Duration(milliseconds: 1200),
+    };
+  }
+
+  WealthBackdropReactionIntensity _mapReactionIntensity(
+    WealthReactionIntensity intensity,
+  ) {
+    return switch (intensity) {
+      WealthReactionIntensity.tiny => WealthBackdropReactionIntensity.tiny,
+      WealthReactionIntensity.small => WealthBackdropReactionIntensity.small,
+      WealthReactionIntensity.medium => WealthBackdropReactionIntensity.medium,
+      WealthReactionIntensity.large => WealthBackdropReactionIntensity.large,
+    };
+  }
+}
+
+String _stageLabel(WealthStage stage) {
+  return switch (stage) {
+    WealthStage.coins => '동전 중심',
+    WealthStage.coinsAndBills => '지폐 확장',
+    WealthStage.coinsBillsAndAssets => '자산 축적',
+  };
 }
 
 class _TodayLoopCard extends StatelessWidget {
@@ -223,14 +362,16 @@ class _TodayLoopCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              hasTodayEntry ? '오늘의 기록이 이어지고 있어요' : '오늘의 흐름을 남길 차례예요',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              hasTodayEntry ? '오늘은 이미 기록 흐름이 이어지고 있어요' : '오늘 흐름은 아직 비어 있어요',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               hasTodayEntry
-                  ? '이미 ${summary.todayTransactionCount}건을 기록했어요. 남은 건 틀린 부분이 없는지만 차분히 보는 거예요.'
-                  : '지출, 수입, 이체 중 한 건만 남겨도 오늘의 상태가 훨씬 또렷해집니다.',
+                  ? '이제는 빠뜨린 거래가 없는지만 가볍게 확인하면 충분해요.'
+                  : '지출이든 수입이든 한 건만 적어도 오늘의 감각이 훨씬 선명해집니다.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -257,6 +398,30 @@ class _TodayLoopCard extends StatelessWidget {
   }
 }
 
+class _RecentTransactionsSection extends StatelessWidget {
+  const _RecentTransactionsSection({required this.transactions});
+
+  final List<Transaction> transactions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (transactions.isEmpty) {
+      return const _EmptyRecentTransactions();
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          for (var index = 0; index < transactions.length; index++) ...[
+            _RecentTransactionTile(transaction: transactions[index]),
+            if (index != transactions.length - 1) const Divider(height: 1),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _RepeatSuggestionSection extends StatelessWidget {
   const _RepeatSuggestionSection({
     required this.suggestions,
@@ -273,7 +438,7 @@ class _RepeatSuggestionSection extends StatelessWidget {
       children: [
         const AppSectionIntro(
           title: '다시 기록하기',
-          subtitle: '반복되는 흐름은 한 번 더 탭하는 것만으로 충분해요.',
+          subtitle: '반복되는 흐름은 한 번 더 입력하는 것만으로도 충분히 이어집니다.',
         ),
         const SizedBox(height: AppSpacing.sm),
         Card(
@@ -343,13 +508,17 @@ class _RepeatSuggestionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${_typeLabel(transaction.type)} · ${formatCurrency(transaction.amount)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -385,12 +554,12 @@ class _BudgetStatusCard extends StatelessWidget {
                 : AppColors.income;
 
     final caption = summary.totalBudget <= 0
-        ? '예산을 정하면 남은 여유와 압박을 더 선명하게 볼 수 있어요.'
+        ? '예산을 정하면 이번 달 흐름이 훨씬 더 선명하게 보여요.'
         : summary.budgetUsageRate >= 1
-            ? '이번 달 예산을 모두 사용했어요. 남은 소비를 더 조심스럽게 보세요.'
+            ? '예산을 거의 다 썼어요. 남은 흐름만 차분히 보면 충분합니다.'
             : summary.budgetUsageRate >= 0.8
-                ? '예산의 대부분을 사용했어요. 남은 며칠의 리듬을 조금만 조절해도 좋아집니다.'
-                : '예산 안에서 안정적으로 가고 있어요.';
+                ? '예산의 대부분이 이미 반영됐어요. 남은 며칠만 조금 더 살펴보면 좋아요.'
+                : '예산 안에서 비교적 안정적으로 흐르고 있어요.';
 
     return Card(
       child: Padding(
@@ -405,11 +574,11 @@ class _BudgetStatusCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               summary.totalBudget <= 0
-                  ? '이번 달 예산이 아직 없어요'
+                  ? '이번 달 예산은 아직 비어 있어요'
                   : '이번 달 지출 ${formatCurrency(summary.monthExpense)}',
               style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             ClipRRect(
@@ -454,11 +623,15 @@ class _RecentTransactionTile extends StatelessWidget {
         : isIncome
             ? Icons.arrow_upward_rounded
             : Icons.swap_horiz_rounded;
-    final title = transaction.memo?.trim().isNotEmpty == true
-        ? transaction.memo!
-        : transaction.merchantName?.trim().isNotEmpty == true
-            ? transaction.merchantName!
+    final title = transaction.merchantName?.trim().isNotEmpty == true
+        ? transaction.merchantName!
+        : transaction.memo?.trim().isNotEmpty == true
+            ? transaction.memo!
             : _typeLabel(transaction.type);
+    final subtitle = transaction.memo?.trim().isNotEmpty == true &&
+            transaction.memo != transaction.merchantName
+        ? '${_typeLabel(transaction.type)} · ${transaction.memo}'
+        : _typeLabel(transaction.type);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
@@ -469,16 +642,39 @@ class _RecentTransactionTile extends StatelessWidget {
         backgroundColor: accent.withValues(alpha: 0.12),
         child: Icon(icon, color: accent),
       ),
-      title: Text(title),
-      subtitle: Text(
-        '${transaction.occurredAt.year}.${transaction.occurredAt.month.toString().padLeft(2, '0')}.${transaction.occurredAt.day.toString().padLeft(2, '0')} · ${_typeLabel(transaction.type)}',
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        formatCurrency(transaction.amount),
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: accent,
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 128),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              formatCurrency(transaction.amount),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              '${transaction.occurredAt.month.toString().padLeft(2, '0')}.${transaction.occurredAt.day.toString().padLeft(2, '0')}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -503,47 +699,18 @@ class _EmptyRecentTransactions extends StatelessWidget {
             Text(
               '아직 쌓인 거래가 없어요',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '첫 기록을 남기면 오늘과 이번 달의 분위기가 여기에 차분히 모이기 시작합니다.',
+              '첫 기록 하나만 남겨도 오늘과 이번 달의 흐름이 훨씬 또렷해집니다.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _AnimatedBlock extends StatelessWidget {
-  const _AnimatedBlock({
-    required this.delay,
-    required this.child,
-  });
-
-  final int delay;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 420 + delay),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, widget) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, (1 - value) * 18),
-            child: widget,
-          ),
-        );
-      },
-      child: child,
     );
   }
 }

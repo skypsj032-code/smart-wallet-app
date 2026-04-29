@@ -8,7 +8,7 @@ class BrandSplashScreen extends StatelessWidget {
   const BrandSplashScreen({
     super.key,
     this.title = 'Smart Wallet',
-    this.subtitle = '오늘의 흐름을 가장 차분하게 기록하는 지갑',
+    this.subtitle = '오늘의 흐름을 차분하게 기록하는 지갑',
     this.trailing,
   });
 

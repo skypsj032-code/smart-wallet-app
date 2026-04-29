@@ -1,11 +1,11 @@
 {
-    "name": "smart_wallet_app",
-    "short_name": "smart_wallet_app",
+    "name": "Smart Wallet",
+    "short_name": "Wallet",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F3EC",
+    "theme_color": "#D1A65A",
+    "description": "오늘의 흐름을 차분하게 기록하는 Smart Wallet.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

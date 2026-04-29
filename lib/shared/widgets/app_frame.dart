@@ -8,11 +8,15 @@ class AppFrame extends StatelessWidget {
     required this.child,
   });
 
+  static const _desktopBreakpoint = 640.0;
+  static const _mobileCanvasWidth = 430.0;
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Stack(
       fit: StackFit.expand,
@@ -21,34 +25,94 @@ class AppFrame extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? const [AppColors.backgroundDark, Color(0xFF181512)]
-                  : const [AppColors.backgroundLight, Color(0xFFF2EBDD)],
+                  ? const [Color(0xFF0C0805), Color(0xFF1A1008), Color(0xFF0E0A05)]
+                  : const [Color(0xFFEDD9A3), Color(0xFFF4EBDA), Color(0xFFF7F3EC)],
+              stops: const [0.0, 0.5, 1.0],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
           ),
         ),
         Positioned(
-          top: -120,
-          right: -72,
-          child: _GlowOrb(
-            size: 300,
-            color: isDark ? const Color(0x22D1A65A) : const Color(0x14D1A65A),
+          top: -80,
+          right: -60,
+          child: RepaintBoundary(
+            child: _GlowOrb(
+              size: 380,
+              color: isDark
+                  ? const Color(0x4ED1A65A)
+                  : const Color(0x28D1A65A),
+            ),
           ),
         ),
         Positioned(
-          left: -100,
-          bottom: 96,
-          child: _GlowOrb(
-            size: 260,
-            color: isDark ? const Color(0x106E8AC7) : const Color(0x0C8A7049),
+          left: -80,
+          top: 180,
+          child: RepaintBoundary(
+            child: _GlowOrb(
+              size: 300,
+              color: isDark
+                  ? const Color(0x28E8A030)
+                  : const Color(0x14E8A030),
+            ),
           ),
         ),
-        child,
+        Positioned(
+          right: 20,
+          bottom: 160,
+          child: RepaintBoundary(
+            child: _GlowOrb(
+              size: 220,
+              color: isDark
+                  ? const Color(0x186E8AC7)
+                  : const Color(0x0C6E8AC7),
+            ),
+          ),
+        ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < _desktopBreakpoint) {
+              return child;
+            }
+
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _mobileCanvasWidth),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(
+                        alpha: isDark ? 0.92 : 0.95,
+                      ),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.14),
+                          blurRadius: 48,
+                          offset: const Offset(0, 20),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(32),
+                      child: child,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         IgnorePointer(
-          child: CustomPaint(
-            painter: _GrainPainter(
-              color: Colors.white.withValues(alpha: isDark ? 0.025 : 0.018),
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _GrainPainter(
+                color: Colors.white.withValues(alpha: isDark ? 0.028 : 0.022),
+              ),
             ),
           ),
         ),

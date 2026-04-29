@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/router/app_router.dart';
@@ -11,8 +12,8 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_mood.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../shared\widgets/app_brand_mark.dart';
-import '../../../shared\widgets/app_status_chip.dart';
+import '../../../shared/widgets/app_brand_mark.dart';
+import '../../../shared/widgets/app_status_chip.dart';
 import '../application/settings_provider.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   DateTime? _cooldownUntil;
   Timer? _cooldownTimer;
   bool _unlockScheduled = false;
+  late final FocusNode _keyboardFocusNode;
 
   bool get _isCoolingDown =>
       _cooldownUntil != null && DateTime.now().isBefore(_cooldownUntil!);
@@ -47,8 +49,15 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _keyboardFocusNode = FocusNode(debugLabel: 'lock_screen_keyboard');
+  }
+
+  @override
   void dispose() {
     _cooldownTimer?.cancel();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -178,6 +187,40 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     }
   }
 
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent || _isCoolingDown) {
+      return;
+    }
+
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.backspace ||
+        key == LogicalKeyboardKey.delete) {
+      _onDelete();
+      return;
+    }
+
+    if (key == LogicalKeyboardKey.escape) {
+      _clearInput();
+      return;
+    }
+
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (_input.length == 4) {
+        _verify();
+      }
+      return;
+    }
+
+    final character = event.character;
+    if (character != null && character.length == 1) {
+      final digit = int.tryParse(character);
+      if (digit != null) {
+        _onDigit(digit.toString());
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appSettingsAsync = ref.watch(appSettingsProvider);
@@ -189,8 +232,18 @@ class _LockScreenState extends ConsumerState<LockScreen> {
           color: _messageIsError ? AppColors.expense : Theme.of(context).colorScheme.onSurfaceVariant,
         );
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_keyboardFocusNode.hasFocus) {
+        _keyboardFocusNode.requestFocus();
+      }
+    });
+
     return Scaffold(
-      body: SafeArea(
+      body: KeyboardListener(
+        focusNode: _keyboardFocusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: SafeArea(
         child: appSettingsAsync.when(
           data: (settings) {
             if (!settings.appLockEnabled || settings.pinCode == null) {
@@ -351,6 +404,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

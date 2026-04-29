@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/settings/application/settings_provider.dart';
+import '../shared/widgets/app_frame.dart';
+import '../shared/widgets/brand_splash_screen.dart';
 import 'bootstrap/app_bootstrap_provider.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
-import '../shared/widgets/app_frame.dart';
-import '../shared/widgets/brand_splash_screen.dart';
 
 class SmartWalletApp extends ConsumerStatefulWidget {
   const SmartWalletApp({super.key});

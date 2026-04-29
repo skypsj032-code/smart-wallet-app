@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -130,29 +130,14 @@ NoTransitionPage<void> _buildShellPage({
   );
 }
 
-CustomTransitionPage<void> _buildTransitionPage({
+NoTransitionPage<void> _buildTransitionPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  return CustomTransitionPage<void>(
+  // AppShell의 AnimatedSwitcher가 화면 전환 애니메이션을 담당하므로
+  // 라우터 레벨에서는 별도 트랜지션 없이 즉시 교체합니다.
+  return NoTransitionPage<void>(
     key: state.pageKey,
-    transitionDuration: const Duration(milliseconds: 220),
-    reverseTransitionDuration: const Duration(milliseconds: 180),
     child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, widget) {
-      final fade = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      );
-
-      // 불투명 배경을 먼저 깔아서 이전 화면 내용이 비치지 않도록 함
-      return ColoredBox(
-        color: Theme.of(context).colorScheme.surface,
-        child: FadeTransition(
-          opacity: fade,
-          child: widget,
-        ),
-      );
-    },
   );
 }

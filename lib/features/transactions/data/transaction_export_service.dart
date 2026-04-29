@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
@@ -13,11 +14,27 @@ class CsvExportPayload {
     required this.csv,
     required this.rowCount,
     required this.fileName,
+    this.filterDescription,
   });
 
   final String csv;
   final int rowCount;
   final String fileName;
+  final String? filterDescription;
+}
+
+class TransactionCsvExportOptions {
+  const TransactionCsvExportOptions({
+    this.startDate,
+    this.endDate,
+    this.label,
+  });
+
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? label;
+
+  bool get hasDateFilter => startDate != null || endDate != null;
 }
 
 class TransactionExportService {
@@ -39,12 +56,37 @@ class TransactionExportService {
     'Last Modified At',
   ];
 
-  Future<CsvExportPayload> exportTransactionsCsv() async {
+  Future<CsvExportPayload> exportTransactionsCsv({
+    TransactionCsvExportOptions options = const TransactionCsvExportOptions(),
+  }) async {
     final database = _ref.read(appDatabaseProvider);
-    final rows = await database.select(database.transactions).get();
-    final transactions = rows.where((tx) => tx.deletedAt == null).toList();
+    final query = database.select(database.transactions)
+      ..where((tx) => tx.deletedAt.isNull());
+
+    if (options.startDate != null) {
+      query.where(
+        (tx) => tx.occurredAt.isBiggerOrEqualValue(
+          _startOfDay(options.startDate!),
+        ),
+      );
+    }
+
+    if (options.endDate != null) {
+      query.where(
+        (tx) => tx.occurredAt.isSmallerOrEqualValue(
+          _endOfDay(options.endDate!),
+        ),
+      );
+    }
+
+    query.orderBy([
+      (tx) => OrderingTerm.asc(tx.occurredAt),
+      (tx) => OrderingTerm.asc(tx.createdAt),
+    ]);
+
+    final transactions = await query.get();
     final exportedAt = DateTime.now();
-    final fileName = _buildFileName(exportedAt);
+    final fileName = _buildFileName(exportedAt, options);
 
     final buffer = StringBuffer()..writeln(_csvHeaders.join(','));
 
@@ -56,6 +98,7 @@ class TransactionExportService {
       csv: buffer.toString(),
       rowCount: transactions.length,
       fileName: fileName,
+      filterDescription: _buildFilterDescription(options),
     );
   }
 
@@ -75,9 +118,22 @@ class TransactionExportService {
     ], text: text?.trim().isNotEmpty == true ? text : _defaultShareText(file));
   }
 
-  String _buildFileName(DateTime exportedAt) {
+  String _buildFileName(
+    DateTime exportedAt,
+    TransactionCsvExportOptions options,
+  ) {
     final timestamp = DateFormat('yyyyMMdd-HHmmss').format(exportedAt);
-    return 'smart-wallet-transactions-$timestamp.csv';
+    if (!options.hasDateFilter) {
+      return 'smart-wallet-transactions-$timestamp.csv';
+    }
+
+    final startLabel = options.startDate == null
+        ? 'start'
+        : DateFormat('yyyyMMdd').format(options.startDate!);
+    final endLabel = options.endDate == null
+        ? 'latest'
+        : DateFormat('yyyyMMdd').format(options.endDate!);
+    return 'smart-wallet-transactions-$startLabel-to-$endLabel-$timestamp.csv';
   }
 
   List<String> _buildCsvRow(dynamic row) {
@@ -99,6 +155,32 @@ class TransactionExportService {
   String _defaultShareText(File file) {
     final fileName = p.basename(file.path);
     return 'Smart Wallet transactions CSV attached: $fileName';
+  }
+
+  String? _buildFilterDescription(TransactionCsvExportOptions options) {
+    if (options.label != null && options.label!.trim().isNotEmpty) {
+      return options.label;
+    }
+
+    if (!options.hasDateFilter) {
+      return null;
+    }
+
+    final startLabel = options.startDate == null
+        ? '처음부터'
+        : DateFormat('yyyy.MM.dd').format(options.startDate!);
+    final endLabel = options.endDate == null
+        ? '최근까지'
+        : DateFormat('yyyy.MM.dd').format(options.endDate!);
+    return '$startLabel - $endLabel';
+  }
+
+  DateTime _startOfDay(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _endOfDay(DateTime date) {
+    return DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
   }
 
   String _csv(String? value) {

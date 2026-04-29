@@ -39,6 +39,8 @@ class AppMetricStrip extends StatelessWidget {
         children: [
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelLarge?.copyWith(
               color: emphasize
                   ? theme.colorScheme.primary
@@ -48,6 +50,8 @@ class AppMetricStrip extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -56,6 +60,8 @@ class AppMetricStrip extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               caption!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

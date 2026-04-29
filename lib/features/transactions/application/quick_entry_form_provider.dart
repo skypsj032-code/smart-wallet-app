@@ -44,7 +44,7 @@ class QuickEntryFormState {
           fromAccountId != toAccountId;
     }
 
-    return true;
+    return accountId != null;
   }
 
   bool get needsAccount => accountId == null;
