@@ -25,7 +25,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -54,6 +54,65 @@ class AppDatabase extends _$AppDatabase {
               appSettings,
               appSettings.defaultCategorySeedVersion,
             );
+          }
+          if (from >= 4 && from < 6) {
+            await transaction(() async {
+              await customStatement('''
+                CREATE TABLE recurring_expenses_new (
+                  local_id TEXT NOT NULL PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  type TEXT NOT NULL,
+                  amount INTEGER NOT NULL,
+                  cadence TEXT NOT NULL,
+                  day_of_month INTEGER NULL,
+                  weekday INTEGER NULL,
+                  account_id TEXT NOT NULL,
+                  category_id TEXT NULL,
+                  is_active INTEGER NOT NULL DEFAULT 1,
+                  last_suggested_cycle_key TEXT NULL,
+                  last_completed_cycle_key TEXT NULL,
+                  last_dismissed_cycle_key TEXT NULL,
+                  created_at INTEGER NOT NULL,
+                  last_modified_at INTEGER NOT NULL
+                );
+              ''');
+              await customStatement('''
+                INSERT INTO recurring_expenses_new (
+                  local_id,
+                  name,
+                  type,
+                  amount,
+                  cadence,
+                  day_of_month,
+                  weekday,
+                  account_id,
+                  category_id,
+                  is_active,
+                  last_completed_cycle_key,
+                  created_at,
+                  last_modified_at
+                )
+                SELECT
+                  local_id,
+                  name,
+                  'expense',
+                  amount,
+                  'monthly',
+                  day_of_month,
+                  NULL,
+                  account_id,
+                  category_id,
+                  is_active,
+                  last_created_month_key,
+                  created_at,
+                  last_modified_at
+                FROM recurring_expenses;
+              ''');
+              await customStatement('DROP TABLE recurring_expenses;');
+              await customStatement(
+                'ALTER TABLE recurring_expenses_new RENAME TO recurring_expenses;',
+              );
+            });
           }
         },
       );

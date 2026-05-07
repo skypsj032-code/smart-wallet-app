@@ -17,7 +17,6 @@ class DashboardSummary {
     required this.totalBudget,
     required this.netCashflow,
     required this.recentTransactions,
-    required this.repeatSuggestions,
     required this.narrative,
   });
 
@@ -29,7 +28,6 @@ class DashboardSummary {
   final int totalBudget;
   final int netCashflow;
   final List<Transaction> recentTransactions;
-  final List<Transaction> repeatSuggestions;
   final DashboardNarrativeSnapshot narrative;
 
   double get budgetUsageRate {
@@ -97,28 +95,6 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
           .fold<int>(0, (sum, tx) => sum + tx.amount);
       final totalBudget =
           budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
-      final repeatSuggestions = <Transaction>[];
-      final seenKeys = <String>{};
-
-      for (final tx in recent) {
-        if (tx.type == 'transfer') {
-          continue;
-        }
-
-        final key =
-            '${tx.type}|${tx.accountId ?? ''}|${tx.categoryId ?? ''}|${tx.memo ?? tx.merchantName ?? ''}|${tx.amount}';
-        if (seenKeys.contains(key)) {
-          continue;
-        }
-
-        seenKeys.add(key);
-        repeatSuggestions.add(tx);
-
-        if (repeatSuggestions.length >= 3) {
-          break;
-        }
-      }
-
       final narrative = buildDashboardNarrativeSnapshot(
         monthlyTransactions: txs,
         categories: categories,
@@ -135,7 +111,6 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         totalBudget: totalBudget,
         netCashflow: income - expense,
         recentTransactions: recent.take(5).toList(),
-        repeatSuggestions: repeatSuggestions,
         narrative: narrative,
       );
     },

@@ -23,10 +23,12 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('statistics-controls-panel')), findsOneWidget);
     expect(find.text('이번 기간 흐름 해석'), findsWidgets);
     expect(find.text('상위 흐름 카테고리'), findsOneWidget);
     expect(find.text('핵심 숫자'), findsOneWidget);
     expect(find.text('차트로 다시 보기'), findsOneWidget);
+    expect(find.text('바로 이어보기'), findsNothing);
 
     expect(find.text('급여'), findsWidgets);
     expect(find.text('식비'), findsWidgets);
@@ -99,8 +101,8 @@ const _fixture = StatisticsSnapshot(
   expenseCategories: <CategoryStat>[
     CategoryStat(label: '식비', amount: 42000, share: 0.42),
     CategoryStat(label: '교통', amount: 18000, share: 0.18),
-    CategoryStat(label: '장보기', amount: 16000, share: 0.16),
-    CategoryStat(label: '쇼핑', amount: 14000, share: 0.14),
+    CategoryStat(label: '쇼핑', amount: 16000, share: 0.16),
+    CategoryStat(label: '취미', amount: 14000, share: 0.14),
     CategoryStat(label: '문화', amount: 10000, share: 0.10),
   ],
 );

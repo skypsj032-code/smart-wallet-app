@@ -329,7 +329,13 @@ class BudgetScreen extends ConsumerWidget {
       final result = await showDialog<_BudgetEditorResult>(
         context: context,
         builder: (dialogContext) {
-          return StatefulBuilder(
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
+            ),
+            child: StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
                 title: Text(initialAmount == null ? '예산 추가' : '예산 수정'),
@@ -413,6 +419,7 @@ class BudgetScreen extends ConsumerWidget {
                 ],
               );
             },
+            ),
           );
         },
       );

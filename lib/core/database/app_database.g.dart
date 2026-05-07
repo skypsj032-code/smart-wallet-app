@@ -1777,17 +1777,34 @@ class $RecurringExpensesTable extends RecurringExpenses
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
   late final GeneratedColumn<int> amount = GeneratedColumn<int>(
       'amount', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _cadenceMeta =
+      const VerificationMeta('cadence');
+  @override
+  late final GeneratedColumn<String> cadence = GeneratedColumn<String>(
+      'cadence', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _dayOfMonthMeta =
       const VerificationMeta('dayOfMonth');
   @override
   late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
-      'day_of_month', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
+      'day_of_month', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _weekdayMeta =
+      const VerificationMeta('weekday');
+  @override
+  late final GeneratedColumn<int> weekday = GeneratedColumn<int>(
+      'weekday', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _accountIdMeta =
       const VerificationMeta('accountId');
   @override
@@ -1810,11 +1827,23 @@ class $RecurringExpensesTable extends RecurringExpenses
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
       defaultValue: const Constant(true));
-  static const VerificationMeta _lastCreatedMonthKeyMeta =
-      const VerificationMeta('lastCreatedMonthKey');
+  static const VerificationMeta _lastSuggestedCycleKeyMeta =
+      const VerificationMeta('lastSuggestedCycleKey');
   @override
-  late final GeneratedColumn<String> lastCreatedMonthKey =
-      GeneratedColumn<String>('last_created_month_key', aliasedName, true,
+  late final GeneratedColumn<String> lastSuggestedCycleKey =
+      GeneratedColumn<String>('last_suggested_cycle_key', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastCompletedCycleKeyMeta =
+      const VerificationMeta('lastCompletedCycleKey');
+  @override
+  late final GeneratedColumn<String> lastCompletedCycleKey =
+      GeneratedColumn<String>('last_completed_cycle_key', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastDismissedCycleKeyMeta =
+      const VerificationMeta('lastDismissedCycleKey');
+  @override
+  late final GeneratedColumn<String> lastDismissedCycleKey =
+      GeneratedColumn<String>('last_dismissed_cycle_key', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
@@ -1832,12 +1861,17 @@ class $RecurringExpensesTable extends RecurringExpenses
   List<GeneratedColumn> get $columns => [
         localId,
         name,
+        type,
         amount,
+        cadence,
         dayOfMonth,
+        weekday,
         accountId,
         categoryId,
         isActive,
-        lastCreatedMonthKey,
+        lastSuggestedCycleKey,
+        lastCompletedCycleKey,
+        lastDismissedCycleKey,
         createdAt,
         lastModifiedAt
       ];
@@ -1863,19 +1897,33 @@ class $RecurringExpensesTable extends RecurringExpenses
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
     if (data.containsKey('amount')) {
       context.handle(_amountMeta,
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
     } else if (isInserting) {
       context.missing(_amountMeta);
     }
+    if (data.containsKey('cadence')) {
+      context.handle(_cadenceMeta,
+          cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta));
+    } else if (isInserting) {
+      context.missing(_cadenceMeta);
+    }
     if (data.containsKey('day_of_month')) {
       context.handle(
           _dayOfMonthMeta,
           dayOfMonth.isAcceptableOrUnknown(
               data['day_of_month']!, _dayOfMonthMeta));
-    } else if (isInserting) {
-      context.missing(_dayOfMonthMeta);
+    }
+    if (data.containsKey('weekday')) {
+      context.handle(_weekdayMeta,
+          weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta));
     }
     if (data.containsKey('account_id')) {
       context.handle(_accountIdMeta,
@@ -1893,11 +1941,23 @@ class $RecurringExpensesTable extends RecurringExpenses
       context.handle(_isActiveMeta,
           isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
     }
-    if (data.containsKey('last_created_month_key')) {
+    if (data.containsKey('last_suggested_cycle_key')) {
       context.handle(
-          _lastCreatedMonthKeyMeta,
-          lastCreatedMonthKey.isAcceptableOrUnknown(
-              data['last_created_month_key']!, _lastCreatedMonthKeyMeta));
+          _lastSuggestedCycleKeyMeta,
+          lastSuggestedCycleKey.isAcceptableOrUnknown(
+              data['last_suggested_cycle_key']!, _lastSuggestedCycleKeyMeta));
+    }
+    if (data.containsKey('last_completed_cycle_key')) {
+      context.handle(
+          _lastCompletedCycleKeyMeta,
+          lastCompletedCycleKey.isAcceptableOrUnknown(
+              data['last_completed_cycle_key']!, _lastCompletedCycleKeyMeta));
+    }
+    if (data.containsKey('last_dismissed_cycle_key')) {
+      context.handle(
+          _lastDismissedCycleKeyMeta,
+          lastDismissedCycleKey.isAcceptableOrUnknown(
+              data['last_dismissed_cycle_key']!, _lastDismissedCycleKeyMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -1926,19 +1986,31 @@ class $RecurringExpensesTable extends RecurringExpenses
           .read(DriftSqlType.string, data['${effectivePrefix}local_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       amount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      cadence: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cadence'])!,
       dayOfMonth: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}day_of_month'])!,
+          .read(DriftSqlType.int, data['${effectivePrefix}day_of_month']),
+      weekday: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}weekday']),
       accountId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}account_id'])!,
       categoryId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
-      lastCreatedMonthKey: attachedDatabase.typeMapping.read(
+      lastSuggestedCycleKey: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
-          data['${effectivePrefix}last_created_month_key']),
+          data['${effectivePrefix}last_suggested_cycle_key']),
+      lastCompletedCycleKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_completed_cycle_key']),
+      lastDismissedCycleKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_dismissed_cycle_key']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       lastModifiedAt: attachedDatabase.typeMapping.read(
@@ -1956,23 +2028,33 @@ class RecurringExpense extends DataClass
     implements Insertable<RecurringExpense> {
   final String localId;
   final String name;
+  final String type;
   final int amount;
-  final int dayOfMonth;
+  final String cadence;
+  final int? dayOfMonth;
+  final int? weekday;
   final String accountId;
   final String? categoryId;
   final bool isActive;
-  final String? lastCreatedMonthKey;
+  final String? lastSuggestedCycleKey;
+  final String? lastCompletedCycleKey;
+  final String? lastDismissedCycleKey;
   final DateTime createdAt;
   final DateTime lastModifiedAt;
   const RecurringExpense(
       {required this.localId,
       required this.name,
+      required this.type,
       required this.amount,
-      required this.dayOfMonth,
+      required this.cadence,
+      this.dayOfMonth,
+      this.weekday,
       required this.accountId,
       this.categoryId,
       required this.isActive,
-      this.lastCreatedMonthKey,
+      this.lastSuggestedCycleKey,
+      this.lastCompletedCycleKey,
+      this.lastDismissedCycleKey,
       required this.createdAt,
       required this.lastModifiedAt});
   @override
@@ -1980,15 +2062,28 @@ class RecurringExpense extends DataClass
     final map = <String, Expression>{};
     map['local_id'] = Variable<String>(localId);
     map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
     map['amount'] = Variable<int>(amount);
-    map['day_of_month'] = Variable<int>(dayOfMonth);
+    map['cadence'] = Variable<String>(cadence);
+    if (!nullToAbsent || dayOfMonth != null) {
+      map['day_of_month'] = Variable<int>(dayOfMonth);
+    }
+    if (!nullToAbsent || weekday != null) {
+      map['weekday'] = Variable<int>(weekday);
+    }
     map['account_id'] = Variable<String>(accountId);
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
     }
     map['is_active'] = Variable<bool>(isActive);
-    if (!nullToAbsent || lastCreatedMonthKey != null) {
-      map['last_created_month_key'] = Variable<String>(lastCreatedMonthKey);
+    if (!nullToAbsent || lastSuggestedCycleKey != null) {
+      map['last_suggested_cycle_key'] = Variable<String>(lastSuggestedCycleKey);
+    }
+    if (!nullToAbsent || lastCompletedCycleKey != null) {
+      map['last_completed_cycle_key'] = Variable<String>(lastCompletedCycleKey);
+    }
+    if (!nullToAbsent || lastDismissedCycleKey != null) {
+      map['last_dismissed_cycle_key'] = Variable<String>(lastDismissedCycleKey);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['last_modified_at'] = Variable<DateTime>(lastModifiedAt);
@@ -1999,16 +2094,29 @@ class RecurringExpense extends DataClass
     return RecurringExpensesCompanion(
       localId: Value(localId),
       name: Value(name),
+      type: Value(type),
       amount: Value(amount),
-      dayOfMonth: Value(dayOfMonth),
+      cadence: Value(cadence),
+      dayOfMonth: dayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfMonth),
+      weekday: weekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekday),
       accountId: Value(accountId),
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
       isActive: Value(isActive),
-      lastCreatedMonthKey: lastCreatedMonthKey == null && nullToAbsent
+      lastSuggestedCycleKey: lastSuggestedCycleKey == null && nullToAbsent
           ? const Value.absent()
-          : Value(lastCreatedMonthKey),
+          : Value(lastSuggestedCycleKey),
+      lastCompletedCycleKey: lastCompletedCycleKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastCompletedCycleKey),
+      lastDismissedCycleKey: lastDismissedCycleKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDismissedCycleKey),
       createdAt: Value(createdAt),
       lastModifiedAt: Value(lastModifiedAt),
     );
@@ -2020,13 +2128,20 @@ class RecurringExpense extends DataClass
     return RecurringExpense(
       localId: serializer.fromJson<String>(json['localId']),
       name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
       amount: serializer.fromJson<int>(json['amount']),
-      dayOfMonth: serializer.fromJson<int>(json['dayOfMonth']),
+      cadence: serializer.fromJson<String>(json['cadence']),
+      dayOfMonth: serializer.fromJson<int?>(json['dayOfMonth']),
+      weekday: serializer.fromJson<int?>(json['weekday']),
       accountId: serializer.fromJson<String>(json['accountId']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       isActive: serializer.fromJson<bool>(json['isActive']),
-      lastCreatedMonthKey:
-          serializer.fromJson<String?>(json['lastCreatedMonthKey']),
+      lastSuggestedCycleKey:
+          serializer.fromJson<String?>(json['lastSuggestedCycleKey']),
+      lastCompletedCycleKey:
+          serializer.fromJson<String?>(json['lastCompletedCycleKey']),
+      lastDismissedCycleKey:
+          serializer.fromJson<String?>(json['lastDismissedCycleKey']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       lastModifiedAt: serializer.fromJson<DateTime>(json['lastModifiedAt']),
     );
@@ -2037,12 +2152,20 @@ class RecurringExpense extends DataClass
     return <String, dynamic>{
       'localId': serializer.toJson<String>(localId),
       'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
       'amount': serializer.toJson<int>(amount),
-      'dayOfMonth': serializer.toJson<int>(dayOfMonth),
+      'cadence': serializer.toJson<String>(cadence),
+      'dayOfMonth': serializer.toJson<int?>(dayOfMonth),
+      'weekday': serializer.toJson<int?>(weekday),
       'accountId': serializer.toJson<String>(accountId),
       'categoryId': serializer.toJson<String?>(categoryId),
       'isActive': serializer.toJson<bool>(isActive),
-      'lastCreatedMonthKey': serializer.toJson<String?>(lastCreatedMonthKey),
+      'lastSuggestedCycleKey':
+          serializer.toJson<String?>(lastSuggestedCycleKey),
+      'lastCompletedCycleKey':
+          serializer.toJson<String?>(lastCompletedCycleKey),
+      'lastDismissedCycleKey':
+          serializer.toJson<String?>(lastDismissedCycleKey),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'lastModifiedAt': serializer.toJson<DateTime>(lastModifiedAt),
     };
@@ -2051,25 +2174,39 @@ class RecurringExpense extends DataClass
   RecurringExpense copyWith(
           {String? localId,
           String? name,
+          String? type,
           int? amount,
-          int? dayOfMonth,
+          String? cadence,
+          Value<int?> dayOfMonth = const Value.absent(),
+          Value<int?> weekday = const Value.absent(),
           String? accountId,
           Value<String?> categoryId = const Value.absent(),
           bool? isActive,
-          Value<String?> lastCreatedMonthKey = const Value.absent(),
+          Value<String?> lastSuggestedCycleKey = const Value.absent(),
+          Value<String?> lastCompletedCycleKey = const Value.absent(),
+          Value<String?> lastDismissedCycleKey = const Value.absent(),
           DateTime? createdAt,
           DateTime? lastModifiedAt}) =>
       RecurringExpense(
         localId: localId ?? this.localId,
         name: name ?? this.name,
+        type: type ?? this.type,
         amount: amount ?? this.amount,
-        dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+        cadence: cadence ?? this.cadence,
+        dayOfMonth: dayOfMonth.present ? dayOfMonth.value : this.dayOfMonth,
+        weekday: weekday.present ? weekday.value : this.weekday,
         accountId: accountId ?? this.accountId,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         isActive: isActive ?? this.isActive,
-        lastCreatedMonthKey: lastCreatedMonthKey.present
-            ? lastCreatedMonthKey.value
-            : this.lastCreatedMonthKey,
+        lastSuggestedCycleKey: lastSuggestedCycleKey.present
+            ? lastSuggestedCycleKey.value
+            : this.lastSuggestedCycleKey,
+        lastCompletedCycleKey: lastCompletedCycleKey.present
+            ? lastCompletedCycleKey.value
+            : this.lastCompletedCycleKey,
+        lastDismissedCycleKey: lastDismissedCycleKey.present
+            ? lastDismissedCycleKey.value
+            : this.lastDismissedCycleKey,
         createdAt: createdAt ?? this.createdAt,
         lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
       );
@@ -2077,16 +2214,25 @@ class RecurringExpense extends DataClass
     return RecurringExpense(
       localId: data.localId.present ? data.localId.value : this.localId,
       name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
       amount: data.amount.present ? data.amount.value : this.amount,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
       dayOfMonth:
           data.dayOfMonth.present ? data.dayOfMonth.value : this.dayOfMonth,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       categoryId:
           data.categoryId.present ? data.categoryId.value : this.categoryId,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
-      lastCreatedMonthKey: data.lastCreatedMonthKey.present
-          ? data.lastCreatedMonthKey.value
-          : this.lastCreatedMonthKey,
+      lastSuggestedCycleKey: data.lastSuggestedCycleKey.present
+          ? data.lastSuggestedCycleKey.value
+          : this.lastSuggestedCycleKey,
+      lastCompletedCycleKey: data.lastCompletedCycleKey.present
+          ? data.lastCompletedCycleKey.value
+          : this.lastCompletedCycleKey,
+      lastDismissedCycleKey: data.lastDismissedCycleKey.present
+          ? data.lastDismissedCycleKey.value
+          : this.lastDismissedCycleKey,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       lastModifiedAt: data.lastModifiedAt.present
           ? data.lastModifiedAt.value
@@ -2099,12 +2245,17 @@ class RecurringExpense extends DataClass
     return (StringBuffer('RecurringExpense(')
           ..write('localId: $localId, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
           ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
           ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('weekday: $weekday, ')
           ..write('accountId: $accountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('isActive: $isActive, ')
-          ..write('lastCreatedMonthKey: $lastCreatedMonthKey, ')
+          ..write('lastSuggestedCycleKey: $lastSuggestedCycleKey, ')
+          ..write('lastCompletedCycleKey: $lastCompletedCycleKey, ')
+          ..write('lastDismissedCycleKey: $lastDismissedCycleKey, ')
           ..write('createdAt: $createdAt, ')
           ..write('lastModifiedAt: $lastModifiedAt')
           ..write(')'))
@@ -2112,20 +2263,39 @@ class RecurringExpense extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(localId, name, amount, dayOfMonth, accountId,
-      categoryId, isActive, lastCreatedMonthKey, createdAt, lastModifiedAt);
+  int get hashCode => Object.hash(
+      localId,
+      name,
+      type,
+      amount,
+      cadence,
+      dayOfMonth,
+      weekday,
+      accountId,
+      categoryId,
+      isActive,
+      lastSuggestedCycleKey,
+      lastCompletedCycleKey,
+      lastDismissedCycleKey,
+      createdAt,
+      lastModifiedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is RecurringExpense &&
           other.localId == this.localId &&
           other.name == this.name &&
+          other.type == this.type &&
           other.amount == this.amount &&
+          other.cadence == this.cadence &&
           other.dayOfMonth == this.dayOfMonth &&
+          other.weekday == this.weekday &&
           other.accountId == this.accountId &&
           other.categoryId == this.categoryId &&
           other.isActive == this.isActive &&
-          other.lastCreatedMonthKey == this.lastCreatedMonthKey &&
+          other.lastSuggestedCycleKey == this.lastSuggestedCycleKey &&
+          other.lastCompletedCycleKey == this.lastCompletedCycleKey &&
+          other.lastDismissedCycleKey == this.lastDismissedCycleKey &&
           other.createdAt == this.createdAt &&
           other.lastModifiedAt == this.lastModifiedAt);
 }
@@ -2133,24 +2303,34 @@ class RecurringExpense extends DataClass
 class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
   final Value<String> localId;
   final Value<String> name;
+  final Value<String> type;
   final Value<int> amount;
-  final Value<int> dayOfMonth;
+  final Value<String> cadence;
+  final Value<int?> dayOfMonth;
+  final Value<int?> weekday;
   final Value<String> accountId;
   final Value<String?> categoryId;
   final Value<bool> isActive;
-  final Value<String?> lastCreatedMonthKey;
+  final Value<String?> lastSuggestedCycleKey;
+  final Value<String?> lastCompletedCycleKey;
+  final Value<String?> lastDismissedCycleKey;
   final Value<DateTime> createdAt;
   final Value<DateTime> lastModifiedAt;
   final Value<int> rowid;
   const RecurringExpensesCompanion({
     this.localId = const Value.absent(),
     this.name = const Value.absent(),
+    this.type = const Value.absent(),
     this.amount = const Value.absent(),
+    this.cadence = const Value.absent(),
     this.dayOfMonth = const Value.absent(),
+    this.weekday = const Value.absent(),
     this.accountId = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.isActive = const Value.absent(),
-    this.lastCreatedMonthKey = const Value.absent(),
+    this.lastSuggestedCycleKey = const Value.absent(),
+    this.lastCompletedCycleKey = const Value.absent(),
+    this.lastDismissedCycleKey = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.lastModifiedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2158,31 +2338,42 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
   RecurringExpensesCompanion.insert({
     required String localId,
     required String name,
+    required String type,
     required int amount,
-    required int dayOfMonth,
+    required String cadence,
+    this.dayOfMonth = const Value.absent(),
+    this.weekday = const Value.absent(),
     required String accountId,
     this.categoryId = const Value.absent(),
     this.isActive = const Value.absent(),
-    this.lastCreatedMonthKey = const Value.absent(),
+    this.lastSuggestedCycleKey = const Value.absent(),
+    this.lastCompletedCycleKey = const Value.absent(),
+    this.lastDismissedCycleKey = const Value.absent(),
     required DateTime createdAt,
     required DateTime lastModifiedAt,
     this.rowid = const Value.absent(),
   })  : localId = Value(localId),
         name = Value(name),
+        type = Value(type),
         amount = Value(amount),
-        dayOfMonth = Value(dayOfMonth),
+        cadence = Value(cadence),
         accountId = Value(accountId),
         createdAt = Value(createdAt),
         lastModifiedAt = Value(lastModifiedAt);
   static Insertable<RecurringExpense> custom({
     Expression<String>? localId,
     Expression<String>? name,
+    Expression<String>? type,
     Expression<int>? amount,
+    Expression<String>? cadence,
     Expression<int>? dayOfMonth,
+    Expression<int>? weekday,
     Expression<String>? accountId,
     Expression<String>? categoryId,
     Expression<bool>? isActive,
-    Expression<String>? lastCreatedMonthKey,
+    Expression<String>? lastSuggestedCycleKey,
+    Expression<String>? lastCompletedCycleKey,
+    Expression<String>? lastDismissedCycleKey,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? lastModifiedAt,
     Expression<int>? rowid,
@@ -2190,13 +2381,20 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
     return RawValuesInsertable({
       if (localId != null) 'local_id': localId,
       if (name != null) 'name': name,
+      if (type != null) 'type': type,
       if (amount != null) 'amount': amount,
+      if (cadence != null) 'cadence': cadence,
       if (dayOfMonth != null) 'day_of_month': dayOfMonth,
+      if (weekday != null) 'weekday': weekday,
       if (accountId != null) 'account_id': accountId,
       if (categoryId != null) 'category_id': categoryId,
       if (isActive != null) 'is_active': isActive,
-      if (lastCreatedMonthKey != null)
-        'last_created_month_key': lastCreatedMonthKey,
+      if (lastSuggestedCycleKey != null)
+        'last_suggested_cycle_key': lastSuggestedCycleKey,
+      if (lastCompletedCycleKey != null)
+        'last_completed_cycle_key': lastCompletedCycleKey,
+      if (lastDismissedCycleKey != null)
+        'last_dismissed_cycle_key': lastDismissedCycleKey,
       if (createdAt != null) 'created_at': createdAt,
       if (lastModifiedAt != null) 'last_modified_at': lastModifiedAt,
       if (rowid != null) 'rowid': rowid,
@@ -2206,24 +2404,37 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
   RecurringExpensesCompanion copyWith(
       {Value<String>? localId,
       Value<String>? name,
+      Value<String>? type,
       Value<int>? amount,
-      Value<int>? dayOfMonth,
+      Value<String>? cadence,
+      Value<int?>? dayOfMonth,
+      Value<int?>? weekday,
       Value<String>? accountId,
       Value<String?>? categoryId,
       Value<bool>? isActive,
-      Value<String?>? lastCreatedMonthKey,
+      Value<String?>? lastSuggestedCycleKey,
+      Value<String?>? lastCompletedCycleKey,
+      Value<String?>? lastDismissedCycleKey,
       Value<DateTime>? createdAt,
       Value<DateTime>? lastModifiedAt,
       Value<int>? rowid}) {
     return RecurringExpensesCompanion(
       localId: localId ?? this.localId,
       name: name ?? this.name,
+      type: type ?? this.type,
       amount: amount ?? this.amount,
+      cadence: cadence ?? this.cadence,
       dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      weekday: weekday ?? this.weekday,
       accountId: accountId ?? this.accountId,
       categoryId: categoryId ?? this.categoryId,
       isActive: isActive ?? this.isActive,
-      lastCreatedMonthKey: lastCreatedMonthKey ?? this.lastCreatedMonthKey,
+      lastSuggestedCycleKey:
+          lastSuggestedCycleKey ?? this.lastSuggestedCycleKey,
+      lastCompletedCycleKey:
+          lastCompletedCycleKey ?? this.lastCompletedCycleKey,
+      lastDismissedCycleKey:
+          lastDismissedCycleKey ?? this.lastDismissedCycleKey,
       createdAt: createdAt ?? this.createdAt,
       lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
       rowid: rowid ?? this.rowid,
@@ -2239,11 +2450,20 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
     if (amount.present) {
       map['amount'] = Variable<int>(amount.value);
     }
+    if (cadence.present) {
+      map['cadence'] = Variable<String>(cadence.value);
+    }
     if (dayOfMonth.present) {
       map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    }
+    if (weekday.present) {
+      map['weekday'] = Variable<int>(weekday.value);
     }
     if (accountId.present) {
       map['account_id'] = Variable<String>(accountId.value);
@@ -2254,9 +2474,17 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
-    if (lastCreatedMonthKey.present) {
-      map['last_created_month_key'] =
-          Variable<String>(lastCreatedMonthKey.value);
+    if (lastSuggestedCycleKey.present) {
+      map['last_suggested_cycle_key'] =
+          Variable<String>(lastSuggestedCycleKey.value);
+    }
+    if (lastCompletedCycleKey.present) {
+      map['last_completed_cycle_key'] =
+          Variable<String>(lastCompletedCycleKey.value);
+    }
+    if (lastDismissedCycleKey.present) {
+      map['last_dismissed_cycle_key'] =
+          Variable<String>(lastDismissedCycleKey.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -2275,12 +2503,17 @@ class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
     return (StringBuffer('RecurringExpensesCompanion(')
           ..write('localId: $localId, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
           ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
           ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('weekday: $weekday, ')
           ..write('accountId: $accountId, ')
           ..write('categoryId: $categoryId, ')
           ..write('isActive: $isActive, ')
-          ..write('lastCreatedMonthKey: $lastCreatedMonthKey, ')
+          ..write('lastSuggestedCycleKey: $lastSuggestedCycleKey, ')
+          ..write('lastCompletedCycleKey: $lastCompletedCycleKey, ')
+          ..write('lastDismissedCycleKey: $lastDismissedCycleKey, ')
           ..write('createdAt: $createdAt, ')
           ..write('lastModifiedAt: $lastModifiedAt, ')
           ..write('rowid: $rowid')
@@ -5204,12 +5437,17 @@ typedef $$RecurringExpensesTableCreateCompanionBuilder
     = RecurringExpensesCompanion Function({
   required String localId,
   required String name,
+  required String type,
   required int amount,
-  required int dayOfMonth,
+  required String cadence,
+  Value<int?> dayOfMonth,
+  Value<int?> weekday,
   required String accountId,
   Value<String?> categoryId,
   Value<bool> isActive,
-  Value<String?> lastCreatedMonthKey,
+  Value<String?> lastSuggestedCycleKey,
+  Value<String?> lastCompletedCycleKey,
+  Value<String?> lastDismissedCycleKey,
   required DateTime createdAt,
   required DateTime lastModifiedAt,
   Value<int> rowid,
@@ -5218,12 +5456,17 @@ typedef $$RecurringExpensesTableUpdateCompanionBuilder
     = RecurringExpensesCompanion Function({
   Value<String> localId,
   Value<String> name,
+  Value<String> type,
   Value<int> amount,
-  Value<int> dayOfMonth,
+  Value<String> cadence,
+  Value<int?> dayOfMonth,
+  Value<int?> weekday,
   Value<String> accountId,
   Value<String?> categoryId,
   Value<bool> isActive,
-  Value<String?> lastCreatedMonthKey,
+  Value<String?> lastSuggestedCycleKey,
+  Value<String?> lastCompletedCycleKey,
+  Value<String?> lastDismissedCycleKey,
   Value<DateTime> createdAt,
   Value<DateTime> lastModifiedAt,
   Value<int> rowid,
@@ -5242,13 +5485,28 @@ class $$RecurringExpensesTableFilterComposer
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
   ColumnFilters<int> get amount => $state.composableBuilder(
       column: $state.table.amount,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
+  ColumnFilters<String> get cadence => $state.composableBuilder(
+      column: $state.table.cadence,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
   ColumnFilters<int> get dayOfMonth => $state.composableBuilder(
       column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get weekday => $state.composableBuilder(
+      column: $state.table.weekday,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -5267,8 +5525,18 @@ class $$RecurringExpensesTableFilterComposer
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
-  ColumnFilters<String> get lastCreatedMonthKey => $state.composableBuilder(
-      column: $state.table.lastCreatedMonthKey,
+  ColumnFilters<String> get lastSuggestedCycleKey => $state.composableBuilder(
+      column: $state.table.lastSuggestedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get lastCompletedCycleKey => $state.composableBuilder(
+      column: $state.table.lastCompletedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get lastDismissedCycleKey => $state.composableBuilder(
+      column: $state.table.lastDismissedCycleKey,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -5296,13 +5564,28 @@ class $$RecurringExpensesTableOrderingComposer
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
   ColumnOrderings<int> get amount => $state.composableBuilder(
       column: $state.table.amount,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
+  ColumnOrderings<String> get cadence => $state.composableBuilder(
+      column: $state.table.cadence,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
   ColumnOrderings<int> get dayOfMonth => $state.composableBuilder(
       column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get weekday => $state.composableBuilder(
+      column: $state.table.weekday,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -5321,8 +5604,18 @@ class $$RecurringExpensesTableOrderingComposer
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
-  ColumnOrderings<String> get lastCreatedMonthKey => $state.composableBuilder(
-      column: $state.table.lastCreatedMonthKey,
+  ColumnOrderings<String> get lastSuggestedCycleKey => $state.composableBuilder(
+      column: $state.table.lastSuggestedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get lastCompletedCycleKey => $state.composableBuilder(
+      column: $state.table.lastCompletedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get lastDismissedCycleKey => $state.composableBuilder(
+      column: $state.table.lastDismissedCycleKey,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -5363,12 +5656,17 @@ class $$RecurringExpensesTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> localId = const Value.absent(),
             Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
             Value<int> amount = const Value.absent(),
-            Value<int> dayOfMonth = const Value.absent(),
+            Value<String> cadence = const Value.absent(),
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<int?> weekday = const Value.absent(),
             Value<String> accountId = const Value.absent(),
             Value<String?> categoryId = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
-            Value<String?> lastCreatedMonthKey = const Value.absent(),
+            Value<String?> lastSuggestedCycleKey = const Value.absent(),
+            Value<String?> lastCompletedCycleKey = const Value.absent(),
+            Value<String?> lastDismissedCycleKey = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> lastModifiedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -5376,12 +5674,17 @@ class $$RecurringExpensesTableTableManager extends RootTableManager<
               RecurringExpensesCompanion(
             localId: localId,
             name: name,
+            type: type,
             amount: amount,
+            cadence: cadence,
             dayOfMonth: dayOfMonth,
+            weekday: weekday,
             accountId: accountId,
             categoryId: categoryId,
             isActive: isActive,
-            lastCreatedMonthKey: lastCreatedMonthKey,
+            lastSuggestedCycleKey: lastSuggestedCycleKey,
+            lastCompletedCycleKey: lastCompletedCycleKey,
+            lastDismissedCycleKey: lastDismissedCycleKey,
             createdAt: createdAt,
             lastModifiedAt: lastModifiedAt,
             rowid: rowid,
@@ -5389,12 +5692,17 @@ class $$RecurringExpensesTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String localId,
             required String name,
+            required String type,
             required int amount,
-            required int dayOfMonth,
+            required String cadence,
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<int?> weekday = const Value.absent(),
             required String accountId,
             Value<String?> categoryId = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
-            Value<String?> lastCreatedMonthKey = const Value.absent(),
+            Value<String?> lastSuggestedCycleKey = const Value.absent(),
+            Value<String?> lastCompletedCycleKey = const Value.absent(),
+            Value<String?> lastDismissedCycleKey = const Value.absent(),
             required DateTime createdAt,
             required DateTime lastModifiedAt,
             Value<int> rowid = const Value.absent(),
@@ -5402,12 +5710,17 @@ class $$RecurringExpensesTableTableManager extends RootTableManager<
               RecurringExpensesCompanion.insert(
             localId: localId,
             name: name,
+            type: type,
             amount: amount,
+            cadence: cadence,
             dayOfMonth: dayOfMonth,
+            weekday: weekday,
             accountId: accountId,
             categoryId: categoryId,
             isActive: isActive,
-            lastCreatedMonthKey: lastCreatedMonthKey,
+            lastSuggestedCycleKey: lastSuggestedCycleKey,
+            lastCompletedCycleKey: lastCompletedCycleKey,
+            lastDismissedCycleKey: lastDismissedCycleKey,
             createdAt: createdAt,
             lastModifiedAt: lastModifiedAt,
             rowid: rowid,

@@ -74,4 +74,8 @@ class AppScaffoldScope extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(AppScaffoldScop
+  bool updateShouldNotify(AppScaffoldScope oldWidget) {
+    return hideGlobalQuickPanel != oldWidget.hideGlobalQuickPanel;
+  }
+}
+

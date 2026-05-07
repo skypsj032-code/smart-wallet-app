@@ -13,13 +13,17 @@ import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/wealth_hero_backdrop.dart';
 import '../../calendar/application/calendar_provider.dart';
+import '../../recurring_expenses/application/recurring_transaction_suggestion.dart';
 import '../../statistics/application/statistics_provider.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../recurring_expenses/application/recurring_expense_service.dart';
 import '../application/dashboard_summary_provider.dart';
+import '../application/recurring_transaction_suggestion_provider.dart';
 import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
 import 'dashboard_narrative_card.dart';
+import 'recurring_transaction_suggestion_card.dart';
+import 'upcoming_recurring_transactions_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -29,6 +33,8 @@ class DashboardScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
     final recurringAsync = ref.watch(activeRecurringExpensesProvider);
+    final recurringSuggestionAsync =
+        ref.watch(recurringTransactionSuggestionProvider);
     final calendarSummaryAsync = ref.watch(calendarHomeSummaryProvider);
     final calendarPreviewAsync = ref.watch(calendarHomeMonthPreviewProvider);
     final statisticsPreviewAsync = ref.watch(statisticsHomePreviewProvider);
@@ -81,6 +87,24 @@ class DashboardScreen extends ConsumerWidget {
                       summary.narrative.topExpenseCategoryLabel,
                 ),
               ),
+              if (recurringSuggestionAsync.valueOrNull case final suggestion?) ...[
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.md),
+                ),
+                SliverToBoxAdapter(
+                  child: RecurringTransactionSuggestionCard(
+                    suggestion: suggestion,
+                    onCreate: () => _createRecurringSuggestion(
+                      ref,
+                      suggestion,
+                    ),
+                    onDismiss: () => _dismissRecurringSuggestion(
+                      ref,
+                      suggestion,
+                    ),
+                  ),
+                ),
+              ],
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: _TodayLoopCard(
@@ -96,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SliverToBoxAdapter(
                     child: SizedBox(height: AppSpacing.md)),
                 SliverToBoxAdapter(
-                  child: _UpcomingRecurringExpenseCard(
+                  child: UpcomingRecurringTransactionsCard(
                     items: recurringAsync.valueOrNull!,
                   ),
                 ),
@@ -107,21 +131,6 @@ class DashboardScreen extends ConsumerWidget {
                   transactions: summary.recentTransactions,
                 ),
               ),
-              if (summary.repeatSuggestions.isNotEmpty) ...[
-                const SliverToBoxAdapter(
-                    child: SizedBox(height: AppSpacing.md)),
-                SliverToBoxAdapter(
-                  child: _RepeatSuggestionSection(
-                    suggestions: summary.repeatSuggestions,
-                    onRepeat: (transaction) {
-                      ref
-                          .read(quickEntryFormProvider.notifier)
-                          .loadTemplate(transaction);
-                      context.push('/quick-entry');
-                    },
-                  ),
-                ),
-              ],
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
               const SliverToBoxAdapter(child: SizedBox(height: 148)),
@@ -137,6 +146,26 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _createRecurringSuggestion(
+    WidgetRef ref,
+    RecurringTransactionSuggestion suggestion,
+  ) async {
+    await ref.read(recurringExpenseServiceProvider).createTransactionFromSuggestion(
+          recurringId: suggestion.transaction.localId,
+          today: DateTime.now(),
+        );
+  }
+
+  Future<void> _dismissRecurringSuggestion(
+    WidgetRef ref,
+    RecurringTransactionSuggestion suggestion,
+  ) async {
+    await ref.read(recurringExpenseServiceProvider).dismissSuggestion(
+          recurringId: suggestion.transaction.localId,
+          cycleKey: suggestion.cycleKey,
+        );
   }
 }
 
@@ -509,6 +538,7 @@ class _TodayLoopCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _UpcomingRecurringExpenseCard extends ConsumerWidget {
   const _UpcomingRecurringExpenseCard({required this.items});
 
@@ -676,6 +706,7 @@ class _RecentTransactionsSection extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _RepeatSuggestionSection extends StatelessWidget {
   const _RepeatSuggestionSection({
     required this.suggestions,

@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Wraps [child] in animated bottom padding that tracks the software keyboard.
-///
-/// Place this inside a [Scaffold] body so that text fields scroll above
-/// the keyboard rather than being covered by it.
 class KeyboardAwareBody extends StatelessWidget {
   const KeyboardAwareBody({
     super.key,
@@ -16,12 +12,13 @@ class KeyboardAwareBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final insets = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return AnimatedPadding(
+      key: const Key('keyboard-aware-body-padding'),
       duration: duration,
       curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: insets),
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: child,
     );
   }

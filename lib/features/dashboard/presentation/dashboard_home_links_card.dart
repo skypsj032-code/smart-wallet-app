@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/utils/currency_formatter.dart';
-import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../calendar/application/calendar_provider.dart';
 import '../../statistics/application/statistics_provider.dart';
 
-class DashboardHomeLinksCard extends StatefulWidget {
+class DashboardHomeLinksCard extends StatelessWidget {
   const DashboardHomeLinksCard({
     super.key,
     required this.onOpenCalendar,
@@ -31,109 +30,67 @@ class DashboardHomeLinksCard extends StatefulWidget {
   final String topExpenseCategoryLabel;
 
   @override
-  State<DashboardHomeLinksCard> createState() => _DashboardHomeLinksCardState();
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewSurface(
+          key: const Key('dashboard-open-calendar'),
+          onTap: onOpenCalendar,
+          child: _CalendarPreview(
+            preview: calendarMonthPreview,
+            summary: calendarSummary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _PreviewSurface(
+          key: const Key('dashboard-open-statistics'),
+          onTap: onOpenStatistics,
+          child: _StatisticsPreview(
+            monthIncome: monthIncome,
+            monthExpense: monthExpense,
+            topExpenseCategories: topExpenseCategories,
+            topExpenseCategoryLabel: topExpenseCategoryLabel,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _DashboardHomeLinksCardState extends State<DashboardHomeLinksCard> {
-  bool _calendarExpanded = false;
-  bool _statisticsExpanded = false;
+class _PreviewSurface extends StatelessWidget {
+  const _PreviewSurface({
+    super.key,
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final onCard = theme.colorScheme.onSurface;
 
     return GlassCard(
       blur: 16,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppStatusChip(
-            label: 'HOME PREVIEW',
-            dotColor: AppColors.primary,
-            backgroundColor: onCard.withValues(alpha: 0.10),
-            foregroundColor: onCard,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '달력과 통계',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: onCard,
-              fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.all(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
             ),
+            child: child,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          _FoldTile(
-            key: const Key('dashboard-calendar-fold'),
-            title: '달력',
-            icon: Icons.calendar_month_rounded,
-            expanded: _calendarExpanded,
-            onToggle: () {
-              setState(() {
-                _calendarExpanded = !_calendarExpanded;
-              });
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CalendarPreview(
-                  preview: widget.calendarMonthPreview,
-                  summary: widget.calendarSummary,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                FilledButton.icon(
-                  key: const Key('dashboard-open-calendar'),
-                  onPressed: widget.onOpenCalendar,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  icon: const Icon(Icons.open_in_full_rounded),
-                  label: const Text('달력 크게 보기'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _FoldTile(
-            key: const Key('dashboard-statistics-fold'),
-            title: '통계',
-            icon: Icons.bar_chart_rounded,
-            expanded: _statisticsExpanded,
-            onToggle: () {
-              setState(() {
-                _statisticsExpanded = !_statisticsExpanded;
-              });
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _StatisticsPreview(
-                  monthIncome: widget.monthIncome,
-                  monthExpense: widget.monthExpense,
-                  topExpenseCategories: widget.topExpenseCategories,
-                  topExpenseCategoryLabel: widget.topExpenseCategoryLabel,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                OutlinedButton.icon(
-                  key: const Key('dashboard-open-statistics'),
-                  onPressed: widget.onOpenStatistics,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  icon: const Icon(Icons.open_in_full_rounded),
-                  label: const Text('통계 자세히 보기'),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -391,9 +348,7 @@ class _StatisticsPreview extends StatelessWidget {
               for (var index = 0; index < topExpenseCategories.length; index++)
                 Padding(
                   padding: EdgeInsets.only(
-                    bottom: index == topExpenseCategories.length - 1
-                        ? 0
-                        : 6,
+                    bottom: index == topExpenseCategories.length - 1 ? 0 : 6,
                   ),
                   child: _StatisticPreviewRow(
                     key: Key('dashboard-stat-category-$index'),
@@ -469,82 +424,6 @@ class _StatisticPreviewRow extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FoldTile extends StatelessWidget {
-  const _FoldTile({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.expanded,
-    required this.onToggle,
-    required this.child,
-  });
-
-  final String title;
-  final IconData icon;
-  final bool expanded;
-  final VoidCallback onToggle;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: 12,
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: AppColors.primary),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                12,
-                0,
-                12,
-                12,
-              ),
-              child: child,
-            ),
         ],
       ),
     );

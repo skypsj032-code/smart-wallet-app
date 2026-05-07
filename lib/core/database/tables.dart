@@ -55,12 +55,17 @@ class Budgets extends Table {
 class RecurringExpenses extends Table {
   TextColumn get localId => text()();
   TextColumn get name => text()();
+  TextColumn get type => text()();
   IntColumn get amount => integer()();
-  IntColumn get dayOfMonth => integer()();
+  TextColumn get cadence => text()();
+  IntColumn get dayOfMonth => integer().nullable()();
+  IntColumn get weekday => integer().nullable()();
   TextColumn get accountId => text()();
   TextColumn get categoryId => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
-  TextColumn get lastCreatedMonthKey => text().nullable()();
+  TextColumn get lastSuggestedCycleKey => text().nullable()();
+  TextColumn get lastCompletedCycleKey => text().nullable()();
+  TextColumn get lastDismissedCycleKey => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get lastModifiedAt => dateTime()();
 

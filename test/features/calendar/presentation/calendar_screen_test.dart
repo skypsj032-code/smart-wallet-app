@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/calendar/presentation/calendar_screen.dart';
+import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
 
 void main() {
   final may5 = DateTime(2026, 5, 5);
@@ -173,6 +174,55 @@ void main() {
     expect(find.text('Bakery'), findsOneWidget);
     expect(find.text('Star Cafe'), findsNothing);
   });
+
+  testWidgets('switches to day mode and shows inline entry for the selected date',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    expect(find.byKey(const Key('calendar-view-day')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-view-week')), findsOneWidget);
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-view-day')),
+      -200,
+    );
+    await tester.tap(find.byKey(const Key('calendar-view-day')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-entry-card')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-inline-amount-field')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-inline-save-button')), findsOneWidget);
+  });
+
+  testWidgets('selected-day summary chips stay above the inline entry card',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-selected-summary-income')),
+      240,
+    );
+
+    final summaryTop = tester
+        .getTopLeft(find.byKey(const Key('calendar-selected-summary-income')))
+        .dy;
+    final inlineTop =
+        tester.getTopLeft(find.byKey(const Key('calendar-inline-entry-card'))).dy;
+
+    expect(summaryTop, lessThan(inlineTop));
+  });
 }
 
 Future<void> _pumpCalendarScreen(
@@ -186,6 +236,35 @@ Future<void> _pumpCalendarScreen(
         calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
         calendarSnapshotProvider.overrideWith(
           (ref) => Stream.value(snapshot),
+        ),
+        quickEntryAccountsProvider.overrideWith(
+          (ref) => Stream.value(
+            const [
+              QuickEntryAccountOption(id: 'cash-wallet', name: '현금'),
+            ],
+          ),
+        ),
+        quickEntryCategoriesProvider('expense').overrideWith(
+          (ref) => Stream.value(
+            const [
+              QuickEntryCategoryOption(
+                id: 'expense-food',
+                name: '식비',
+                type: 'expense',
+              ),
+            ],
+          ),
+        ),
+        quickEntryCategoriesProvider('income').overrideWith(
+          (ref) => Stream.value(
+            const [
+              QuickEntryCategoryOption(
+                id: 'income-salary',
+                name: '급여',
+                type: 'income',
+              ),
+            ],
+          ),
         ),
         selectedCalendarTransactionsProvider.overrideWith((ref) {
           final selectedDate = ref.watch(selectedCalendarDateProvider);

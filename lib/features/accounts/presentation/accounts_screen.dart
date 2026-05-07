@@ -100,9 +100,16 @@ class AccountsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return SingleChildScrollView(
+              child: AlertDialog(
               title: Text(account == null ? '계좌 추가' : '계좌 수정'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -164,8 +171,10 @@ class AccountsScreen extends ConsumerWidget {
                   child: Text(account == null ? '추가' : '저장'),
                 ),
               ],
+              ),
             );
           },
+          ),
         );
       },
     );

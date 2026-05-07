@@ -8,6 +8,7 @@ import '../../../core/database/providers/database_providers.dart';
 
 enum CalendarViewMode {
   week,
+  day,
   month,
   year,
 }
@@ -395,6 +396,8 @@ DateTime _periodStart(DateTime anchorDate, CalendarViewMode mode) {
       final normalized =
           DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
       return normalized.subtract(Duration(days: normalized.weekday - 1));
+    case CalendarViewMode.day:
+      return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
     case CalendarViewMode.month:
       return DateTime(anchorDate.year, anchorDate.month, 1);
     case CalendarViewMode.year:
@@ -406,6 +409,8 @@ DateTime _periodEnd(DateTime periodStart, CalendarViewMode mode) {
   switch (mode) {
     case CalendarViewMode.week:
       return periodStart.add(const Duration(days: 7));
+    case CalendarViewMode.day:
+      return periodStart.add(const Duration(days: 1));
     case CalendarViewMode.month:
       return DateTime(periodStart.year, periodStart.month + 1, 1);
     case CalendarViewMode.year:
