@@ -21,6 +21,7 @@ import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
 import 'csv_export_options_dialog.dart';
 import 'lock_setup_dialog.dart';
+import 'theme_mode_tile.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -148,7 +149,7 @@ class SettingsScreen extends ConsumerWidget {
           appSettingsAsync.when(
             data: (settings) => AppUtilityGroup(
               children: [
-                _ThemeModeTile(
+                ThemeModeTile(
                   currentMode: settings.themeMode,
                   onChanged: (mode) =>
                       _updateThemeMode(context, ref, settings, mode),
@@ -828,66 +829,3 @@ class _SettingsActionTile extends StatelessWidget {
   }
 }
 
-class _ThemeModeTile extends StatelessWidget {
-  const _ThemeModeTile({
-    required this.currentMode,
-    required this.onChanged,
-  });
-
-  final String currentMode;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-        child: Icon(
-          currentMode == 'dark'
-              ? Icons.dark_mode_outlined
-              : currentMode == 'light'
-                  ? Icons.light_mode_outlined
-                  : Icons.brightness_auto_outlined,
-          color: AppColors.primary,
-        ),
-      ),
-      title: Text(
-        '화면 모드',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(_modeLabel(currentMode)),
-      ),
-      trailing: DropdownButton<String>(
-        value: currentMode,
-        underline: const SizedBox.shrink(),
-        items: const [
-          DropdownMenuItem(value: 'system', child: Text('시스템')),
-          DropdownMenuItem(value: 'light', child: Text('라이트')),
-          DropdownMenuItem(value: 'dark', child: Text('다크')),
-        ],
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
-      ),
-    );
-  }
-
-  String _modeLabel(String mode) {
-    switch (mode) {
-      case 'light':
-        return '밝은 화면으로 표시합니다.';
-      case 'dark':
-        return '어두운 화면으로 표시합니다.';
-      default:
-        return '기기 설정에 따라 자동으로 맞춥니다.';
-    }
-  }
-}
