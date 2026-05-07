@@ -195,6 +195,36 @@ void main() {
     expect(find.text('Star Cafe'), findsNothing);
   });
 
+  testWidgets('selected day transactions default to newest first and can be reversed',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilTextVisible(tester, 'Star Cafe');
+
+    var marketTop = tester.getTopLeft(find.text('Night Market')).dy;
+    var salaryTop = tester.getTopLeft(find.text('May salary')).dy;
+    var cafeTop = tester.getTopLeft(find.text('Star Cafe')).dy;
+
+    expect(marketTop, lessThan(salaryTop));
+    expect(salaryTop, lessThan(cafeTop));
+
+    await tester.tap(find.text('오래된순'));
+    await tester.pumpAndSettle();
+    await _scrollUntilTextVisible(tester, 'Star Cafe');
+
+    marketTop = tester.getTopLeft(find.text('Night Market')).dy;
+    salaryTop = tester.getTopLeft(find.text('May salary')).dy;
+    cafeTop = tester.getTopLeft(find.text('Star Cafe')).dy;
+
+    expect(cafeTop, lessThan(salaryTop));
+    expect(salaryTop, lessThan(marketTop));
+  });
+
   testWidgets('switches to day mode and shows the selected date details',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
@@ -411,12 +441,14 @@ Future<void> _pumpCalendarScreen(
           final selectedDate = ref.watch(selectedCalendarDateProvider);
           final filter = ref.watch(calendarTypeFilterProvider);
           final query = ref.watch(calendarSearchQueryProvider);
+          final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
           return Stream.value(
             _filterTransactions(
               transactions,
               selectedDate: selectedDate,
               filter: filter,
               query: query,
+              sortOrder: sortOrder,
             ),
           );
         }),
@@ -559,6 +591,7 @@ List<Transaction> _filterTransactions(
   required DateTime? selectedDate,
   required CalendarTransactionFilter filter,
   required String query,
+  required CalendarTransactionSortOrder sortOrder,
 }) {
   if (selectedDate == null) {
     return const <Transaction>[];
@@ -594,7 +627,12 @@ List<Transaction> _filterTransactions(
       (value) => value.toLowerCase().contains(normalizedQuery),
     );
   }).toList()
-    ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    ..sort((a, b) => switch (sortOrder) {
+          CalendarTransactionSortOrder.newestFirst =>
+            b.occurredAt.compareTo(a.occurredAt),
+          CalendarTransactionSortOrder.oldestFirst =>
+            a.occurredAt.compareTo(b.occurredAt),
+        });
 }
 
 bool _isSameDate(DateTime a, DateTime b) {

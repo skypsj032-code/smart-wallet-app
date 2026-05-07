@@ -19,6 +19,11 @@ enum CalendarTransactionFilter {
   expense,
 }
 
+enum CalendarTransactionSortOrder {
+  newestFirst,
+  oldestFirst,
+}
+
 class CalendarDaySummary {
   const CalendarDaySummary({
     required this.date,
@@ -102,6 +107,11 @@ final calendarTypeFilterProvider =
 });
 
 final calendarSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final calendarTransactionSortOrderProvider =
+    StateProvider<CalendarTransactionSortOrder>(
+  (ref) => CalendarTransactionSortOrder.newestFirst,
+);
 
 final _calendarTodayTickProvider = StreamProvider<DateTime>((ref) async* {
   while (true) {
@@ -264,6 +274,7 @@ final selectedCalendarTransactionsProvider =
   final selected = ref.watch(selectedCalendarDateProvider);
   final filter = ref.watch(calendarTypeFilterProvider);
   final query = ref.watch(calendarSearchQueryProvider);
+  final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
   if (selected == null) {
     return Stream.value(const <Transaction>[]);
   }
@@ -278,8 +289,13 @@ final selectedCalendarTransactionsProvider =
             t.occurredAt.isBiggerOrEqualValue(dayStart) &
             t.occurredAt.isSmallerThanValue(nextDay))
         ..orderBy([
-          (t) => OrderingTerm.desc(t.occurredAt),
-          (t) => OrderingTerm.desc(t.createdAt),
+          if (sortOrder == CalendarTransactionSortOrder.newestFirst) ...[
+            (t) => OrderingTerm.desc(t.occurredAt),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ] else ...[
+            (t) => OrderingTerm.asc(t.occurredAt),
+            (t) => OrderingTerm.asc(t.createdAt),
+          ],
         ]))
       .watch();
   final categories = database.select(database.categories).watch();

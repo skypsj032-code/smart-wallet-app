@@ -37,6 +37,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ref.watch(selectedCalendarTransactionsProvider);
     final viewMode = ref.watch(calendarViewModeProvider);
     final yearMonths = ref.watch(calendarMonthSummariesProvider);
+    final transactionSortOrder =
+        ref.watch(calendarTransactionSortOrderProvider);
 
     return AppScaffold(
       title: '달력',
@@ -218,6 +220,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ? null
                         : effectiveSelectedDay,
                     transactionsAsync: selectedTransactionsAsync,
+                    sortOrder: transactionSortOrder,
+                    onChangeSortOrder: (sortOrder) {
+                      ref
+                          .read(calendarTransactionSortOrderProvider.notifier)
+                          .state = sortOrder;
+                    },
                     onEditTransaction: (transaction) => _openQuickEntry(
                       context,
                       transaction: transaction,
@@ -1030,12 +1038,16 @@ class _CalendarSelectedDayCard extends StatelessWidget {
     required this.selectedDate,
     required this.selectedDay,
     required this.transactionsAsync,
+    required this.sortOrder,
+    required this.onChangeSortOrder,
     required this.onEditTransaction,
   });
 
   final DateTime? selectedDate;
   final CalendarDaySummary? selectedDay;
   final AsyncValue<List<Transaction>> transactionsAsync;
+  final CalendarTransactionSortOrder sortOrder;
+  final ValueChanged<CalendarTransactionSortOrder> onChangeSortOrder;
   final ValueChanged<Transaction> onEditTransaction;
 
   @override
@@ -1066,6 +1078,27 @@ class _CalendarSelectedDayCard extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SegmentedButton<CalendarTransactionSortOrder>(
+                    segments: const [
+                      ButtonSegment<CalendarTransactionSortOrder>(
+                        value: CalendarTransactionSortOrder.newestFirst,
+                        icon: Icon(Icons.south_rounded),
+                        label: Text('최신순'),
+                      ),
+                      ButtonSegment<CalendarTransactionSortOrder>(
+                        value: CalendarTransactionSortOrder.oldestFirst,
+                        icon: Icon(Icons.north_rounded),
+                        label: Text('오래된순'),
+                      ),
+                    ],
+                    selected: {sortOrder},
+                    onSelectionChanged: (selection) =>
+                        onChangeSortOrder(selection.first),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 if (selectedDay != null) ...[
                   Wrap(
                     spacing: AppSpacing.sm,
