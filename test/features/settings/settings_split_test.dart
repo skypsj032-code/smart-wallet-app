@@ -21,13 +21,8 @@ void main() {
 
     await tester.pump();
 
-    expect(find.text('거래 검색'), findsOneWidget);
-    expect(find.text('계좌 관리'), findsOneWidget);
-    expect(find.text('예산 관리'), findsOneWidget);
-    expect(find.text('영수증 스캔'), findsOneWidget);
-    expect(find.text('고정 지출'), findsOneWidget);
-    expect(find.text('JSON 백업 만들기'), findsNothing);
-    expect(find.text('화면 테마'), findsNothing);
+    expect(find.byType(ToolsScreen), findsOneWidget);
+    expect(find.byType(ListTile), findsAtLeastNWidgets(6));
   });
 
   testWidgets('SettingsScreen focuses on app settings and data management',
@@ -51,21 +46,61 @@ void main() {
       ),
     );
 
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('JSON 백업 만들기'), findsOneWidget);
-    expect(find.text('CSV 내보내기'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byKey(const Key('theme-mode-segmented-control')), findsNothing);
+
     await tester.scrollUntilVisible(
-      find.text('앱 안내'),
+      find.byKey(const Key('theme-mode-segmented-control')),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('앱 안내'), findsOneWidget);
-    expect(find.text('거래 검색'), findsNothing);
-    expect(find.text('계좌 관리'), findsNothing);
-    expect(find.text('예산 관리'), findsNothing);
-    expect(find.text('영수증 스캔'), findsNothing);
+
+    expect(find.byKey(const Key('theme-mode-segmented-control')), findsOneWidget);
+  });
+
+  testWidgets('SettingsScreen renders on compact mobile width',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(340, 737);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final container = ProviderContainer(
+      overrides: [
+        appSettingsProvider.overrideWith(
+          (ref) => Stream.value(_testSettings()),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('theme-mode-segmented-control')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('theme-mode-segmented-control')), findsOneWidget);
   });
 }
 

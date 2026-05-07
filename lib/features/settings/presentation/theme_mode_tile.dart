@@ -15,52 +15,74 @@ class ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        vertical: AppSpacing.sm,
       ),
-      leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-        child: Icon(_modeIcon(currentMode), color: AppColors.primary),
-      ),
-      title: Text(
-        '화면 모드',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                child: Icon(_modeIcon(currentMode), color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '화면 모드',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _modeDescription(currentMode),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              key: const Key('theme-mode-segmented-control'),
+              segments: const [
+                ButtonSegment<String>(
+                  value: 'system',
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  label: Text('시스템'),
+                ),
+                ButtonSegment<String>(
+                  value: 'light',
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('라이트'),
+                ),
+                ButtonSegment<String>(
+                  value: 'dark',
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('다크'),
+                ),
+              ],
+              selected: {currentMode},
+              onSelectionChanged: (selection) => onChanged(selection.first),
+              showSelectedIcon: false,
             ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(_modeLabel(currentMode)),
-      ),
-      minVerticalPadding: 0,
-      isThreeLine: true,
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 208),
-        child: SegmentedButton<String>(
-          key: const Key('theme-mode-segmented-control'),
-          segments: const [
-            ButtonSegment<String>(
-              value: 'system',
-              icon: Icon(Icons.brightness_auto_outlined),
-              label: Text('시스템'),
-            ),
-            ButtonSegment<String>(
-              value: 'light',
-              icon: Icon(Icons.light_mode_outlined),
-              label: Text('라이트'),
-            ),
-            ButtonSegment<String>(
-              value: 'dark',
-              icon: Icon(Icons.dark_mode_outlined),
-              label: Text('다크'),
-            ),
-          ],
-          selected: {currentMode},
-          onSelectionChanged: (selection) => onChanged(selection.first),
-          showSelectedIcon: false,
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -73,7 +95,7 @@ class ThemeModeTile extends StatelessWidget {
     };
   }
 
-  String _modeLabel(String mode) {
+  String _modeDescription(String mode) {
     return switch (mode) {
       'light' => '밝은 화면으로 표시합니다.',
       'dark' => '어두운 화면으로 표시합니다.',

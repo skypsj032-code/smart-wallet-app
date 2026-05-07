@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet_app/features/settings/presentation/theme_mode_tile.dart';
 
 void main() {
-  testWidgets('theme tile shows system light and dark as one grouped control',
+  testWidgets('theme tile shows one grouped control with three choices',
       (tester) async {
     var changedTo = '';
 
