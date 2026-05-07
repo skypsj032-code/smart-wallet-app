@@ -33,6 +33,7 @@ migrate_working_dir/
 .worktrees/
 /build/
 /coverage/
+.tmp-*.png
 
 # Symbolication related
 app.*.symbols
