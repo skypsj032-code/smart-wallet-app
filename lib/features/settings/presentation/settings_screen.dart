@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../notifications/application/notification_provider.dart';
+import '../../notifications/data/notification_channel.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
@@ -139,6 +141,13 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionIntro(
+            title: '알림 자동 기록',
+            subtitle: '카드·은행 알림을 읽어 거래를 자동으로 제안합니다.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const _NotificationListenerCard(),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '화면',
@@ -871,23 +880,4 @@ class _ThemeModeTile extends StatelessWidget {
         items: const [
           DropdownMenuItem(value: 'system', child: Text('시스템')),
           DropdownMenuItem(value: 'light', child: Text('라이트')),
-          DropdownMenuItem(value: 'dark', child: Text('다크')),
-        ],
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
-      ),
-    );
-  }
-
-  String _modeLabel(String mode) {
-    switch (mode) {
-      case 'light':
-        return '밝은 화면으로 표시합니다.';
-      case 'dark':
-        return '어두운 화면으로 표시합니다.';
-      default:
-        return '기기 설정에 따라 자동으로 맞춥니다.';
-    }
-  }
-}
+          DropdownMenuItem(value: 'dark'

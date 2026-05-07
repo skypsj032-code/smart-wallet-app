@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../notifications/presentation/notification_transaction_banner.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -91,47 +92,58 @@ class _AppShellState extends ConsumerState<AppShell> {
           }
         },
         child: Scaffold(
-          body: ClipRect(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              reverseDuration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              transitionBuilder: (child, animation) {
-                final curved = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                );
+          body: Stack(
+            children: [
+              ClipRect(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  reverseDuration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  layoutBuilder: (currentChild, previousChildren) {
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    );
+                  },
+                  transitionBuilder: (child, animation) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    );
 
-                return ColoredBox(
-                  color: theme.scaffoldBackgroundColor,
-                  child: FadeTransition(
-                    opacity: curved,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.025, 0),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: child,
-                    ),
+                    return ColoredBox(
+                      color: theme.scaffoldBackgroundColor,
+                      child: FadeTransition(
+                        opacity: curved,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.025, 0),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(location),
+                    child: widget.child,
                   ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(location),
-                child: widget.child,
+                ),
               ),
-            ),
+              // 알림 감지 배너 — 화면 최상단에 오버레이
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: NotificationTransactionBanner(),
+              ),
+            ],
           ),
           bottomNavigationBar: Listener(
             behavior: HitTestBehavior.translucent,
@@ -424,13 +436,4 @@ class _AppShellState extends ConsumerState<AppShell> {
         const SnackBar(
           content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
           duration: _exitGracePeriod,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    return false;
-  }
-
-  bool _isHomeLocation(String location) {
-    return location == '/' || location.startsWith('/?');
-  }
-}
+          behavior: Sn
