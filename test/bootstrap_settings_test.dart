@@ -85,7 +85,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Lock is not configured. Returning to the app...'),
+      find.text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
       findsOneWidget,
     );
     expect(container.read(sessionUnlockedProvider), isTrue);
@@ -109,6 +109,4 @@ AppSetting _testSettings({
     exportIncludeDeleted: false,
     pinCode: pinCode,
     createdAt: now,
-    lastModifiedAt: now,
-  );
-}
+    lastModifiedAt:
