@@ -31,33 +31,29 @@ class DashboardHomeLinksCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      blur: 16,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _PreviewSurface(
-            key: const Key('dashboard-open-calendar'),
-            onTap: onOpenCalendar,
-            child: _CalendarPreview(
-              preview: calendarMonthPreview,
-              summary: calendarSummary,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewSurface(
+          key: const Key('dashboard-open-calendar'),
+          onTap: onOpenCalendar,
+          child: _CalendarPreview(
+            preview: calendarMonthPreview,
+            summary: calendarSummary,
           ),
-          const SizedBox(height: AppSpacing.md),
-          _PreviewSurface(
-            key: const Key('dashboard-open-statistics'),
-            onTap: onOpenStatistics,
-            child: _StatisticsPreview(
-              monthIncome: monthIncome,
-              monthExpense: monthExpense,
-              topExpenseCategories: topExpenseCategories,
-              topExpenseCategoryLabel: topExpenseCategoryLabel,
-            ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _PreviewSurface(
+          key: const Key('dashboard-open-statistics'),
+          onTap: onOpenStatistics,
+          child: _StatisticsPreview(
+            monthIncome: monthIncome,
+            monthExpense: monthExpense,
+            topExpenseCategories: topExpenseCategories,
+            topExpenseCategoryLabel: topExpenseCategoryLabel,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -76,21 +72,24 @@ class _PreviewSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
             ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );

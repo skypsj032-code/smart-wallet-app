@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_home_links_card.dart';
 import 'package:smart_wallet_app/features/statistics/application/statistics_provider.dart';
+import 'package:smart_wallet_app/shared/widgets/glass_card.dart';
 
 void main() {
   testWidgets('DashboardHomeLinksCard shows previews without folding',
@@ -19,7 +20,7 @@ void main() {
               monthIncome: 300000,
               monthExpense: 120000,
               topExpenseCategories: _topCategories(),
-              topExpenseCategoryLabel: '식비',
+              topExpenseCategoryLabel: '\uC2DD\uBE44',
             ),
           ),
         ),
@@ -50,7 +51,7 @@ void main() {
               monthIncome: 300000,
               monthExpense: 120000,
               topExpenseCategories: _topCategories(),
-              topExpenseCategoryLabel: '식비',
+              topExpenseCategoryLabel: '\uC2DD\uBE44',
             ),
           ),
         ),
@@ -71,7 +72,34 @@ void main() {
     expect(find.byKey(const Key('dashboard-statistics-income')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-statistics-expense')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-stat-category-0')), findsOneWidget);
-    expect(find.text('식비'), findsOneWidget);
+    expect(find.text('\uC2DD\uBE44'), findsOneWidget);
+  });
+
+  testWidgets(
+      'DashboardHomeLinksCard renders calendar and statistics as separate cards',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: DashboardHomeLinksCard(
+              onOpenCalendar: _noop,
+              onOpenStatistics: _noop,
+              calendarSummary: _calendarSummary(),
+              calendarMonthPreview: _calendarPreview(),
+              monthIncome: 300000,
+              monthExpense: 120000,
+              topExpenseCategories: _topCategories(),
+              topExpenseCategoryLabel: '\uC2DD\uBE44',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.byType(GlassCard), findsNWidgets(2));
   });
 }
 
@@ -108,9 +136,9 @@ CalendarHomeMonthPreview _calendarPreview() {
 
 List<CategoryStat> _topCategories() {
   return const [
-    CategoryStat(label: '식비', amount: 72000, share: 0.6),
-    CategoryStat(label: '교통', amount: 30000, share: 0.25),
-    CategoryStat(label: '쇼핑', amount: 18000, share: 0.15),
+    CategoryStat(label: '\uC2DD\uBE44', amount: 72000, share: 0.6),
+    CategoryStat(label: '\uAD50\uD1B5', amount: 30000, share: 0.25),
+    CategoryStat(label: '\uC1FC\uD551', amount: 18000, share: 0.15),
   ];
 }
 
