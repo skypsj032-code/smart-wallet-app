@@ -8,9 +8,7 @@ import '../../../core/database/app_database.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
-import '../application/calendar_inline_entry_controller.dart';
 import '../application/calendar_provider.dart';
-import 'calendar_inline_entry_card.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -23,12 +21,18 @@ class CalendarScreen extends ConsumerStatefulWidget {
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   bool _explorerExpanded = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final snapshotAsync = ref.watch(calendarSnapshotProvider);
     final selectedDate = ref.watch(selectedCalendarDateProvider);
-    final selectedDay = ref.watch(selectedCalendarDayProvider);
     final selectedTransactionsAsync =
         ref.watch(selectedCalendarTransactionsProvider);
     final viewMode = ref.watch(calendarViewModeProvider);
@@ -38,11 +42,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       title: '달력',
       body: snapshotAsync.when(
         data: (snapshot) {
-          final effectiveSelectedDate =
-              viewMode == CalendarViewMode.day ? snapshot.anchorDate : selectedDate;
-          final effectiveSelectedDay = viewMode == CalendarViewMode.day
-              ? _summaryForDate(snapshot.days, snapshot.anchorDate)
-              : selectedDay;
+          final effectiveSelectedDate = switch (viewMode) {
+            CalendarViewMode.day => snapshot.anchorDate,
+            CalendarViewMode.week => selectedDate ?? snapshot.anchorDate,
+            CalendarViewMode.month => selectedDate,
+            CalendarViewMode.year => null,
+          };
+          final effectiveSelectedDay = effectiveSelectedDate == null
+              ? null
+              : _summaryForDate(snapshot.days, effectiveSelectedDate);
           final weekCells = viewMode == CalendarViewMode.week
               ? _buildWeekCells(snapshot)
               : const <_CalendarCellData>[];
@@ -51,6 +59,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               : const <_CalendarCellData>[];
 
           return ListView(
+            controller: _scrollController,
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             children: [
               Padding(
@@ -195,10 +204,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               const SizedBox(height: AppSpacing.lg),
               if (viewMode != CalendarViewMode.year && effectiveSelectedDate != null)
                 AppSection(
-                  title: _selectedDateLabel(effectiveSelectedDate),
+                  title: viewMode == CalendarViewMode.day
+                      ? '기록'
+                      : _selectedDateLabel(effectiveSelectedDate),
                   child: _CalendarSelectedDayCard(
                     selectedDate: effectiveSelectedDate,
-                    selectedDay: effectiveSelectedDay,
+                    selectedDay: viewMode == CalendarViewMode.day
+                        ? null
+                        : effectiveSelectedDay,
                     transactionsAsync: selectedTransactionsAsync,
                     onEditTransaction: (transaction) => _openQuickEntry(
                       context,
@@ -250,13 +263,21 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     DateTime anchorDate,
   ) {
     final selected = ref.read(selectedCalendarDateProvider);
+    final focusDate = selected ?? anchorDate;
     final nextAnchor =
-        mode == CalendarViewMode.day ? (selected ?? anchorDate) : anchorDate;
+        mode == CalendarViewMode.day || mode == CalendarViewMode.week
+            ? focusDate
+            : anchorDate;
 
     ref.read(calendarViewModeProvider.notifier).state = mode;
     ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
     ref.read(selectedCalendarDateProvider.notifier).state =
-        mode == CalendarViewMode.day ? nextAnchor : selected;
+        mode == CalendarViewMode.year
+            ? null
+            : mode == CalendarViewMode.day || mode == CalendarViewMode.week
+                ? focusDate
+                : selected;
+    _scrollToTop();
   }
 
   void _movePeriod(
@@ -275,14 +296,25 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
     ref.read(selectedCalendarDateProvider.notifier).state =
-        mode == CalendarViewMode.day ? nextAnchor : null;
+        mode == CalendarViewMode.day || mode == CalendarViewMode.week
+            ? nextAnchor
+            : null;
+    _scrollToTop();
   }
 
   void _selectDate(DateTime date) {
     ref.read(selectedCalendarDateProvider.notifier).state = date;
-    ref.read(calendarInlineEntryControllerProvider.notifier).reset();
     setState(() {
       _explorerExpanded = false;
+    });
+  }
+
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      _scrollController.jumpTo(0);
     });
   }
 
@@ -755,13 +787,17 @@ class _WeekCalendarView extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _CalendarDayCell(
-                    cell: cell,
-                    isSelected: selectedDate != null &&
-                        cell.date != null &&
-                        isSameDate(cell.date!, selectedDate!),
-                    onTap:
-                        cell.date == null ? null : () => onSelectDate(cell.date!),
+                  child: AspectRatio(
+                    aspectRatio: 0.82,
+                    child: _CalendarDayCell(
+                      cell: cell,
+                      isSelected: selectedDate != null &&
+                          cell.date != null &&
+                          isSameDate(cell.date!, selectedDate!),
+                      onTap: cell.date == null
+                          ? null
+                          : () => onSelectDate(cell.date!),
+                    ),
                   ),
                 ),
               ),
@@ -809,9 +845,9 @@ class _MonthCalendarView extends StatelessWidget {
           itemCount: cells.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            mainAxisSpacing: AppSpacing.sm,
-            crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 0.95,
+            mainAxisSpacing: AppSpacing.xs,
+            crossAxisSpacing: AppSpacing.xs,
+            childAspectRatio: 0.82,
           ),
           itemBuilder: (context, index) {
             final cell = cells[index];
@@ -941,18 +977,9 @@ class _CalendarSelectedDayCard extends StatelessWidget {
             }
 
             if (transactions.isEmpty) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (selectedDate != null) ...[
-                    CalendarInlineEntryCard(selectedDate: selectedDate!),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  const _CalendarEmptyMessage(
-                    title: '이 날의 거래가 없어요',
-                    body: '',
-                  ),
-                ],
+              return const _CalendarEmptyMessage(
+                title: '이 날의 거래가 없어요',
+                body: '',
               );
             }
 
@@ -985,10 +1012,6 @@ class _CalendarSelectedDayCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                ],
-                if (selectedDate != null) ...[
-                  CalendarInlineEntryCard(selectedDate: selectedDate!),
-                  const SizedBox(height: AppSpacing.md),
                 ],
                 for (var index = 0; index < transactions.length; index++) ...[
                   _EditableTransactionRow(
@@ -1132,7 +1155,7 @@ class _CalendarDayCell extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.xs),
           decoration: BoxDecoration(
             border: Border.all(
               color: isSelected
@@ -1150,6 +1173,8 @@ class _CalendarDayCell extends StatelessWidget {
               Text(
                 '${cell.date!.day}',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontSize: 13,
+                      height: 1,
                       fontWeight: FontWeight.w800,
                     ),
               ),
@@ -1157,7 +1182,11 @@ class _CalendarDayCell extends StatelessWidget {
               if (hasIncome)
                 Text(
                   '+${_compactAmount(summary!.income)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontSize: 8,
+                        height: 1,
                         color: AppColors.income,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1165,7 +1194,11 @@ class _CalendarDayCell extends StatelessWidget {
               if (hasExpense)
                 Text(
                   '-${_compactAmount(summary!.expense)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontSize: 8,
+                        height: 1,
                         color: AppColors.expense,
                         fontWeight: FontWeight.w700,
                       ),

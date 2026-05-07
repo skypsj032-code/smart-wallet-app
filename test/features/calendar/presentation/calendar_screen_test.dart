@@ -175,7 +175,7 @@ void main() {
     expect(find.text('Star Cafe'), findsNothing);
   });
 
-  testWidgets('switches to day mode and shows inline entry for the selected date',
+  testWidgets('switches to day mode and shows the selected date details',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -195,12 +195,82 @@ void main() {
     await tester.tap(find.byKey(const Key('calendar-view-day')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('calendar-inline-entry-card')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-inline-amount-field')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-inline-save-button')), findsOneWidget);
+    expect(find.text('5월 5일'), findsWidgets);
+    expect(find.text('화요일'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-inline-entry-card')), findsNothing);
   });
 
-  testWidgets('selected-day summary chips stay above the inline entry card',
+  testWidgets('switching from month to week keeps the focused date visible',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-06');
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-view-week')),
+      -200,
+    );
+    await tester.tap(find.byKey(const Key('calendar-view-week')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('5월 6일'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-2026-05-06')), findsOneWidget);
+    expect(find.text('Bakery'), findsOneWidget);
+  });
+
+  testWidgets('switching from month to day without a selected date shows the focused day',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-view-day')),
+      -200,
+    );
+    await tester.tap(find.byKey(const Key('calendar-view-day')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('5월 5일'), findsWidgets);
+    expect(find.text('화요일'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-inline-entry-card')), findsNothing);
+  });
+
+  testWidgets('switching view mode scrolls back to the top',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilTextVisible(tester, 'Star Cafe');
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final beforeSwitchOffset = scrollable.position.pixels;
+    expect(beforeSwitchOffset, greaterThan(0));
+
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-view-day')),
+      -240,
+    );
+    await tester.tap(find.byKey(const Key('calendar-view-day')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(scrollable.position.pixels, lessThan(beforeSwitchOffset));
+  });
+
+  testWidgets('selected-day summary chips stay above the transaction list',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -218,10 +288,52 @@ void main() {
     final summaryTop = tester
         .getTopLeft(find.byKey(const Key('calendar-selected-summary-income')))
         .dy;
-    final inlineTop =
-        tester.getTopLeft(find.byKey(const Key('calendar-inline-entry-card'))).dy;
+    final transactionTop = tester.getTopLeft(find.text('Star Cafe')).dy;
 
-    expect(summaryTop, lessThan(inlineTop));
+    expect(summaryTop, lessThan(transactionTop));
+  });
+
+  testWidgets('month view does not overflow on compact window size',
+      (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(340, 737);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switching between week day month and year modes does not crash',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await tester.tap(find.byKey(const Key('calendar-view-week')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('calendar-view-day')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('calendar-view-year')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('calendar-view-month')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -234,9 +346,18 @@ Future<void> _pumpCalendarScreen(
     ProviderScope(
       overrides: [
         calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
-        calendarSnapshotProvider.overrideWith(
-          (ref) => Stream.value(snapshot),
-        ),
+        visibleCalendarDateProvider.overrideWith((ref) => snapshot.anchorDate),
+        calendarSnapshotProvider.overrideWith((ref) {
+          final mode = ref.watch(calendarViewModeProvider);
+          final anchorDate = ref.watch(visibleCalendarDateProvider);
+          return Stream.value(
+            _buildSnapshot(
+              mode: mode,
+              anchorDate: anchorDate,
+              transactions: transactions,
+            ),
+          );
+        }),
         quickEntryAccountsProvider.overrideWith(
           (ref) => Stream.value(
             const [
@@ -288,6 +409,97 @@ Future<void> _pumpCalendarScreen(
 
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
+}
+
+CalendarSnapshot _buildSnapshot({
+  required CalendarViewMode mode,
+  required DateTime anchorDate,
+  required List<Transaction> transactions,
+}) {
+  final periodStart = _periodStartForTest(anchorDate, mode);
+  final periodEnd = _periodEndForTest(periodStart, mode);
+  final grouped = <DateTime, CalendarDaySummary>{};
+  var totalIncome = 0;
+  var totalExpense = 0;
+
+  for (final transaction in transactions) {
+    if (transaction.occurredAt.isBefore(periodStart) ||
+        !transaction.occurredAt.isBefore(periodEnd)) {
+      continue;
+    }
+
+    final key = DateTime(
+      transaction.occurredAt.year,
+      transaction.occurredAt.month,
+      transaction.occurredAt.day,
+    );
+    final current = grouped[key] ??
+        CalendarDaySummary(
+          date: key,
+          income: 0,
+          expense: 0,
+        );
+
+    final nextIncome = transaction.type == 'income'
+        ? current.income + transaction.amount
+        : current.income;
+    final nextExpense = transaction.type == 'expense'
+        ? current.expense + transaction.amount
+        : current.expense;
+
+    if (transaction.type == 'income') {
+      totalIncome += transaction.amount;
+    } else if (transaction.type == 'expense') {
+      totalExpense += transaction.amount;
+    }
+
+    grouped[key] = CalendarDaySummary(
+      date: key,
+      income: nextIncome,
+      expense: nextExpense,
+      transactionCount: current.transactionCount + 1,
+      matchCount: current.matchCount + 1,
+    );
+  }
+
+  final days = grouped.values.toList()..sort((a, b) => a.date.compareTo(b.date));
+
+  return CalendarSnapshot(
+    mode: mode,
+    anchorDate: anchorDate,
+    periodStart: periodStart,
+    periodEnd: periodEnd,
+    days: days,
+    totalIncome: totalIncome,
+    totalExpense: totalExpense,
+  );
+}
+
+DateTime _periodStartForTest(DateTime anchorDate, CalendarViewMode mode) {
+  switch (mode) {
+    case CalendarViewMode.week:
+      final normalized = DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
+      return normalized.subtract(Duration(days: normalized.weekday - 1));
+    case CalendarViewMode.day:
+      return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
+    case CalendarViewMode.month:
+      return DateTime(anchorDate.year, anchorDate.month, 1);
+    case CalendarViewMode.year:
+      return DateTime(anchorDate.year, 1, 1);
+  }
+}
+
+DateTime _periodEndForTest(DateTime periodStart, CalendarViewMode mode) {
+  switch (mode) {
+    case CalendarViewMode.week:
+      return periodStart.add(const Duration(days: 7));
+    case CalendarViewMode.day:
+      return periodStart.add(const Duration(days: 1));
+    case CalendarViewMode.month:
+      return DateTime(periodStart.year, periodStart.month + 1, 1);
+    case CalendarViewMode.year:
+      return DateTime(periodStart.year + 1, 1, 1);
+  }
 }
 
 Future<void> _tapCalendarDay(
