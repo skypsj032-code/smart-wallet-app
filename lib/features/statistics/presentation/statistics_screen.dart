@@ -1,7 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -25,11 +24,17 @@ class StatisticsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
-          _RangePanel(
+          _ControlsPanel(
+            key: const Key('statistics-controls-panel'),
             range: range,
+            filter: filter,
             currentMonth: currentMonth,
             onRangeChanged: (selection) {
               ref.read(statisticsRangeProvider.notifier).state = selection.first;
+            },
+            onFilterChanged: (selection) {
+              ref.read(statisticsTypeFilterProvider.notifier).state =
+                  selection.first;
             },
             onPreviousMonth: () {
               ref.read(statisticsMonthProvider.notifier).state =
@@ -38,14 +43,6 @@ class StatisticsScreen extends ConsumerWidget {
             onNextMonth: () {
               ref.read(statisticsMonthProvider.notifier).state =
                   DateTime(currentMonth.year, currentMonth.month + 1, 1);
-            },
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _TypeFilterPanel(
-            filter: filter,
-            onChanged: (selection) {
-              ref.read(statisticsTypeFilterProvider.notifier).state =
-                  selection.first;
             },
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -71,14 +68,6 @@ class StatisticsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '바로 이어보기',
-                  child: _ShortcutPanel(
-                    onOpenCalendar: () => context.push('/calendar'),
-                    onOpenTimeline: () => context.push('/timeline'),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppSection(
                   title: '차트로 다시 보기',
                   child: _ChartsPanel(snapshot: snapshot, filter: filter),
                 ),
@@ -96,18 +85,23 @@ class StatisticsScreen extends ConsumerWidget {
   }
 }
 
-class _RangePanel extends StatelessWidget {
-  const _RangePanel({
+class _ControlsPanel extends StatelessWidget {
+  const _ControlsPanel({
+    super.key,
     required this.range,
+    required this.filter,
     required this.currentMonth,
     required this.onRangeChanged,
+    required this.onFilterChanged,
     required this.onPreviousMonth,
     required this.onNextMonth,
   });
 
   final StatisticsRange range;
+  final StatisticsTypeFilter filter;
   final DateTime currentMonth;
   final ValueChanged<Set<StatisticsRange>> onRangeChanged;
+  final ValueChanged<Set<StatisticsTypeFilter>> onFilterChanged;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
 
@@ -176,6 +170,26 @@ class _RangePanel extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: AppSpacing.md),
+            SegmentedButton<StatisticsTypeFilter>(
+              key: const Key('statistics-type-filter'),
+              segments: const [
+                ButtonSegment(
+                  value: StatisticsTypeFilter.all,
+                  label: Text('\uC804\uCCB4'),
+                ),
+                ButtonSegment(
+                  value: StatisticsTypeFilter.income,
+                  label: Text('\uC218\uC785'),
+                ),
+                ButtonSegment(
+                  value: StatisticsTypeFilter.expense,
+                  label: Text('\uC9C0\uCD9C'),
+                ),
+              ],
+              selected: {filter},
+              onSelectionChanged: onFilterChanged,
+            ),
           ],
         ),
       ),
@@ -183,6 +197,7 @@ class _RangePanel extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _TypeFilterPanel extends StatelessWidget {
   const _TypeFilterPanel({
     required this.filter,
@@ -430,7 +445,6 @@ class _ChartsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final categories = snapshot.categoriesFor(filter);
 
     return Column(
@@ -525,48 +539,6 @@ class _ChartsPanel extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ShortcutPanel extends StatelessWidget {
-  const _ShortcutPanel({
-    required this.onOpenCalendar,
-    required this.onOpenTimeline,
-  });
-
-  final VoidCallback onOpenCalendar;
-  final VoidCallback onOpenTimeline;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: onOpenCalendar,
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('달력 보기'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: onOpenTimeline,
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('내역 보기'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
