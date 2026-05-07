@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/calendar/presentation/calendar_screen.dart';
+import 'package:smart_wallet_app/features/root/presentation/app_shell.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
 
 void main() {
@@ -418,6 +420,39 @@ void main() {
     expect(find.byType(CalendarScreen), findsOneWidget);
   });
 
+  testWidgets(
+      'system back closes the inline picker before calendar leaves the screen',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreenInShell(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    expect(find.text('home'), findsNothing);
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
+    expect(find.byType(CalendarScreen), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
+    expect(find.byKey(const Key('calendar-month-grid')), findsOneWidget);
+    expect(find.byType(CalendarScreen), findsOneWidget);
+    expect(find.text('home'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('home'), findsOneWidget);
+    expect(find.byType(CalendarScreen), findsNothing);
+  });
+
   testWidgets('selecting a month in the inline picker returns to the month grid',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
@@ -632,6 +667,124 @@ Future<void> _pumpCalendarScreen(
 
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
+}
+
+Future<void> _pumpCalendarScreenInShell(
+  WidgetTester tester, {
+  required CalendarSnapshot snapshot,
+  required List<Transaction> transactions,
+  DateTime? displayedMonth,
+}) async {
+  final router = GoRouter(
+    initialLocation: '/calendar',
+    routes: [
+      ShellRoute(
+        builder: (context, state, child) => AppShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              child: Scaffold(body: Text('home')),
+            ),
+          ),
+          GoRoute(
+            path: '/calendar',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              child: CalendarScreen(),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: _calendarTestOverrides(
+        snapshot: snapshot,
+        transactions: transactions,
+        displayedMonth: displayedMonth,
+      ),
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+}
+
+List<Override> _calendarTestOverrides({
+  required CalendarSnapshot snapshot,
+  required List<Transaction> transactions,
+  DateTime? displayedMonth,
+}) {
+  return [
+    calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
+    displayedCalendarMonthProvider.overrideWith(
+      (ref) => displayedMonth ??
+          DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1),
+    ),
+    visibleCalendarDateProvider.overrideWith((ref) => snapshot.anchorDate),
+    calendarSnapshotProvider.overrideWith((ref) {
+      final month = ref.watch(displayedCalendarMonthProvider);
+      final anchorDate = ref.watch(visibleCalendarDateProvider);
+      return Stream.value(
+        _buildSnapshot(
+          displayedMonth: month,
+          anchorDate: anchorDate,
+          transactions: transactions,
+        ),
+      );
+    }),
+    quickEntryAccountsProvider.overrideWith(
+      (ref) => Stream.value(
+        const [
+          QuickEntryAccountOption(
+            id: 'cash-wallet',
+            name: '\uD604\uAE08',
+          ),
+        ],
+      ),
+    ),
+    quickEntryCategoriesProvider('expense').overrideWith(
+      (ref) => Stream.value(
+        const [
+          QuickEntryCategoryOption(
+            id: 'expense-food',
+            name: '\uC2DD\uBE44',
+            type: 'expense',
+          ),
+        ],
+      ),
+    ),
+    quickEntryCategoriesProvider('income').overrideWith(
+      (ref) => Stream.value(
+        const [
+          QuickEntryCategoryOption(
+            id: 'income-salary',
+            name: '\uAE09\uC5EC',
+            type: 'income',
+          ),
+        ],
+      ),
+    ),
+    selectedCalendarTransactionsProvider.overrideWith((ref) {
+      final selectedDate = ref.watch(selectedCalendarDateProvider);
+      final filter = ref.watch(calendarTypeFilterProvider);
+      final query = ref.watch(calendarSearchQueryProvider);
+      final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
+      return Stream.value(
+        _filterTransactions(
+          transactions,
+          selectedDate: selectedDate,
+          filter: filter,
+          query: query,
+          sortOrder: sortOrder,
+        ),
+      );
+    }),
+  ];
 }
 
 CalendarSnapshot _buildSnapshot({

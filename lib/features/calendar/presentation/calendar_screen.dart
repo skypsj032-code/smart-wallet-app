@@ -42,7 +42,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final transactionSortOrder =
         ref.watch(calendarTransactionSortOrderProvider);
 
-    return AppScaffold(
+    final screen = AppScaffold(
       title: '달력',
       body: snapshotAsync.when(
         data: (snapshot) {
@@ -209,6 +209,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
         ),
       ),
+    );
+
+    if (Router.maybeOf(context) == null) {
+      return screen;
+    }
+
+    return BackButtonListener(
+      onBackButtonPressed: () async {
+        if (!isMonthPickerOpen) {
+          return false;
+        }
+
+        ref.read(calendarMonthPickerOpenProvider.notifier).state = false;
+        return true;
+      },
+      child: screen,
     );
   }
 
