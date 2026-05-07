@@ -15,7 +15,6 @@ void main() {
   final may6 = DateTime(2026, 5, 6);
 
   final snapshot = CalendarSnapshot(
-    mode: CalendarViewMode.month,
     anchorDate: may5,
     periodStart: DateTime(2026, 5, 1),
     periodEnd: DateTime(2026, 6, 1),
@@ -841,7 +840,6 @@ CalendarSnapshot _buildSnapshot({
   final days = grouped.values.toList()..sort((a, b) => a.date.compareTo(b.date));
 
   return CalendarSnapshot(
-    mode: CalendarViewMode.month,
     anchorDate: anchorDate,
     periodStart: periodStart,
     periodEnd: periodEnd,

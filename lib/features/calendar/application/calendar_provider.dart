@@ -6,13 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 
-enum CalendarViewMode {
-  week,
-  day,
-  month,
-  year,
-}
-
 enum CalendarTransactionFilter {
   all,
   income,
@@ -40,23 +33,8 @@ class CalendarDaySummary {
   final int matchCount;
 }
 
-class CalendarMonthSummary {
-  const CalendarMonthSummary({
-    required this.monthStart,
-    required this.income,
-    required this.expense,
-  });
-
-  final DateTime monthStart;
-  final int income;
-  final int expense;
-
-  int get net => income - expense;
-}
-
 class CalendarSnapshot {
   const CalendarSnapshot({
-    required this.mode,
     required this.anchorDate,
     required this.periodStart,
     required this.periodEnd,
@@ -65,7 +43,6 @@ class CalendarSnapshot {
     required this.totalExpense,
   });
 
-  final CalendarViewMode mode;
   final DateTime anchorDate;
   final DateTime periodStart;
   final DateTime periodEnd;
@@ -97,9 +74,6 @@ class CalendarHomeMonthPreview {
   final DateTime monthStart;
   final List<CalendarDaySummary> days;
 }
-
-final calendarViewModeProvider =
-    StateProvider<CalendarViewMode>((ref) => CalendarViewMode.month);
 
 final displayedCalendarMonthProvider = StateProvider<DateTime>((ref) {
   return _normalizeMonth(DateTime.now());
@@ -215,7 +189,6 @@ final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
       ..sort((a, b) => a.date.compareTo(b.date));
 
     return CalendarSnapshot(
-      mode: CalendarViewMode.month,
       anchorDate: anchorDate,
       periodStart: periodStart,
       periodEnd: periodEnd,
@@ -224,36 +197,6 @@ final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
       totalExpense: totalExpense,
     );
   });
-});
-
-final calendarMonthSummariesProvider =
-    Provider<List<CalendarMonthSummary>>((ref) {
-  final snapshot = ref.watch(calendarSnapshotProvider).valueOrNull;
-  if (snapshot == null || snapshot.mode != CalendarViewMode.year) {
-    return const <CalendarMonthSummary>[];
-  }
-
-  final monthMap = <int, CalendarMonthSummary>{};
-  for (var month = 1; month <= 12; month++) {
-    monthMap[month] = CalendarMonthSummary(
-      monthStart: DateTime(snapshot.periodStart.year, month, 1),
-      income: 0,
-      expense: 0,
-    );
-  }
-
-  for (final day in snapshot.days) {
-    final month = day.date.month;
-    final current = monthMap[month]!;
-    monthMap[month] = CalendarMonthSummary(
-      monthStart: current.monthStart,
-      income: current.income + day.income,
-      expense: current.expense + day.expense,
-    );
-  }
-
-  return monthMap.values.toList()
-    ..sort((a, b) => a.monthStart.compareTo(b.monthStart));
 });
 
 final selectedCalendarDateProvider = StateProvider<DateTime?>((ref) => null);

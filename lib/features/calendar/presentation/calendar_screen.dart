@@ -37,8 +37,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final selectedDate = ref.watch(selectedCalendarDateProvider);
     final selectedTransactionsAsync =
         ref.watch(selectedCalendarTransactionsProvider);
-    final viewMode = ref.watch(calendarViewModeProvider);
-    final yearMonths = ref.watch(calendarMonthSummariesProvider);
     final transactionSortOrder =
         ref.watch(calendarTransactionSortOrderProvider);
 
@@ -46,23 +44,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       title: '달력',
       body: snapshotAsync.when(
         data: (snapshot) {
-          final effectiveSelectedDate = switch (viewMode) {
-            CalendarViewMode.day => snapshot.anchorDate,
-            CalendarViewMode.week => selectedDate ?? snapshot.anchorDate,
-            CalendarViewMode.month => selectedDate,
-            CalendarViewMode.year => null,
-          };
-          final showSelectedDayDetail =
-              !isMonthPickerOpen && effectiveSelectedDate != null;
-          final effectiveSelectedDay = effectiveSelectedDate == null
+          final showSelectedDayDetail = !isMonthPickerOpen && selectedDate != null;
+          final effectiveSelectedDay = selectedDate == null
               ? null
-              : _summaryForDate(snapshot.days, effectiveSelectedDate);
-          final weekCells = viewMode == CalendarViewMode.week
-              ? _buildWeekCells(snapshot)
-              : const <_CalendarCellData>[];
-          final monthCells = viewMode == CalendarViewMode.month
-              ? _buildMonthCells(snapshot)
-              : const <_CalendarCellData>[];
+              : _summaryForDate(snapshot.days, selectedDate);
+          final monthCells = _buildMonthCells(snapshot);
 
           return ListView(
             controller: _scrollController,
@@ -133,50 +119,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             onSelectMonth: (month) =>
                                 _selectDisplayedMonth(month),
                           )
-                        : switch (viewMode) {
-                            CalendarViewMode.week => _WeekCalendarView(
-                                cells: weekCells,
-                                selectedDate: selectedDate,
-                                onSelectDate: _selectDate,
-                              ),
-                            CalendarViewMode.day => _DayCalendarView(
-                                date: snapshot.anchorDate,
-                                summary: effectiveSelectedDay,
-                              ),
-                            CalendarViewMode.month => _MonthCalendarContent(
-                                snapshot: snapshot,
-                                cells: monthCells,
-                                selectedDate: selectedDate,
-                                onSelectDate: _selectDate,
-                              ),
-                            CalendarViewMode.year => _YearCalendarView(
-                                months: yearMonths,
-                                onTapMonth: (month) {
-                                  ref
-                                      .read(visibleCalendarDateProvider.notifier)
-                                      .state = month;
-                                  ref
-                                      .read(calendarViewModeProvider.notifier)
-                                      .state = CalendarViewMode.month;
-                                  ref
-                                      .read(selectedCalendarDateProvider.notifier)
-                                      .state = null;
-                                  setState(() {
-                                    _explorerExpanded = false;
-                                  });
-                                },
-                              ),
-                          },
+                        : _MonthCalendarContent(
+                            snapshot: snapshot,
+                            cells: monthCells,
+                            selectedDate: selectedDate,
+                            onSelectDate: _selectDate,
+                          ),
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               if (showSelectedDayDetail)
                 AppSection(
-                  title: _selectedDateLabel(effectiveSelectedDate),
+                  title: _selectedDateLabel(selectedDate),
                   child: _CalendarSelectedDayCard(
                     key: const Key('calendar-selected-day-card'),
-                    selectedDate: effectiveSelectedDate,
+                    selectedDate: selectedDate,
                     selectedDay: effectiveSelectedDay,
                     transactionsAsync: selectedTransactionsAsync,
                     sortOrder: transactionSortOrder,
@@ -346,21 +304,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return cells;
   }
 
-  List<_CalendarCellData> _buildWeekCells(CalendarSnapshot snapshot) {
-    final summaryByKey = {
-      for (final day in snapshot.days) _dateKey(day.date): day,
-    };
-
-    return [
-      for (var offset = 0; offset < 7; offset++)
-        _CalendarCellData(
-          date: snapshot.periodStart.add(Duration(days: offset)),
-          summary: summaryByKey[
-              _dateKey(snapshot.periodStart.add(Duration(days: offset)))],
-        ),
-    ];
-  }
-
   String _formatMonth(DateTime month) {
     return '${month.year}.${month.month.toString().padLeft(2, '0')}';
   }
@@ -493,70 +436,6 @@ class _CalendarExplorerPanel extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _DayCalendarView extends StatelessWidget {
-  const _DayCalendarView({
-    required this.date,
-    required this.summary,
-  });
-
-  final DateTime date;
-  final CalendarDaySummary? summary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${date.month}월 ${date.day}일',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${CalendarScreen.weekdayLabels[date.weekday - 1]}요일',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _SummaryTile(
-                label: '수입',
-                value: formatCurrency(summary?.income ?? 0),
-                color: AppColors.income,
-              ),
-              _SummaryTile(
-                label: '지출',
-                value: formatCurrency(summary?.expense ?? 0),
-                color: AppColors.expense,
-              ),
-              _SummaryTile(
-                label: '거래',
-                value: '${summary?.transactionCount ?? 0}건',
-                color: AppColors.primary,
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -762,64 +641,6 @@ class _MonthSummaryEntry extends StatelessWidget {
   }
 }
 
-class _WeekCalendarView extends StatelessWidget {
-  const _WeekCalendarView({
-    required this.cells,
-    required this.selectedDate,
-    required this.onSelectDate,
-  });
-
-  final List<_CalendarCellData> cells;
-  final DateTime? selectedDate;
-  final ValueChanged<DateTime> onSelectDate;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            for (final label in CalendarScreen.weekdayLabels)
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        Row(
-          children: [
-            for (final cell in cells)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: AspectRatio(
-                    aspectRatio: 0.76,
-                    child: _CalendarDayCell(
-                      cell: cell,
-                      isSelected: selectedDate != null &&
-                          cell.date != null &&
-                          isSameDate(cell.date!, selectedDate!),
-                      onTap: cell.date == null
-                          ? null
-                          : () => onSelectDate(cell.date!),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 class _MonthCalendarView extends StatelessWidget {
   const _MonthCalendarView({
     required this.cells,
@@ -879,81 +700,6 @@ class _MonthCalendarView extends StatelessWidget {
           },
         ),
       ],
-    );
-  }
-}
-
-class _YearCalendarView extends StatelessWidget {
-  const _YearCalendarView({
-    required this.months,
-    required this.onTapMonth,
-  });
-
-  final List<CalendarMonthSummary> months;
-  final ValueChanged<DateTime> onTapMonth;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: months.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: AppSpacing.sm,
-        crossAxisSpacing: AppSpacing.sm,
-        childAspectRatio: 1.38,
-      ),
-      itemBuilder: (context, index) {
-        final month = months[index];
-        return InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () => onTapMonth(month.monthStart),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.15),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${month.monthStart.month}월',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const Spacer(),
-                Text(
-                  '수입 ${formatCurrency(month.income)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.income,
-                      ),
-                ),
-                Text(
-                  '지출 ${formatCurrency(month.expense)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.expense,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '차이 ${formatCurrency(month.net)}',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
