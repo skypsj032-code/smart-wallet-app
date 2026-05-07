@@ -1,5 +1,9 @@
 const maxNavigationDepth = 3;
 
+bool isHomeLocation(String location) {
+  return location == '/' || location.startsWith('/?');
+}
+
 int navigationDepthForPath(String location) {
   if (_isRootLocation(location)) {
     return 1;
