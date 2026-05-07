@@ -17,6 +17,11 @@ class AppSectionIntro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : theme.colorScheme.onSurface;
+    final subtitleColor = isDark
+        ? Colors.white.withValues(alpha: 0.78)
+        : theme.colorScheme.onSurfaceVariant;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,6 +33,7 @@ class AppSectionIntro extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleLarge?.copyWith(
+                  color: titleColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -36,7 +42,8 @@ class AppSectionIntro extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: subtitleColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

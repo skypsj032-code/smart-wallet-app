@@ -187,10 +187,6 @@ class _NetWorthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     const amountColor = AppColors.primary;
-    final caption = accountCount == 0
-        ? '계좌를 연결하면 자산이 한눈에 들어와요.'
-        : '$accountCount개의 계좌가 연결되어 있어요.';
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -211,13 +207,15 @@ class _NetWorthCard extends StatelessWidget {
                 color: amountColor,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              caption,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
+            if (accountCount > 0) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$accountCount개 계좌',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -245,11 +243,6 @@ class _EmptyStateCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '현금, 은행 계좌, 카드처럼 자주 쓰는 자산부터 추가해 보세요.',
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(

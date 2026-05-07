@@ -11,6 +11,12 @@ enum StatisticsRange {
   all,
 }
 
+enum StatisticsTypeFilter {
+  all,
+  income,
+  expense,
+}
+
 class CategoryStat {
   const CategoryStat({
     required this.label,
@@ -29,18 +35,29 @@ class StatisticsSnapshot {
     required this.totalIncome,
     required this.balance,
     required this.transactionCount,
+    required this.incomeTransactionCount,
+    required this.expenseTransactionCount,
     required this.periodLabel,
-    required this.categories,
+    required this.allCategories,
+    required this.incomeCategories,
+    required this.expenseCategories,
   });
 
   final int totalExpense;
   final int totalIncome;
   final int balance;
   final int transactionCount;
+  final int incomeTransactionCount;
+  final int expenseTransactionCount;
   final String periodLabel;
-  final List<CategoryStat> categories;
+  final List<CategoryStat> allCategories;
+  final List<CategoryStat> incomeCategories;
+  final List<CategoryStat> expenseCategories;
 
-  CategoryStat? get topCategory => categories.isEmpty ? null : categories.first;
+  List<CategoryStat> get categories => expenseCategories;
+
+  CategoryStat? get topCategory =>
+      expenseCategories.isEmpty ? null : expenseCategories.first;
 
   double get savingsRate {
     if (totalIncome <= 0) {
@@ -49,10 +66,68 @@ class StatisticsSnapshot {
 
     return balance / totalIncome;
   }
+
+  List<CategoryStat> categoriesFor(StatisticsTypeFilter filter) {
+    switch (filter) {
+      case StatisticsTypeFilter.all:
+        return allCategories;
+      case StatisticsTypeFilter.income:
+        return incomeCategories;
+      case StatisticsTypeFilter.expense:
+        return expenseCategories;
+    }
+  }
+
+  CategoryStat? topCategoryFor(StatisticsTypeFilter filter) {
+    final categories = categoriesFor(filter);
+    return categories.isEmpty ? null : categories.first;
+  }
+
+  int transactionCountFor(StatisticsTypeFilter filter) {
+    switch (filter) {
+      case StatisticsTypeFilter.all:
+        return transactionCount;
+      case StatisticsTypeFilter.income:
+        return incomeTransactionCount;
+      case StatisticsTypeFilter.expense:
+        return expenseTransactionCount;
+    }
+  }
+
+  int totalAmountFor(StatisticsTypeFilter filter) {
+    switch (filter) {
+      case StatisticsTypeFilter.all:
+        return totalIncome + totalExpense;
+      case StatisticsTypeFilter.income:
+        return totalIncome;
+      case StatisticsTypeFilter.expense:
+        return totalExpense;
+    }
+  }
+
+  int averageAmountFor(StatisticsTypeFilter filter) {
+    final count = transactionCountFor(filter);
+    if (count <= 0) {
+      return 0;
+    }
+
+    switch (filter) {
+      case StatisticsTypeFilter.all:
+        return (totalIncome + totalExpense) ~/ count;
+      case StatisticsTypeFilter.income:
+        return totalIncome ~/ count;
+      case StatisticsTypeFilter.expense:
+        return totalExpense ~/ count;
+    }
+  }
 }
 
 final statisticsRangeProvider = StateProvider<StatisticsRange>((ref) {
   return StatisticsRange.month;
+});
+
+final statisticsTypeFilterProvider = StateProvider<StatisticsTypeFilter>((ref) {
+  return StatisticsTypeFilter.all;
 });
 
 final statisticsMonthProvider = StateProvider<DateTime>((ref) {
@@ -107,44 +182,127 @@ final statisticsProvider = StreamProvider.autoDispose<StatisticsSnapshot>((ref) 
     final categoryNames = {
       for (final category in categories) category.localId: category.name,
     };
+    final incomeRows =
+        rows.where((transaction) => transaction.type == 'income').toList();
+    final expenseRows =
+        rows.where((transaction) => transaction.type == 'expense').toList();
 
-    final totalIncome = rows
-        .where((transaction) => transaction.type == 'income')
-        .fold<int>(0, (sum, transaction) => sum + transaction.amount);
-    final totalExpense = rows
-        .where((transaction) => transaction.type == 'expense')
-        .fold<int>(0, (sum, transaction) => sum + transaction.amount);
+    final totalIncome =
+        incomeRows.fold<int>(0, (sum, transaction) => sum + transaction.amount);
+    final totalExpense = expenseRows.fold<int>(
+      0,
+      (sum, transaction) => sum + transaction.amount,
+    );
 
+    final allByCategory = <String, int>{};
+    final incomeByCategory = <String, int>{};
     final expenseByCategory = <String, int>{};
-    for (final transaction in rows.where((tx) => tx.type == 'expense')) {
-      final key = transaction.categoryId == null
-          ? '미분류'
-          : (categoryNames[transaction.categoryId] ?? '미분류');
+
+    String categoryLabelFor(String? categoryId) {
+      if (categoryId == null) {
+        return '미분류';
+      }
+
+      return categoryNames[categoryId] ?? '미분류';
+    }
+
+    for (final transaction in rows) {
+      final key = categoryLabelFor(transaction.categoryId);
+      allByCategory[key] = (allByCategory[key] ?? 0) + transaction.amount;
+    }
+
+    for (final transaction in incomeRows) {
+      final key = categoryLabelFor(transaction.categoryId);
+      incomeByCategory[key] = (incomeByCategory[key] ?? 0) + transaction.amount;
+    }
+
+    for (final transaction in expenseRows) {
+      final key = categoryLabelFor(transaction.categoryId);
       expenseByCategory[key] =
           (expenseByCategory[key] ?? 0) + transaction.amount;
     }
 
-    final categoriesList = expenseByCategory.entries
-        .map(
-          (entry) => CategoryStat(
-            label: entry.key,
-            amount: entry.value,
-            share: totalExpense <= 0 ? 0 : entry.value / totalExpense,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
+    List<CategoryStat> buildCategoryList(Map<String, int> entries, int total) {
+      final items = entries.entries
+          .map(
+            (entry) => CategoryStat(
+              label: entry.key,
+              amount: entry.value,
+              share: total <= 0 ? 0 : entry.value / total,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.amount.compareTo(a.amount));
+      return items;
+    }
 
     return StatisticsSnapshot(
       totalExpense: totalExpense,
       totalIncome: totalIncome,
       balance: totalIncome - totalExpense,
       transactionCount: rows.length,
+      incomeTransactionCount: incomeRows.length,
+      expenseTransactionCount: expenseRows.length,
       periodLabel: periodLabel,
-      categories: categoriesList,
+      allCategories: buildCategoryList(allByCategory, totalIncome + totalExpense),
+      incomeCategories: buildCategoryList(incomeByCategory, totalIncome),
+      expenseCategories: buildCategoryList(expenseByCategory, totalExpense),
     );
   });
 });
+
+final statisticsHomePreviewProvider = StreamProvider.autoDispose<List<CategoryStat>>(
+  (ref) {
+    final database = ref.watch(appDatabaseProvider);
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 1);
+
+    final transactionStream = (database.select(database.transactions)
+          ..where((t) =>
+              t.deletedAt.isNull() &
+              t.occurredAt.isBiggerOrEqualValue(monthStart) &
+              t.occurredAt.isSmallerThanValue(monthEnd))
+          ..orderBy([(t) => OrderingTerm.asc(t.occurredAt)]))
+        .watch();
+    final categoryStream = (database.select(database.categories)
+          ..where((c) => c.isActive.equals(true)))
+        .watch();
+
+    return transactionStream.combineLatest(categoryStream, (rows, categories) {
+      final categoryNames = {
+        for (final category in categories) category.localId: category.name,
+      };
+      final byCategory = <String, int>{};
+      var totalExpense = 0;
+
+      for (final row in rows) {
+        if (row.type != 'expense') {
+          continue;
+        }
+
+        final key = row.categoryId == null
+            ? '미분류'
+            : (categoryNames[row.categoryId] ?? '미분류');
+        byCategory[key] = (byCategory[key] ?? 0) + row.amount;
+        totalExpense += row.amount;
+      }
+
+      final items = byCategory.entries
+          .map(
+            (entry) => CategoryStat(
+              label: entry.key,
+              amount: entry.value,
+              share: totalExpense <= 0 ? 0 : entry.value / totalExpense,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.amount.compareTo(a.amount));
+
+      return items.take(3).toList();
+    });
+  },
+);
 
 extension _CombineLatestExtension<A> on Stream<A> {
   Stream<R> combineLatest<B, R>(

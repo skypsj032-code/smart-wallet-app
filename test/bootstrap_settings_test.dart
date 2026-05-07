@@ -103,6 +103,7 @@ AppSetting _testSettings({
     currencyCode: 'KRW',
     weekStart: 'monday',
     themeMode: 'system',
+    defaultCategorySeedVersion: 0,
     appLockEnabled: appLockEnabled,
     biometricEnabled: false,
     exportIncludeDeleted: false,

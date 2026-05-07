@@ -31,13 +31,13 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.07)
-                : Colors.white.withValues(alpha: 0.52),
+                : Colors.white.withValues(alpha: 0.86),
             borderRadius: br,
             border: Border.all(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.10)
-                  : Colors.white.withValues(alpha: 0.75),
-              width: 0.5,
+                  : const Color(0xFFBFA978).withValues(alpha: 0.46),
+              width: 0.8,
             ),
           ),
           child: padding != null

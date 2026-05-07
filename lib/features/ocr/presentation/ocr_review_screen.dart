@@ -48,7 +48,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
   Widget build(BuildContext context) {
     if (!isOcrPlatformSupported) {
       return AppScaffold(
-        title: 'Receipt Review',
+        title: '영수증 검토',
         body: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
@@ -66,12 +66,12 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                     const Icon(Icons.receipt_long_outlined, size: 32),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      'Receipt OCR review is unavailable here',
+                      '이 기기에서는 영수증 검토를 사용할 수 없어요',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     const Text(
-                      'This review flow depends on mobile OCR capture. Open the app on Android or iOS to use receipt scanning, or continue with manual quick entry here.',
+                      '영수증 스캔은 Android, iOS에서만 지원됩니다. 데스크탑에서는 빠른 입력으로 직접 기록할 수 있어요.',
                     ),
                   ],
                 ),
@@ -80,7 +80,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
               FilledButton.icon(
                 onPressed: () => context.go('/quick-entry'),
                 icon: const Icon(Icons.keyboard_alt_outlined),
-                label: const Text('Open Quick Entry'),
+                label: const Text('빠른 입력 열기'),
               ),
             ],
           ),
@@ -247,7 +247,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         hintText: '예: 12800',
                         helperText: parsedAmount == null
                             ? '빠른 입력으로 넘기려면 올바른 금액이 필요합니다.'
-                            : '빠른 입력에 ${parsedAmount}원을 사용합니다.',
+                            : '빠른 입력에 $parsedAmount원을 사용합니다.',
                       ),
                       onChanged: (_) => _markDirty(),
                     ),
@@ -371,7 +371,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         return;
                       }
 
-                      if (!mounted) {
+                      if (!context.mounted) {
                         return;
                       }
                       context.go('/ocr-capture');
@@ -398,7 +398,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                               categoryGuess: _categoryController.text,
                             );
                     _hydrateFromDraft(ref.read(ocrCaptureProvider));
-                    if (!saved || !mounted) {
+                    if (!saved || !context.mounted) {
                       return;
                     }
 

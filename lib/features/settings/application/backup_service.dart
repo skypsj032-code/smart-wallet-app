@@ -16,12 +16,14 @@ class BackupSummary {
     required this.categoryCount,
     required this.budgetCount,
     required this.accountCount,
+    required this.recurringExpenseCount,
   });
 
   final int transactionCount;
   final int categoryCount;
   final int budgetCount;
   final int accountCount;
+  final int recurringExpenseCount;
 }
 
 class BackupPayload {
@@ -82,6 +84,8 @@ class BackupService {
     final categoriesData = await _database.select(_database.categories).get();
     final budgetsData = await _database.select(_database.budgets).get();
     final accountsData = await _database.select(_database.accounts).get();
+    final recurringExpensesData =
+        await _database.select(_database.recurringExpenses).get();
     final settingsData = await _database.select(_database.appSettings).get();
 
     final createdAt = DateTime.now().toUtc();
@@ -96,12 +100,15 @@ class BackupService {
         'categoryCount': categoriesData.length,
         'budgetCount': budgetsData.length,
         'accountCount': accountsData.length,
+        'recurringExpenseCount': recurringExpensesData.length,
       },
       'data': {
         'transactions': transactionsData.map(_transactionToJson).toList(),
         'categories': categoriesData.map(_categoryToJson).toList(),
         'budgets': budgetsData.map(_budgetToJson).toList(),
         'accounts': accountsData.map(_accountToJson).toList(),
+        'recurringExpenses':
+            recurringExpensesData.map(_recurringExpenseToJson).toList(),
         'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
       },
     };
@@ -115,6 +122,7 @@ class BackupService {
         categoryCount: categoriesData.length,
         budgetCount: budgetsData.length,
         accountCount: accountsData.length,
+        recurringExpenseCount: recurringExpensesData.length,
       ),
       fileName: fileName,
     );
@@ -154,6 +162,8 @@ class BackupService {
         categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
         budgetCount: (summaryData['budgetCount'] as num?)?.toInt() ?? 0,
         accountCount: (summaryData['accountCount'] as num?)?.toInt() ?? 0,
+        recurringExpenseCount:
+            (summaryData['recurringExpenseCount'] as num?)?.toInt() ?? 0,
       ),
     );
   }
@@ -166,12 +176,15 @@ class BackupService {
     final categoriesData = (data['categories'] as List<dynamic>? ?? const []);
     final budgetsData = (data['budgets'] as List<dynamic>? ?? const []);
     final accountsData = (data['accounts'] as List<dynamic>? ?? const []);
+    final recurringExpensesData =
+        (data['recurringExpenses'] as List<dynamic>? ?? const []);
     final settingsData = data['settings'] as Map<String, dynamic>?;
 
     await _database.transaction(() async {
       await _database.delete(_database.transactions).go();
       await _database.delete(_database.categories).go();
       await _database.delete(_database.budgets).go();
+      await _database.delete(_database.recurringExpenses).go();
       await _database.delete(_database.accounts).go();
       await _database.delete(_database.appSettings).go();
 
@@ -249,6 +262,24 @@ class BackupService {
             );
       }
 
+      for (final raw in recurringExpensesData.cast<Map<String, dynamic>>()) {
+        await _database.into(_database.recurringExpenses).insert(
+              RecurringExpensesCompanion.insert(
+                localId: raw['localId'] as String,
+                name: raw['name'] as String,
+                amount: raw['amount'] as int,
+                dayOfMonth: raw['dayOfMonth'] as int,
+                accountId: raw['accountId'] as String,
+                categoryId: Value(raw['categoryId'] as String?),
+                isActive: Value((raw['isActive'] as bool?) ?? true),
+                lastCreatedMonthKey:
+                    Value(raw['lastCreatedMonthKey'] as String?),
+                createdAt: DateTime.parse(raw['createdAt'] as String),
+                lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
+              ),
+            );
+      }
+
       if (settingsData != null) {
         await _database.into(_database.appSettings).insert(
               AppSettingsCompanion.insert(
@@ -256,7 +287,10 @@ class BackupService {
                 currencyCode: Value((settingsData['currencyCode'] as String?) ?? 'KRW'),
                 weekStart: Value((settingsData['weekStart'] as String?) ?? 'monday'),
                 themeMode: Value((settingsData['themeMode'] as String?) ?? 'system'),
-                appLockEnabled: Value((settingsData['appLockEnabled'] as bool?) ?? false),
+                defaultCategorySeedVersion: Value(
+                  (settingsData['defaultCategorySeedVersion'] as int?) ?? 0,
+                ),
+                appLockEnabled: const Value(false),
                 biometricEnabled: Value((settingsData['biometricEnabled'] as bool?) ?? false),
                 exportIncludeDeleted: Value(
                   (settingsData['exportIncludeDeleted'] as bool?) ?? false,
@@ -273,6 +307,7 @@ class BackupService {
       categoryCount: categoriesData.length,
       budgetCount: budgetsData.length,
       accountCount: accountsData.length,
+      recurringExpenseCount: recurringExpensesData.length,
     );
   }
 
@@ -322,7 +357,13 @@ class BackupService {
       throw const BackupFormatException('data payload is invalid.');
     }
 
-    for (final key in const ['transactions', 'categories', 'budgets', 'accounts']) {
+    for (final key in const [
+      'transactions',
+      'categories',
+      'budgets',
+      'accounts',
+      'recurringExpenses',
+    ]) {
       final value = dataValue[key];
       if (value != null && value is! List<dynamic>) {
         throw BackupFormatException('$key payload is invalid.');
@@ -391,11 +432,25 @@ class BackupService {
         'lastModifiedAt': account.lastModifiedAt.toIso8601String(),
       };
 
+  Map<String, dynamic> _recurringExpenseToJson(RecurringExpense item) => {
+        'localId': item.localId,
+        'name': item.name,
+        'amount': item.amount,
+        'dayOfMonth': item.dayOfMonth,
+        'accountId': item.accountId,
+        'categoryId': item.categoryId,
+        'isActive': item.isActive,
+        'lastCreatedMonthKey': item.lastCreatedMonthKey,
+        'createdAt': item.createdAt.toIso8601String(),
+        'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
+      };
+
   Map<String, dynamic> _settingsToJson(AppSetting settings) => {
         'id': settings.id,
         'currencyCode': settings.currencyCode,
         'weekStart': settings.weekStart,
         'themeMode': settings.themeMode,
+        'defaultCategorySeedVersion': settings.defaultCategorySeedVersion,
         'appLockEnabled': settings.appLockEnabled,
         'biometricEnabled': settings.biometricEnabled,
         'exportIncludeDeleted': settings.exportIncludeDeleted,

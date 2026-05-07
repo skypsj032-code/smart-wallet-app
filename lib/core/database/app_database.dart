@@ -13,6 +13,7 @@ part 'app_database.g.dart';
     Transactions,
     Categories,
     Budgets,
+    RecurringExpenses,
     Accounts,
     AppSettings,
     BackupMetadata,
@@ -21,9 +22,10 @@ part 'app_database.g.dart';
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
+  AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,6 +45,15 @@ class AppDatabase extends _$AppDatabase {
             try {
               await customStatement('DROP TABLE IF EXISTS local_user_profile;');
             } catch (_) {}
+          }
+          if (from < 4) {
+            await m.createTable(recurringExpenses);
+          }
+          if (from < 5) {
+            await m.addColumn(
+              appSettings,
+              appSettings.defaultCategorySeedVersion,
+            );
           }
         },
       );

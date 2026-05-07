@@ -11,6 +11,7 @@ class AppScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomSheet,
     this.hideGlobalQuickPanel = false,
+    this.hideAppBar = false,
     this.actions,
   });
 
@@ -19,6 +20,7 @@ class AppScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final Widget? bottomSheet;
   final bool hideGlobalQuickPanel;
+  final bool hideAppBar;
   final List<Widget>? actions;
 
   @override
@@ -26,20 +28,12 @@ class AppScaffold extends StatelessWidget {
     return AppScaffoldScope(
       hideGlobalQuickPanel: hideGlobalQuickPanel,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(title),
-          actions: actions,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outline,
+        appBar: hideAppBar
+            ? null
+            : AppBar(
+                title: Text(title),
+                actions: actions,
               ),
-            ),
-          ),
-        ),
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet,
         body: SafeArea(

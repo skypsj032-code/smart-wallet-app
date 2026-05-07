@@ -1,1 +1,2 @@
-& 'C:\dev\flutter\bin\flutter.bat' @args
+& "$PSScriptRoot\..\flutterw.bat" @args
+exit $LASTEXITCODE

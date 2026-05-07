@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,13 +10,20 @@ import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/calendar_provider.dart';
 
-class CalendarScreen extends ConsumerWidget {
+class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
   static const weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends ConsumerState<CalendarScreen> {
+  bool _explorerExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final snapshotAsync = ref.watch(calendarSnapshotProvider);
     final selectedDate = ref.watch(selectedCalendarDateProvider);
     final selectedDay = ref.watch(selectedCalendarDayProvider);
@@ -39,87 +46,58 @@ class CalendarScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             children: [
-              AppSection(
-                title: '보는 방식',
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '언제 생활 압력이 몰렸는지 먼저 볼게요',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          '주간, 월간, 연간 흐름을 오가며 돈이 어느 시점에 몰렸는지 차분하게 확인할 수 있어요.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.60),
-                                  ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children: [
-                            _ViewModeChip(
-                              label: '주간',
-                              selected: viewMode == CalendarViewMode.week,
-                              onSelected: () => _changeViewMode(
-                                ref,
-                                CalendarViewMode.week,
-                                snapshot.anchorDate,
-                              ),
-                            ),
-                            _ViewModeChip(
-                              label: '월간',
-                              selected: viewMode == CalendarViewMode.month,
-                              onSelected: () => _changeViewMode(
-                                ref,
-                                CalendarViewMode.month,
-                                snapshot.anchorDate,
-                              ),
-                            ),
-                            _ViewModeChip(
-                              label: '연간',
-                              selected: viewMode == CalendarViewMode.year,
-                              onSelected: () => _changeViewMode(
-                                ref,
-                                CalendarViewMode.year,
-                                snapshot.anchorDate,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: _ExplorerHandle(
+                  expanded: _explorerExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _explorerExpanded = !_explorerExpanded;
+                    });
+                  },
+                  onDragDirection: (delta) {
+                    if (delta > 0 && !_explorerExpanded) {
+                      setState(() {
+                        _explorerExpanded = true;
+                      });
+                    } else if (delta < 0 && _explorerExpanded) {
+                      setState(() {
+                        _explorerExpanded = false;
+                      });
+                    }
+                  },
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              if (_explorerExpanded) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: _CalendarExplorerPanel(
+                    snapshot: snapshot,
+                    viewMode: viewMode,
+                    onChangeViewMode: (mode) =>
+                        _changeViewMode(mode, snapshot.anchorDate),
+                    onMovePeriod: (direction) =>
+                        _movePeriod(viewMode, snapshot.anchorDate, direction),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: _periodTitle(viewMode),
                 action: _CalendarPeriodSwitcher(
                   label: _periodLabel(snapshot),
                   onPrevious: () => _movePeriod(
-                    ref,
                     viewMode,
                     snapshot.anchorDate,
                     -1,
                   ),
                   onNext: () => _movePeriod(
-                    ref,
                     viewMode,
                     snapshot.anchorDate,
                     1,
@@ -136,20 +114,12 @@ class CalendarScreen extends ConsumerWidget {
                       CalendarViewMode.week => _WeekCalendarView(
                           cells: weekCells,
                           selectedDate: selectedDate,
-                          onSelectDate: (date) {
-                            ref
-                                .read(selectedCalendarDateProvider.notifier)
-                                .state = date;
-                          },
+                          onSelectDate: _selectDate,
                         ),
                       CalendarViewMode.month => _MonthCalendarView(
                           cells: monthCells,
                           selectedDate: selectedDate,
-                          onSelectDate: (date) {
-                            ref
-                                .read(selectedCalendarDateProvider.notifier)
-                                .state = date;
-                          },
+                          onSelectDate: _selectDate,
                         ),
                       CalendarViewMode.year => _YearCalendarView(
                           months: yearMonths,
@@ -162,6 +132,9 @@ class CalendarScreen extends ConsumerWidget {
                             ref
                                 .read(selectedCalendarDateProvider.notifier)
                                 .state = null;
+                            setState(() {
+                              _explorerExpanded = false;
+                            });
                           },
                         ),
                     },
@@ -169,122 +142,48 @@ class CalendarScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              AppSection(
-                title: viewMode == CalendarViewMode.year ? '기간 해석' : '선택한 날의 흐름',
-                child: _CalendarInsightCard(
-                  viewMode: viewMode,
-                  snapshot: snapshot,
-                  selectedDate: selectedDate,
-                  selectedDay: selectedDay,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppSection(
-                title: '바로 이어보기',
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        FilledButton.tonalIcon(
-                          onPressed: () => context.push('/statistics'),
-                          icon: const Icon(Icons.pie_chart_outline),
-                          label: Text(
-                            viewMode == CalendarViewMode.year
-                                ? '연간 통계 보기'
-                                : '이 기간 통계 보기',
-                          ),
-                        ),
-                        FilledButton.tonalIcon(
-                          onPressed: () => _openQuickEntry(context, ref),
-                          icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('거래 바로 입력'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (viewMode != CalendarViewMode.year) ...[
-                const SizedBox(height: AppSpacing.lg),
+              if (viewMode != CalendarViewMode.year && selectedDate != null)
                 AppSection(
-                  title: '선택한 날의 거래',
-                  child: Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: selectedTransactionsAsync.when(
-                        data: (transactions) {
-                          if (selectedDate == null) {
-                            return const _CalendarEmptyMessage(
-                              title: '날짜를 고르면 그날의 흐름이 바로 이어져요.',
-                              body: '달력에서 하루를 눌러 두면, 그날의 수입과 지출 그리고 거래 목록을 한 번에 볼 수 있어요.',
-                            );
-                          }
-
-                          if (transactions.isEmpty) {
-                            return const _CalendarEmptyMessage(
-                              title: '이 날은 조용하게 지나갔어요.',
-                              body: '기록이 없던 날도 흐름의 일부예요. 필요하면 여기서 바로 한 건을 남겨둘 수 있어요.',
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              for (var index = 0;
-                                  index < transactions.length;
-                                  index++) ...[
-                                _EditableTransactionRow(
-                                  transaction: transactions[index],
-                                  onTap: () => _openQuickEntry(
-                                    context,
-                                    ref,
-                                    transaction: transactions[index],
-                                  ),
-                                ),
-                                if (index != transactions.length - 1)
-                                  const Divider(height: AppSpacing.lg),
-                              ],
-                            ],
-                          );
-                        },
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (error, stackTrace) => Text(
-                          '거래를 불러오지 못했어요. $error',
-                        ),
-                      ),
+                  title: _selectedDateLabel(selectedDate),
+                  child: _CalendarSelectedDayCard(
+                    selectedDate: selectedDate,
+                    selectedDay: selectedDay,
+                    transactionsAsync: selectedTransactionsAsync,
+                    onEditTransaction: (transaction) => _openQuickEntry(
+                      context,
+                      transaction: transaction,
                     ),
                   ),
+                )
+              else
+                AppSection(
+                  title: '기간 흐름',
+                  child: _CalendarYearSummaryCard(
+                    snapshot: snapshot,
+                  ),
                 ),
-              ],
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
-          child: Text('달력을 불러오지 못했어요. $error'),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Text('달력을 불러오지 못했어요.\n$error'),
+          ),
         ),
       ),
     );
   }
 
   Future<void> _openQuickEntry(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     Transaction? transaction,
   }) async {
     if (transaction != null) {
       ref.read(quickEntryFormProvider.notifier).loadTransaction(transaction);
+    } else {
+      ref.read(quickEntryFormProvider.notifier).reset();
     }
 
     await context.push('/quick-entry');
@@ -296,7 +195,6 @@ class CalendarScreen extends ConsumerWidget {
   }
 
   void _changeViewMode(
-    WidgetRef ref,
     CalendarViewMode mode,
     DateTime anchorDate,
   ) {
@@ -306,7 +204,6 @@ class CalendarScreen extends ConsumerWidget {
   }
 
   void _movePeriod(
-    WidgetRef ref,
     CalendarViewMode mode,
     DateTime anchorDate,
     int direction,
@@ -321,6 +218,13 @@ class CalendarScreen extends ConsumerWidget {
 
     ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
     ref.read(selectedCalendarDateProvider.notifier).state = null;
+  }
+
+  void _selectDate(DateTime date) {
+    ref.read(selectedCalendarDateProvider.notifier).state = date;
+    setState(() {
+      _explorerExpanded = false;
+    });
   }
 
   List<_CalendarCellData> _buildMonthCells(CalendarSnapshot snapshot) {
@@ -394,49 +298,69 @@ class CalendarScreen extends ConsumerWidget {
     }
   }
 
-  static String _dateKey(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  static bool isSameDate(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  static String formatCurrency(int amount) {
-    final sign = amount < 0 ? '-' : '';
-    final raw = amount.abs().toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < raw.length; i++) {
-      final reverseIndex = raw.length - i;
-      buffer.write(raw[i]);
-      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
-        buffer.write(',');
-      }
-    }
-
-    return '$sign$buffer원';
+  String _selectedDateLabel(DateTime date) {
+    return '${date.month}월 ${date.day}일';
   }
 }
 
-class _CalendarInsightCard extends StatelessWidget {
-  const _CalendarInsightCard({
-    required this.viewMode,
-    required this.snapshot,
-    required this.selectedDate,
-    required this.selectedDay,
+class _ExplorerHandle extends StatelessWidget {
+  const _ExplorerHandle({
+    required this.expanded,
+    required this.onToggle,
+    required this.onDragDirection,
   });
 
-  final CalendarViewMode viewMode;
-  final CalendarSnapshot snapshot;
-  final DateTime? selectedDate;
-  final CalendarDaySummary? selectedDay;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final ValueChanged<double> onDragDirection;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return GestureDetector(
+      key: const Key('calendar-explorer-handle'),
+      onTap: onToggle,
+      onVerticalDragUpdate: (details) {
+        final delta = details.primaryDelta;
+        if (delta == null || delta == 0) {
+          return;
+        }
+        onDragDirection(delta);
+      },
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: expanded ? 64 : 48,
+          height: 6,
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurfaceVariant
+                .withValues(alpha: 0.42),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-    final title = _title();
-    final body = _body();
+class _CalendarExplorerPanel extends ConsumerWidget {
+  const _CalendarExplorerPanel({
+    required this.snapshot,
+    required this.viewMode,
+    required this.onChangeViewMode,
+    required this.onMovePeriod,
+  });
+
+  final CalendarSnapshot snapshot;
+  final CalendarViewMode viewMode;
+  final ValueChanged<CalendarViewMode> onChangeViewMode;
+  final ValueChanged<int> onMovePeriod;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(calendarTypeFilterProvider);
+    final query = ref.watch(calendarSearchQueryProvider);
 
     return Card(
       elevation: 0,
@@ -447,44 +371,100 @@ class _CalendarInsightCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              '탐색',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              body,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
-                height: 1.5,
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              key: const Key('calendar-search-field'),
+              onChanged: (value) {
+                ref.read(calendarSearchQueryProvider.notifier).state = value;
+              },
+              controller: TextEditingController(text: query)
+                ..selection = TextSelection.collapsed(offset: query.length),
+              decoration: const InputDecoration(
+                hintText: '이름, 메모, 카테고리 검색',
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Row(
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
-                Expanded(
-                  child: _SummaryTile(
-                    label: '수입',
-                    value: CalendarScreen.formatCurrency(
-                      viewMode == CalendarViewMode.year
-                          ? snapshot.totalIncome
-                          : (selectedDay?.income ?? 0),
-                    ),
-                    color: AppColors.income,
-                  ),
+                _ViewModeChip(
+                  label: '주간',
+                  selected: viewMode == CalendarViewMode.week,
+                  onSelected: () => onChangeViewMode(CalendarViewMode.week),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _SummaryTile(
-                    label: '지출',
-                    value: CalendarScreen.formatCurrency(
-                      viewMode == CalendarViewMode.year
-                          ? snapshot.totalExpense
-                          : (selectedDay?.expense ?? 0),
+                _ViewModeChip(
+                  label: '월간',
+                  selected: viewMode == CalendarViewMode.month,
+                  onSelected: () => onChangeViewMode(CalendarViewMode.month),
+                ),
+                _ViewModeChip(
+                  label: '연간',
+                  selected: viewMode == CalendarViewMode.year,
+                  onSelected: () => onChangeViewMode(CalendarViewMode.year),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _TransactionFilterChip(
+                  key: const Key('calendar-filter-all'),
+                  label: '전체',
+                  selected: filter == CalendarTransactionFilter.all,
+                  onTap: () {
+                    ref.read(calendarTypeFilterProvider.notifier).state =
+                        CalendarTransactionFilter.all;
+                  },
+                ),
+                _TransactionFilterChip(
+                  key: const Key('calendar-filter-income'),
+                  label: '수입',
+                  selected: filter == CalendarTransactionFilter.income,
+                  onTap: () {
+                    ref.read(calendarTypeFilterProvider.notifier).state =
+                        CalendarTransactionFilter.income;
+                  },
+                ),
+                _TransactionFilterChip(
+                  key: const Key('calendar-filter-expense'),
+                  label: '지출',
+                  selected: filter == CalendarTransactionFilter.expense,
+                  onTap: () {
+                    ref.read(calendarTypeFilterProvider.notifier).state =
+                        CalendarTransactionFilter.expense;
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _periodLabel(snapshot),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => onMovePeriod(-1),
+                      icon: const Icon(Icons.chevron_left_rounded),
                     ),
-                    color: AppColors.expense,
-                  ),
+                    IconButton(
+                      onPressed: () => onMovePeriod(1),
+                      icon: const Icon(Icons.chevron_right_rounded),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -494,93 +474,17 @@ class _CalendarInsightCard extends StatelessWidget {
     );
   }
 
-  String _title() {
-    if (viewMode == CalendarViewMode.year) {
-      return '${snapshot.periodStart.year}년 전체 흐름을 한눈에 보고 있어요';
+  String _periodLabel(CalendarSnapshot snapshot) {
+    switch (snapshot.mode) {
+      case CalendarViewMode.week:
+        final endDate = snapshot.periodEnd.subtract(const Duration(days: 1));
+        return '${snapshot.periodStart.month}.${snapshot.periodStart.day} - ${endDate.month}.${endDate.day}';
+      case CalendarViewMode.month:
+        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}';
+      case CalendarViewMode.year:
+        return '${snapshot.periodStart.year}년';
     }
-
-    if (selectedDate == null) {
-      return '날짜를 고르면 그날의 흐름이 바로 정리돼요';
-    }
-
-    return '${selectedDate!.month}월 ${selectedDate!.day}일의 생활 흐름이에요';
   }
-
-  String _body() {
-    if (viewMode == CalendarViewMode.year) {
-      final net = snapshot.totalIncome - snapshot.totalExpense;
-      if (snapshot.totalIncome == 0 && snapshot.totalExpense == 0) {
-        return '아직 큰 흐름이 쌓이지 않았어요. 기록이 더 모이면 어떤 달에 힘이 들어갔는지 자연스럽게 읽히기 시작할 거예요.';
-      }
-      if (net >= 0) {
-        return '올해는 들어온 흐름이 나간 흐름을 받쳐주고 있어요. 달별로 어느 시점이 무거웠는지 아래에서 바로 확인할 수 있어요.';
-      }
-      return '올해는 나간 흐름의 속도가 조금 더 빨랐어요. 어느 달에 압력이 몰렸는지 달력에서 바로 짚어볼 수 있어요.';
-    }
-
-    if (selectedDate == null) {
-      return '날짜를 눌러 두면 수입과 지출이 어떻게 움직였는지, 그리고 어떤 거래가 있었는지 같은 자리에서 이어서 볼 수 있어요.';
-    }
-
-    final income = selectedDay?.income ?? 0;
-    final expense = selectedDay?.expense ?? 0;
-    if (income == 0 && expense == 0) {
-      return '이 날은 기록이 없어서 조용하게 지나갔어요. 놓친 지출이 생각나면 바로 한 건을 붙여둘 수 있어요.';
-    }
-    if (income >= expense) {
-      return '이 날은 들어온 흐름이 더 크게 보였어요. 어떤 맥락이었는지 아래 거래 목록까지 이어서 보면 더 분명해져요.';
-    }
-    return '이 날은 나간 돈의 압력이 더 크게 보였어요. 아래 거래 목록에서 어디에 힘이 들어갔는지 바로 확인할 수 있어요.';
-  }
-}
-
-class _CalendarEmptyMessage extends StatelessWidget {
-  const _CalendarEmptyMessage({
-    required this.title,
-    required this.body,
-  });
-
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          body,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.60),
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CalendarCellData {
-  const _CalendarCellData({
-    required this.date,
-    required this.summary,
-  });
-
-  const _CalendarCellData.empty()
-      : date = null,
-        summary = null;
-
-  final DateTime? date;
-  final CalendarDaySummary? summary;
 }
 
 class _ViewModeChip extends StatelessWidget {
@@ -600,6 +504,29 @@ class _ViewModeChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
+      showCheckmark: false,
+    );
+  }
+}
+
+class _TransactionFilterChip extends StatelessWidget {
+  const _TransactionFilterChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
       showCheckmark: false,
     );
   }
@@ -681,8 +608,9 @@ class _WeekCalendarView extends StatelessWidget {
                     cell: cell,
                     isSelected: selectedDate != null &&
                         cell.date != null &&
-                        CalendarScreen.isSameDate(cell.date!, selectedDate!),
-                    onTap: cell.date == null ? null : () => onSelectDate(cell.date!),
+                        isSameDate(cell.date!, selectedDate!),
+                    onTap:
+                        cell.date == null ? null : () => onSelectDate(cell.date!),
                   ),
                 ),
               ),
@@ -732,7 +660,7 @@ class _MonthCalendarView extends StatelessWidget {
             crossAxisCount: 7,
             mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 0.8,
+            childAspectRatio: 0.95,
           ),
           itemBuilder: (context, index) {
             final cell = cells[index];
@@ -740,8 +668,8 @@ class _MonthCalendarView extends StatelessWidget {
               return const SizedBox.shrink();
             }
 
-            final isSelected = selectedDate != null &&
-                CalendarScreen.isSameDate(cell.date!, selectedDate!);
+            final isSelected =
+                selectedDate != null && isSameDate(cell.date!, selectedDate!);
 
             return _CalendarDayCell(
               cell: cell,
@@ -803,20 +731,20 @@ class _YearCalendarView extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '수입 ${CalendarScreen.formatCurrency(month.income)}',
+                  '수입 ${formatCurrency(month.income)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.income,
                       ),
                 ),
                 Text(
-                  '지출 ${CalendarScreen.formatCurrency(month.expense)}',
+                  '지출 ${formatCurrency(month.expense)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.expense,
                       ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '잔액 ${CalendarScreen.formatCurrency(month.net)}',
+                  '차이 ${formatCurrency(month.net)}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -828,6 +756,183 @@ class _YearCalendarView extends StatelessWidget {
       },
     );
   }
+}
+
+class _CalendarSelectedDayCard extends StatelessWidget {
+  const _CalendarSelectedDayCard({
+    required this.selectedDate,
+    required this.selectedDay,
+    required this.transactionsAsync,
+    required this.onEditTransaction,
+  });
+
+  final DateTime? selectedDate;
+  final CalendarDaySummary? selectedDay;
+  final AsyncValue<List<Transaction>> transactionsAsync;
+  final ValueChanged<Transaction> onEditTransaction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: transactionsAsync.when(
+          data: (transactions) {
+            if (selectedDate == null) {
+              return const _CalendarEmptyMessage(
+                title: '날짜를 선택하세요',
+                body: '',
+              );
+            }
+
+            if (transactions.isEmpty) {
+              return const _CalendarEmptyMessage(
+                title: '이 날의 거래가 없어요',
+                body: '',
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (selectedDay != null) ...[
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      _SummaryTile(
+                        label: '수입',
+                        value: formatCurrency(selectedDay!.income),
+                        color: AppColors.income,
+                      ),
+                      _SummaryTile(
+                        label: '지출',
+                        value: formatCurrency(selectedDay!.expense),
+                        color: AppColors.expense,
+                      ),
+                      _SummaryTile(
+                        label: '거래',
+                        value: '${selectedDay!.transactionCount}건',
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                for (var index = 0; index < transactions.length; index++) ...[
+                  _EditableTransactionRow(
+                    transaction: transactions[index],
+                    onTap: () => onEditTransaction(transactions[index]),
+                  ),
+                  if (index != transactions.length - 1)
+                    const Divider(height: AppSpacing.lg),
+                ],
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) =>
+              Text('거래를 불러오지 못했어요. $error'),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarYearSummaryCard extends StatelessWidget {
+  const _CalendarYearSummaryCard({
+    required this.snapshot,
+  });
+
+  final CalendarSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _SummaryTile(
+                  label: '총수입',
+                  value: formatCurrency(snapshot.totalIncome),
+                  color: AppColors.income,
+                ),
+                _SummaryTile(
+                  label: '총지출',
+                  value: formatCurrency(snapshot.totalExpense),
+                  color: AppColors.expense,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarEmptyMessage extends StatelessWidget {
+  const _CalendarEmptyMessage({
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        if (body.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            body,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62),
+                ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CalendarCellData {
+  const _CalendarCellData({
+    required this.date,
+    required this.summary,
+  });
+
+  const _CalendarCellData.empty()
+      : date = null,
+        summary = null;
+
+  final DateTime? date;
+  final CalendarDaySummary? summary;
 }
 
 class _CalendarDayCell extends StatelessWidget {
@@ -846,8 +951,12 @@ class _CalendarDayCell extends StatelessWidget {
     final summary = cell.summary;
     final hasIncome = (summary?.income ?? 0) > 0;
     final hasExpense = (summary?.expense ?? 0) > 0;
+    final cellKey = cell.date == null
+        ? null
+        : Key('calendar-day-${_dateKey(cell.date!)}');
 
     return Material(
+      key: cellKey,
       color: isSelected
           ? Theme.of(context).colorScheme.primaryContainer
           : Theme.of(context).colorScheme.surface,
@@ -913,7 +1022,6 @@ class _CalendarDayCell extends StatelessWidget {
       final tenThousand = amount / 10000;
       return '${tenThousand.toStringAsFixed(tenThousand >= 10 ? 0 : 1)}만';
     }
-
     return '$amount원';
   }
 }
@@ -1037,7 +1145,7 @@ class _EditableTransactionRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    CalendarScreen.formatCurrency(transaction.amount),
+                    formatCurrency(transaction.amount),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -1059,3 +1167,27 @@ class _EditableTransactionRow extends StatelessWidget {
     );
   }
 }
+
+String _dateKey(DateTime date) =>
+    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+bool isSameDate(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String formatCurrency(int amount) {
+  final sign = amount < 0 ? '-' : '';
+  final raw = amount.abs().toString();
+  final buffer = StringBuffer();
+
+  for (var i = 0; i < raw.length; i++) {
+    final reverseIndex = raw.length - i;
+    buffer.write(raw[i]);
+    if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+      buffer.write(',');
+    }
+  }
+
+  return '$sign$buffer원';
+}
+

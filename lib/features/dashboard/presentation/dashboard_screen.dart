@@ -7,15 +7,19 @@ import '../../../app/theme/app_mood.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
-import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_section_intro.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/wealth_hero_backdrop.dart';
+import '../../calendar/application/calendar_provider.dart';
+import '../../statistics/application/statistics_provider.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
+import '../../recurring_expenses/application/recurring_expense_service.dart';
 import '../application/dashboard_summary_provider.dart';
 import '../application/wealth_hero_motion.dart';
+import 'dashboard_home_links_card.dart';
+import 'dashboard_narrative_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,149 +28,112 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
+    final recurringAsync = ref.watch(activeRecurringExpensesProvider);
+    final calendarSummaryAsync = ref.watch(calendarHomeSummaryProvider);
+    final calendarPreviewAsync = ref.watch(calendarHomeMonthPreviewProvider);
+    final statisticsPreviewAsync = ref.watch(statisticsHomePreviewProvider);
 
     return AppScaffold(
+      hideAppBar: true,
       title: '홈',
       body: summaryAsync.when(
         data: (summary) {
           final totalBalance = totalBalanceAsync.valueOrNull ?? 0;
 
-          return ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            144,
-          ),
-          children: [
-            _OverviewHero(summary: summary, totalBalance: totalBalance),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '이번 달 수입',
-                    value: formatCurrency(summary.monthIncome),
-                  ),
+          return CustomScrollView(
+            slivers: [
+              _OverviewHero(summary: summary, totalBalance: totalBalance),
+              SliverToBoxAdapter(
+                child: DashboardNarrativeCard(snapshot: summary.narrative),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppMetricStrip(
+                        label: '이번 달 수입',
+                        value: formatCurrency(summary.monthIncome),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: AppMetricStrip(
+                        label: '이번 달 지출',
+                        value: formatCurrency(summary.monthExpense),
+                        emphasize: true,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '이번 달 지출',
-                    value: formatCurrency(summary.monthExpense),
-                    emphasize: true,
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: DashboardHomeLinksCard(
+                  onOpenCalendar: () => context.push('/calendar'),
+                  onOpenStatistics: () => context.push('/statistics'),
+                  calendarSummary: calendarSummaryAsync.valueOrNull,
+                  calendarMonthPreview: calendarPreviewAsync.valueOrNull,
+                  monthIncome: summary.monthIncome,
+                  monthExpense: summary.monthExpense,
+                  topExpenseCategories: statisticsPreviewAsync.valueOrNull ?? const [],
+                  topExpenseCategoryLabel:
+                      summary.narrative.topExpenseCategoryLabel,
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: _TodayLoopCard(
+                  summary: summary,
+                  onQuickEntry: () {
+                    ref.read(quickEntryFormProvider.notifier).reset();
+                    context.push('/quick-entry');
+                  },
+                  onOpenTimeline: () => context.push('/timeline'),
+                ),
+              ),
+              if (recurringAsync.valueOrNull?.isNotEmpty == true) ...[
+                const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.md)),
+                SliverToBoxAdapter(
+                  child: _UpcomingRecurringExpenseCard(
+                    items: recurringAsync.valueOrNull!,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _TodayLoopCard(
-              summary: summary,
-              onQuickEntry: () {
-                ref.read(quickEntryFormProvider.notifier).reset();
-                context.push('/quick-entry');
-              },
-              onOpenTimeline: () => context.push('/timeline'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const AppSectionIntro(
-              title: '최근 거래',
-              subtitle: '막 기록한 흐름을 바로 훑어보며 비어 있는 거래가 없는지 확인해보세요.',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _RecentTransactionsSection(
-              transactions: summary.recentTransactions,
-            ),
-            if (summary.repeatSuggestions.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              _RepeatSuggestionSection(
-                suggestions: summary.repeatSuggestions,
-                onRepeat: (transaction) {
-                  ref.read(quickEntryFormProvider.notifier).loadTemplate(transaction);
-                  context.push('/quick-entry');
-                },
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: _RecentTransactionsSection(
+                  transactions: summary.recentTransactions,
+                ),
               ),
+              if (summary.repeatSuggestions.isNotEmpty) ...[
+                const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.md)),
+                SliverToBoxAdapter(
+                  child: _RepeatSuggestionSection(
+                    suggestions: summary.repeatSuggestions,
+                    onRepeat: (transaction) {
+                      ref
+                          .read(quickEntryFormProvider.notifier)
+                          .loadTemplate(transaction);
+                      context.push('/quick-entry');
+                    },
+                  ),
+                ),
+              ],
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
+              const SliverToBoxAdapter(child: SizedBox(height: 148)),
             ],
-            const SizedBox(height: AppSpacing.md),
-            AppSectionIntro(
-              title: '예산 흐름',
-              subtitle: summary.totalBudget > 0
-                  ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준으로 흐름을 읽어보세요.'
-                  : '아직 예산을 정하지 않았다면 이번 달 흐름부터 가볍게 확인해보세요.',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _BudgetStatusCard(summary: summary),
-          ],
-        );
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text('요약 정보를 불러오지 못했습니다.\n$error'),
+            child: Text('요약을 불러오지 못했어요.\n$error'),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ignore: unused_element
-class _LegacyOverviewHero extends StatelessWidget {
-  const _LegacyOverviewHero({required this.summary});
-
-  final DashboardSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final mood = Theme.of(context).extension<AppMood>()!;
-    final netPositive = summary.netCashflow >= 0;
-    final headlineText = netPositive
-        ? '이번 달은 지금까지 안정적으로 흘러가고 있어요.'
-        : '이번 달은 조금 빠르게 빠져나간 구간이 있었어요.';
-    final helperText = summary.todayTransactionCount > 0
-        ? '오늘 기록 ${summary.todayTransactionCount}건, 지출 ${formatCurrency(summary.todayExpense)}까지 반영되어 있어요.'
-        : '오늘 기록은 아직 비어 있어요. 한 건만 적어도 흐름이 훨씬 또렷해집니다.';
-    final monthLabel =
-        '${DateTime.now().year}.${DateTime.now().month.toString().padLeft(2, '0')}';
-
-    return RepaintBoundary(
-      child: AppHeroPanel(
-        eyebrow: AppStatusChip(
-          label: monthLabel,
-          dotColor: netPositive ? mood.positiveAccent : mood.warningAccent,
-          backgroundColor: Colors.white.withValues(alpha: 0.06),
-          foregroundColor: Colors.white,
-        ),
-        title: formatCurrency(summary.netCashflow),
-        body: '$headlineText\n$helperText',
-        footer: Row(
-          children: [
-            Expanded(
-              child: AppMetricStrip(
-                label: '남은 예산',
-                value: summary.totalBudget > 0
-                    ? formatCurrency(summary.remainingBudget)
-                    : '미설정',
-                caption: summary.totalBudget > 0
-                    ? '지금 속도로 보면 얼마나 여유가 있는지 보여줘요'
-                    : '예산을 정하면 흐름이 더 선명하게 보여요',
-                emphasize: true,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: AppMetricStrip(
-                label: '예산 사용률',
-                value: summary.totalBudget > 0
-                    ? '${(summary.budgetUsageRate * 100).clamp(0, 999).toStringAsFixed(0)}%'
-                    : '-',
-                caption: netPositive
-                    ? '지금은 크게 무리 없는 흐름이에요'
-                    : '한 번 더 확인해보면 마음이 놓일 수 있어요',
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -206,6 +173,30 @@ class _OverviewHeroState extends State<_OverviewHero>
           });
         }
       });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final reducedMotion =
+          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      if (reducedMotion) {
+        return;
+      }
+
+      setState(() {
+        _reaction = const WealthReaction(
+          direction: WealthReactionDirection.increase,
+          intensity: WealthReactionIntensity.small,
+          deltaAmount: 0,
+        );
+      });
+
+      _reactionController.duration =
+          _durationFor(WealthReactionIntensity.small);
+      _reactionController.forward(from: 0);
+    });
   }
 
   @override
@@ -239,69 +230,26 @@ class _OverviewHeroState extends State<_OverviewHero>
 
   @override
   Widget build(BuildContext context) {
-    final summary = widget.summary;
-    final mood = Theme.of(context).extension<AppMood>()!;
-    final netPositive = summary.netCashflow >= 0;
-    final headlineText = netPositive
-        ? '이번 달 흐름은 비교적 안정적으로 이어지고 있어요.'
-        : '이번 달 흐름이 조금 빠르게 빠져나간 구간이 있었어요.';
-    final helperText = summary.todayTransactionCount > 0
-        ? '오늘 기록 ${summary.todayTransactionCount}건이 반영됐어요. 변화가 생길 때마다 자산 분위기도 같이 움직여요.'
-        : '오늘 기록은 아직 비어 있어요. 한 건만 적어도 지금 자산 분위기가 바로 살아납니다.';
     final monthLabel =
         '${DateTime.now().year}.${DateTime.now().month.toString().padLeft(2, '0')}';
 
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _reactionController,
-        builder: (context, child) {
-          return AppHeroPanel(
-            animatedBackdrop: WealthHeroBackdrop(
-              coinDensity: _visualState.coinDensity,
-              billDensity: _visualState.billDensity,
-              vaultIntensity: _visualState.assetIntensity,
-              direction: _reaction?.direction == WealthReactionDirection.decrease
-                  ? WealthBackdropDirection.decrease
-                  : WealthBackdropDirection.increase,
-              reactionIntensity: _mapReactionIntensity(
-                _reaction?.intensity ?? WealthReactionIntensity.tiny,
-              ),
-              progress: _reactionController.value,
-              reducedMotion: MediaQuery.maybeOf(context)?.disableAnimations ?? false,
-            ),
-            eyebrow: AppStatusChip(
-              label: monthLabel,
-              dotColor: netPositive ? mood.positiveAccent : mood.warningAccent,
-              backgroundColor: Colors.white.withValues(alpha: 0.06),
-              foregroundColor: Colors.white,
-            ),
-            title: formatCurrency(summary.netCashflow),
-            body: '$headlineText\n$helperText',
-            footer: Row(
-              children: [
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '남은 예산',
-                    value: summary.totalBudget > 0
-                        ? formatCurrency(summary.remainingBudget)
-                        : '미설정',
-                    caption: '자산 배경은 활성 계좌 잔액 합계를 기준으로 천천히 쌓여요.',
-                    emphasize: true,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '자산 단계',
-                    value: _stageLabel(_visualState.stage),
-                    caption: '돈이 들어오고 빠질 때마다 양과 빛이 함께 달라져요.',
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    return AnimatedBuilder(
+      animation: _reactionController,
+      builder: (context, child) {
+        return SliverPersistentHeader(
+          pinned: true,
+          delegate: _OverviewHeroDelegate(
+            summary: widget.summary,
+            totalBalance: widget.totalBalance,
+            monthLabel: monthLabel,
+            visualState: _visualState,
+            reaction: _reaction,
+            reactionProgress: _reactionController.value,
+            reducedMotion:
+                MediaQuery.maybeOf(context)?.disableAnimations ?? false,
+          ),
+        );
+      },
     );
   }
 
@@ -313,25 +261,193 @@ class _OverviewHeroState extends State<_OverviewHero>
       WealthReactionIntensity.large => const Duration(milliseconds: 1200),
     };
   }
-
-  WealthBackdropReactionIntensity _mapReactionIntensity(
-    WealthReactionIntensity intensity,
-  ) {
-    return switch (intensity) {
-      WealthReactionIntensity.tiny => WealthBackdropReactionIntensity.tiny,
-      WealthReactionIntensity.small => WealthBackdropReactionIntensity.small,
-      WealthReactionIntensity.medium => WealthBackdropReactionIntensity.medium,
-      WealthReactionIntensity.large => WealthBackdropReactionIntensity.large,
-    };
-  }
 }
 
-String _stageLabel(WealthStage stage) {
-  return switch (stage) {
-    WealthStage.coins => '동전 중심',
-    WealthStage.coinsAndBills => '지폐 확장',
-    WealthStage.coinsBillsAndAssets => '자산 축적',
-  };
+class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
+  _OverviewHeroDelegate({
+    required this.summary,
+    required this.totalBalance,
+    required this.monthLabel,
+    required this.visualState,
+    required this.reaction,
+    required this.reactionProgress,
+    required this.reducedMotion,
+  });
+
+  final DashboardSummary summary;
+  final int totalBalance;
+  final String monthLabel;
+  final WealthVisualState visualState;
+  final WealthReaction? reaction;
+  final double reactionProgress;
+  final bool reducedMotion;
+
+  @override
+  double get minExtent => 112;
+
+  @override
+  double get maxExtent => 368;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final theme = Theme.of(context);
+    final mood = theme.extension<AppMood>()!;
+    final isDark = theme.brightness == Brightness.dark;
+    final collapse = Curves.easeOutCubic
+        .transform((shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0));
+
+    // Positions — number drifts up as header collapses (weather-app float style)
+    final amountTop = _mix(52, 10, collapse);
+    final amountScale = _mix(1.0, 0.62, collapse);
+    final infoOpacity = (1.0 - collapse * 2.4).clamp(0.0, 1.0);
+    final infoTop = _mix(168, 58, collapse);
+
+    // No card wrapper — number floats directly on the AppFrame background
+    // Collapsed header gets an opaque background so scrolled content doesn't bleed through
+    final bgOpacity = Curves.easeOutCubic.transform(collapse);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Opaque background layer — fades in as the header collapses
+        if (bgOpacity > 0)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: mood.frameTopColor.withValues(alpha: bgOpacity),
+              ),
+            ),
+          ),
+        // Subtle atmospheric backdrop — purely decorative, no border clip
+        WealthHeroBackdrop(
+          coinDensity: visualState.coinDensity,
+          billDensity: visualState.billDensity,
+          vaultIntensity: visualState.assetIntensity,
+          direction: reaction?.direction == WealthReactionDirection.decrease
+              ? WealthBackdropDirection.decrease
+              : WealthBackdropDirection.increase,
+          reactionIntensity: _mapReactionIntensity(
+            reaction?.intensity ?? WealthReactionIntensity.tiny,
+          ),
+          progress: reactionProgress,
+          reducedMotion: reducedMotion,
+          collapseProgress: collapse,
+          showSkySymbol: false,
+          borderRadius: BorderRadius.zero,
+        ),
+        if (!isDark)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: maxExtent * 0.30,
+            width: 360,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      const Color(0xFFF9F3E8).withValues(alpha: 0.88),
+                      const Color(0xFFF9F3E8).withValues(alpha: 0.52),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.58, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        // Big amount — floats on the sky, no card behind it
+        Positioned(
+          left: AppSpacing.lg,
+          top: amountTop,
+          right: 0,
+          child: Transform.scale(
+            alignment: Alignment.topLeft,
+            scale: amountScale,
+            child: Text(
+              formatCurrency(totalBalance),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: theme.textTheme.displayLarge?.copyWith(
+                color: mood.heroForeground,
+                fontWeight: isDark ? FontWeight.w300 : FontWeight.w500,
+                height: 0.92,
+                letterSpacing: -2.4,
+                shadows: isDark
+                    ? [
+                        Shadow(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 20)
+                      ]
+                    : [
+                        Shadow(
+                          color: Colors.white.withValues(alpha: 0.84),
+                          blurRadius: 12,
+                        ),
+                      ],
+              ),
+            ),
+          ),
+        ),
+        // Companion text — income / expense / month, fades out on scroll
+        Positioned(
+          left: AppSpacing.lg,
+          top: infoTop,
+          right: AppSpacing.lg,
+          child: Opacity(
+            opacity: infoOpacity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '↑ ${formatCurrency(summary.monthIncome)}  /  ↓ ${formatCurrency(summary.monthExpense)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: isDark
+                        ? mood.heroForeground.withValues(alpha: 0.90)
+                        : mood.heroForeground,
+                    fontWeight: FontWeight.w600,
+                    shadows: isDark
+                        ? [
+                            Shadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 10)
+                          ]
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  monthLabel,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isDark
+                        ? mood.heroForeground.withValues(alpha: 0.62)
+                        : mood.heroMutedForeground,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _OverviewHeroDelegate oldDelegate) {
+    return oldDelegate.summary != summary ||
+        oldDelegate.totalBalance != totalBalance ||
+        oldDelegate.monthLabel != monthLabel ||
+        oldDelegate.visualState != visualState ||
+        oldDelegate.reaction != reaction ||
+        oldDelegate.reactionProgress != reactionProgress ||
+        oldDelegate.reducedMotion != reducedMotion;
+  }
 }
 
 class _TodayLoopCard extends StatelessWidget {
@@ -347,49 +463,166 @@ class _TodayLoopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final hasTodayEntry = summary.todayTransactionCount > 0;
+    final actionTitle = hasTodayEntry ? '오늘 기록이 있어요' : '오늘 기록이 비어 있어요';
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
 
-    return Card(
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppStatusChip(
+            label: 'TODAY LOOP',
+            dotColor: hasTodayEntry ? AppColors.income : AppColors.warning,
+            backgroundColor: onCard.withValues(alpha: 0.10),
+            foregroundColor: onCard,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            actionTitle,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              FilledButton(
+                onPressed: onQuickEntry,
+                child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
+              ),
+              OutlinedButton(
+                onPressed: onOpenTimeline,
+                child: const Text('최근 내역 보기'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingRecurringExpenseCard extends ConsumerWidget {
+  const _UpcomingRecurringExpenseCard({required this.items});
+
+  final List<RecurringExpense> items;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+    final previewItems = sortRecurringExpensesByNextDueDate(
+      items,
+      today: DateTime.now(),
+    ).take(3).toList();
+
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '다가오는 고정 지출',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: onCard,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/recurring-expenses'),
+                child: const Text('관리'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < previewItems.length; index++) ...[
+            _UpcomingRecurringExpenseTile(item: previewItems[index]),
+            if (index != previewItems.length - 1)
+              Divider(
+                height: 18,
+                color: onCard.withValues(alpha: 0.12),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingRecurringExpenseTile extends ConsumerWidget {
+  const _UpcomingRecurringExpenseTile({required this.item});
+
+  final RecurringExpense item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () async {
+        final created =
+            await ref.read(recurringExpenseServiceProvider).materializeForMonth(
+                  recurringId: item.localId,
+                  month: DateTime.now(),
+                );
+        if (!context.mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(created ? '이번 달 거래로 기록했습니다.' : '이미 이번 달 거래로 기록했습니다.'),
+          ),
+        );
+      },
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
           children: [
-            AppStatusChip(
-              label: 'TODAY LOOP',
-              dotColor: hasTodayEntry ? AppColors.income : AppColors.warning,
+            CircleAvatar(
+              backgroundColor: onCard.withValues(alpha: 0.10),
+              child: const Icon(Icons.event_repeat_rounded),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              hasTodayEntry ? '오늘은 이미 기록 흐름이 이어지고 있어요' : '오늘 흐름은 아직 비어 있어요',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '매월 ${item.dayOfMonth}일',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
             Text(
-              hasTodayEntry
-                  ? '이제는 빠뜨린 거래가 없는지만 가볍게 확인하면 충분해요.'
-                  : '지출이든 수입이든 한 건만 적어도 오늘의 감각이 훨씬 선명해집니다.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              formatCurrency(item.amount),
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: AppColors.expense,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                FilledButton(
-                  onPressed: onQuickEntry,
-                  child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
-                ),
-                OutlinedButton(
-                  onPressed: onOpenTimeline,
-                  child: const Text('최근 내역 보기'),
-                ),
-              ],
             ),
           ],
         ),
@@ -405,17 +638,38 @@ class _RecentTransactionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (transactions.isEmpty) {
-      return const _EmptyRecentTransactions();
-    }
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
 
-    return Card(
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var index = 0; index < transactions.length; index++) ...[
-            _RecentTransactionTile(transaction: transactions[index]),
-            if (index != transactions.length - 1) const Divider(height: 1),
-          ],
+          Text(
+            '최근 거래',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (transactions.isEmpty)
+            const _EmptyRecentTransactions()
+          else
+            Column(
+              children: [
+                for (var index = 0; index < transactions.length; index++) ...[
+                  _RecentTransactionTile(transaction: transactions[index]),
+                  if (index != transactions.length - 1)
+                    Divider(
+                      height: 18,
+                      color: onCard.withValues(alpha: 0.12),
+                    ),
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -433,32 +687,36 @@ class _RepeatSuggestionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const AppSectionIntro(
-          title: '다시 기록하기',
-          subtitle: '반복되는 흐름은 한 번 더 입력하는 것만으로도 충분히 이어집니다.',
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              children: [
-                for (var index = 0; index < suggestions.length; index++) ...[
-                  _RepeatSuggestionTile(
-                    transaction: suggestions[index],
-                    onTap: () => onRepeat(suggestions[index]),
-                  ),
-                  if (index != suggestions.length - 1)
-                    const Divider(height: AppSpacing.lg),
-                ],
-              ],
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '다시 기록하기',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < suggestions.length; index++) ...[
+            _RepeatSuggestionTile(
+              transaction: suggestions[index],
+              onTap: () => onRepeat(suggestions[index]),
+            ),
+            if (index != suggestions.length - 1)
+              Divider(
+                height: 18,
+                color: onCard.withValues(alpha: 0.12),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -483,19 +741,18 @@ class _RepeatSuggestionTile extends StatelessWidget {
             : isExpense
                 ? '같은 지출 다시 기록'
                 : '같은 수입 다시 기록';
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.sm,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: accent.withValues(alpha: 0.12),
+              backgroundColor: onCard.withValues(alpha: 0.10),
               child: Icon(
                 isExpense ? Icons.remove_rounded : Icons.add_rounded,
                 color: accent,
@@ -510,23 +767,39 @@ class _RepeatSuggestionTile extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: onCard,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${_typeLabel(transaction.type)} · ${formatCurrency(transaction.amount)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
-            OutlinedButton(
-              onPressed: onTap,
-              child: const Text('불러오기'),
+            const SizedBox(width: AppSpacing.sm),
+            SizedBox(
+              width: 96,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(96, 42),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: onTap,
+                child: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '불러오기',
+                    softWrap: false,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -542,9 +815,9 @@ class _BudgetStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final progress =
-        summary.totalBudget <= 0 ? 0.0 : summary.budgetUsageRate.clamp(0, 1).toDouble();
+    final progress = summary.totalBudget <= 0
+        ? 0.0
+        : summary.budgetUsageRate.clamp(0, 1).toDouble();
     final progressColor = summary.totalBudget <= 0
         ? AppColors.primary
         : summary.budgetUsageRate >= 1
@@ -553,52 +826,42 @@ class _BudgetStatusCard extends StatelessWidget {
                 ? AppColors.warning
                 : AppColors.income;
 
-    final caption = summary.totalBudget <= 0
-        ? '예산을 정하면 이번 달 흐름이 훨씬 더 선명하게 보여요.'
-        : summary.budgetUsageRate >= 1
-            ? '예산을 거의 다 썼어요. 남은 흐름만 차분히 보면 충분합니다.'
-            : summary.budgetUsageRate >= 0.8
-                ? '예산의 대부분이 이미 반영됐어요. 남은 며칠만 조금 더 살펴보면 좋아요.'
-                : '예산 안에서 비교적 안정적으로 흐르고 있어요.';
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppStatusChip(
-              label: 'BUDGET PRESSURE',
-              dotColor: progressColor,
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppStatusChip(
+            label: 'BUDGET PRESSURE',
+            dotColor: progressColor,
+            backgroundColor: onCard.withValues(alpha: 0.10),
+            foregroundColor: onCard,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            summary.totalBudget <= 0
+                ? '이번 달 예산이 아직 비어 있어요'
+                : '이번 달 지출 ${formatCurrency(summary.monthExpense)}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              summary.totalBudget <= 0
-                  ? '이번 달 예산은 아직 비어 있어요'
-                  : '이번 달 지출 ${formatCurrency(summary.monthExpense)}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              color: progressColor,
+              backgroundColor: onCard.withValues(alpha: 0.12),
             ),
-            const SizedBox(height: AppSpacing.md),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 10,
-                color: progressColor,
-                backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.8),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              caption,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -633,24 +896,35 @@ class _RecentTransactionTile extends StatelessWidget {
         ? '${_typeLabel(transaction.type)} · ${transaction.memo}'
         : _typeLabel(transaction.type);
 
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: 0,
         vertical: AppSpacing.xs,
       ),
       leading: CircleAvatar(
-        backgroundColor: accent.withValues(alpha: 0.12),
+        backgroundColor: onCard.withValues(alpha: 0.10),
         child: Icon(icon, color: accent),
       ),
       title: Text(
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: onCard,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       subtitle: Text(
         subtitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 128),
@@ -663,15 +937,18 @@ class _RecentTransactionTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: accent,
+                color: onCard,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '${transaction.occurredAt.month.toString().padLeft(2, '0')}.${transaction.occurredAt.day.toString().padLeft(2, '0')}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -685,34 +962,53 @@ class _EmptyRecentTransactions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            Icon(
-              Icons.auto_stories_outlined,
-              size: 30,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Icon(
+            Icons.auto_stories_outlined,
+            size: 30,
+            color: onCard.withValues(alpha: 0.50),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '아직 거래가 없어요',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '아직 쌓인 거래가 없어요',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '첫 거래를 기록하면 오늘 내역이 시작돼요.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '첫 기록 하나만 남겨도 오늘과 이번 달의 흐름이 훨씬 또렷해집니다.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+double _mix(double start, double end, double t) => start + ((end - start) * t);
+
+WealthBackdropReactionIntensity _mapReactionIntensity(
+  WealthReactionIntensity intensity,
+) {
+  return switch (intensity) {
+    WealthReactionIntensity.tiny => WealthBackdropReactionIntensity.tiny,
+    WealthReactionIntensity.small => WealthBackdropReactionIntensity.small,
+    WealthReactionIntensity.medium => WealthBackdropReactionIntensity.medium,
+    WealthReactionIntensity.large => WealthBackdropReactionIntensity.large,
+  };
 }
 
 String _typeLabel(String type) {

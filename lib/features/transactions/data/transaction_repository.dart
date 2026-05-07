@@ -155,7 +155,16 @@ class TransactionRepository {
   }
 
   Future<void> softDeleteTransaction(String localId) async {
-    final now = DateTime.now();
+    final existing = await (_database.select(_database.transactions)
+          ..where((tbl) => tbl.localId.equals(localId)))
+        .getSingleOrNull();
+    final rawNow = DateTime.now();
+    final minimumNextModifiedAt =
+        existing?.lastModifiedAt.add(const Duration(seconds: 1));
+    final now = minimumNextModifiedAt != null &&
+            !rawNow.isAfter(minimumNextModifiedAt)
+        ? minimumNextModifiedAt
+        : rawNow;
 
     await (_database.update(_database.transactions)
           ..where((tbl) => tbl.localId.equals(localId)))

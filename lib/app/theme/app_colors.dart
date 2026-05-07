@@ -15,8 +15,8 @@ abstract final class AppColors {
   static const cardLight = Color(0xFFFFFCF8);
   static const cardDark = Color(0xFF181716);
 
-  static const ink = Color(0xFF1E1B18);
-  static const mutedInk = Color(0xFF746B61);
+  static const ink = Color(0xFF14100B);
+  static const mutedInk = Color(0xFF4F4030);
   static const softHighlight = Color(0xFFF2E7D4);
 
   static const borderLight = Color(0xFFE7DDD2);

@@ -11,7 +11,10 @@ import '../../../core/constants/app_spacing.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({
+    super.key,
+    required this.child,
+  });
 
   final Widget child;
 
@@ -45,14 +48,18 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (location.startsWith('/timeline')) {
       return 1;
     }
-    if (location.startsWith('/settings') ||
+    if (location.startsWith('/tools') ||
         location.startsWith('/calendar') ||
         location.startsWith('/statistics') ||
         location.startsWith('/search') ||
         location.startsWith('/accounts') ||
         location.startsWith('/budgets') ||
-        location.startsWith('/ocr')) {
+        location.startsWith('/ocr') ||
+        location.startsWith('/recurring-expenses')) {
       return 2;
+    }
+    if (location.startsWith('/settings')) {
+      return 3;
     }
     return 0;
   }
@@ -131,113 +138,127 @@ class _AppShellState extends ConsumerState<AppShell> {
             onPointerSignal: _forwardPointerScroll,
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.black.withValues(alpha: 0.30)
-                        : Colors.white.withValues(alpha: 0.40),
+                        ? Colors.black.withValues(alpha: 0.16)
+                        : Colors.white.withValues(alpha: 0.54),
                     border: Border(
                       top: BorderSide(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.white.withValues(alpha: 0.65),
+                            ? Colors.white.withValues(alpha: 0.10)
+                            : const Color(0xFFD4A843).withValues(alpha: 0.22),
                       ),
                     ),
                   ),
                   child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!hideGlobalQuickPanel)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(AppRadius.xl),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.12 : 0.04,
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!hideGlobalQuickPanel)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.white.withValues(alpha: 0.24),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.xl),
+                                border: Border.all(
+                                  color: Colors.white.withValues(
+                                    alpha: isDark ? 0.12 : 0.42,
+                                  ),
                                 ),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
                               ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.sm),
-                            child: Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.surfaceContainerHigh,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
+                              padding: const EdgeInsets.all(AppSpacing.sm),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 지출 / 수입 토글 — 타입 선택용, 최대한 작게
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.06)
+                                          : Colors.white.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.md,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: isDark ? 0.10 : 0.34,
+                                        ),
+                                      ),
                                     ),
-                                    border: Border.all(
-                                      color: theme.colorScheme.outline,
+                                    child: ToggleButtons(
+                                      isSelected: [
+                                        form.type ==
+                                            TransactionEntryType.expense,
+                                        form.type ==
+                                            TransactionEntryType.income,
+                                      ],
+                                      onPressed: (index) {
+                                        ref
+                                            .read(
+                                              quickEntryFormProvider.notifier,
+                                            )
+                                            .setType(
+                                              index == 0
+                                                  ? TransactionEntryType.expense
+                                                  : TransactionEntryType.income,
+                                            );
+                                      },
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.md,
+                                      ),
+                                      selectedColor:
+                                          theme.colorScheme.onPrimary,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                      fillColor: theme.colorScheme.primary,
+                                      borderColor: Colors.transparent,
+                                      selectedBorderColor: Colors.transparent,
+                                      constraints: const BoxConstraints(
+                                        minHeight: 30,
+                                        minWidth: 38,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      children: const [
+                                        Text('지출'),
+                                        Text('수입'),
+                                      ],
                                     ),
                                   ),
-                                  child: ToggleButtons(
-                                    isSelected: [
-                                      form.type == TransactionEntryType.expense,
-                                      form.type == TransactionEntryType.income,
-                                    ],
-                                    onPressed: (index) {
-                                      ref
-                                          .read(quickEntryFormProvider.notifier)
-                                          .setType(
-                                            index == 0
-                                                ? TransactionEntryType.expense
-                                                : TransactionEntryType.income,
-                                          );
-                                    },
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
-                                    ),
-                                    selectedColor: theme.colorScheme.onPrimary,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    fillColor: theme.colorScheme.primary,
-                                    borderColor: Colors.transparent,
-                                    selectedBorderColor: Colors.transparent,
-                                    constraints: const BoxConstraints(
-                                      minHeight: 34,
-                                      minWidth: 48,
-                                    ),
-                                    children: const [
-                                      Text('지출'),
-                                      Text('수입'),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  flex: 3,
-                                  child: SizedBox(
-                                    height: 38,
+                                  const SizedBox(width: AppSpacing.sm),
+                                  // 금액 입력 — 주인공, 최대한 넓게 + 세로 가운데 정렬
+                                  Expanded(
                                     child: TextField(
                                       controller: _amountController,
                                       onChanged: ref
-                                          .read(quickEntryFormProvider.notifier)
+                                          .read(
+                                            quickEntryFormProvider.notifier,
+                                          )
                                           .setAmount,
+                                      textAlignVertical:
+                                          TextAlignVertical.center,
                                       decoration: const InputDecoration(
                                         hintText: '금액',
-                                        prefixText: '₩ ',
+                                        prefixText: '₩',
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
                                           horizontal: 12,
-                                          vertical: 8,
+                                          vertical: 10,
                                         ),
                                       ),
-                                      style: theme.textTheme.titleMedium?.copyWith(
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: theme.colorScheme.onSurface,
                                       ),
@@ -247,74 +268,88 @@ class _AppShellState extends ConsumerState<AppShell> {
                                       ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                SizedBox(
-                                  width: 78,
-                                  height: 38,
-                                  child: FilledButton(
-                                    onPressed: form.amount.trim().isNotEmpty
-                                        ? () => _submit(context, form)
-                                        : null,
-                                    style: FilledButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadius.md,
+                                  const SizedBox(width: AppSpacing.sm),
+                                  // 기록 버튼 — 작게
+                                  SizedBox(
+                                    width: 48,
+                                    height: 34,
+                                    child: FilledButton(
+                                      onPressed: form.amount.trim().isNotEmpty
+                                          ? () => _submit(context, form)
+                                          : null,
+                                      style: FilledButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.md,
+                                          ),
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
+                                      child: const Text('기록'),
                                     ),
-                                    child: const Text('기록'),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    NavigationBar(
-                      selectedIndex: currentIndex,
-                      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) {
-                        switch (index) {
-                          case 0:
-                            context.go('/');
-                            return;
-                          case 1:
-                            context.go('/timeline');
-                            return;
-                          case 2:
-                            context.go('/settings');
-                            return;
-                        }
-                      },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined, size: 26),
-                          selectedIcon: Icon(Icons.home_rounded, size: 26),
-                          label: '홈',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.receipt_long_outlined, size: 26),
-                          selectedIcon: Icon(Icons.receipt_long_rounded, size: 26),
-                          label: '내역',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.menu_outlined, size: 26),
-                          selectedIcon: Icon(Icons.menu_rounded, size: 26),
-                          label: '전체',
+                        NavigationBar(
+                          selectedIndex: currentIndex,
+                          labelBehavior:
+                              NavigationDestinationLabelBehavior.alwaysShow,
+                          onDestinationSelected: (index) {
+                            switch (index) {
+                              case 0:
+                                context.go('/');
+                                return;
+                              case 1:
+                                context.go('/timeline');
+                                return;
+                              case 2:
+                                context.go('/tools');
+                                return;
+                              case 3:
+                                context.go('/settings');
+                                return;
+                            }
+                          },
+                          destinations: const [
+                            NavigationDestination(
+                              icon: Icon(Icons.home_outlined, size: 26),
+                              selectedIcon: Icon(Icons.home_rounded, size: 26),
+                              label: '홈',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.receipt_long_outlined, size: 26),
+                              selectedIcon:
+                                  Icon(Icons.receipt_long_rounded, size: 26),
+                              label: '내역',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.menu_outlined, size: 26),
+                              selectedIcon: Icon(Icons.menu_rounded, size: 26),
+                              label: '도구',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.settings_outlined, size: 26),
+                              selectedIcon:
+                                  Icon(Icons.settings_rounded, size: 26),
+                              label: '설정',
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  ),
     );
   }
 
@@ -367,7 +402,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       return false;
     }
 
-    if (location != '/') {
+    if (!_isHomeLocation(location)) {
+      _lastBackPressedAt = null;
       context.go('/');
       return false;
     }
@@ -386,10 +422,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('뒤로가기를 한 번 더 누르면 종료됩니다.'),
+          content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
           duration: _exitGracePeriod,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     return false;
+  }
+
+  bool _isHomeLocation(String location) {
+    return location == '/' || location.startsWith('/?');
   }
 }

@@ -7,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/glass_card.dart';
 
 class SearchFilter {
   const SearchFilter({
@@ -197,10 +198,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (parts.isEmpty) {
-      return '전체 거래를 최신순으로 보여줍니다.';
+      return '전체';
     }
 
-    return '${parts.join(' · ')} 기준으로 좁혀 보고 있어요.';
+    return parts.join(' · ');
   }
 
   String _typeLabel(String type) {
@@ -249,38 +250,12 @@ class _SearchControlCard extends StatelessWidget {
         ? '검색 조건을 적용하는 중'
         : '검색 결과 ${resultsCount.toString()}건';
 
-    return Container(
-      width: double.infinity,
+    return GlassCard(
+      blur: 16,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF0EADF)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '필요한 거래를 바로 찾으세요',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '메모, 거래처, 거래 유형을 조합하면 원하는 내역을 빠르게 좁힐 수 있어요.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: controller,
             textInputAction: TextInputAction.search,
@@ -295,7 +270,7 @@ class _SearchControlCard extends StatelessWidget {
                     )
                   : null,
               filled: true,
-              fillColor: const Color(0xFFF7F4EE),
+              fillColor: Colors.white.withValues(alpha: 0.20),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide.none,
@@ -359,10 +334,10 @@ class _SearchControlCard extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             decoration: BoxDecoration(
-              color: AppColors.softHighlight.withValues(alpha: 0.42),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: AppColors.softHighlight.withValues(alpha: 0.7),
+                color: Colors.white.withValues(alpha: 0.26),
               ),
             ),
             child: Row(
@@ -374,14 +349,14 @@ class _SearchControlCard extends StatelessWidget {
                       Text(
                         summaryText,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withValues(alpha: 0.68),
+                          color: Colors.white.withValues(alpha: 0.76),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         resultLabel,
                         style: theme.textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -393,12 +368,12 @@ class _SearchControlCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
+                    color: Colors.white.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.receipt_long_rounded,
-                    color: theme.colorScheme.primary,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -433,11 +408,11 @@ class _TypeChip extends StatelessWidget {
       side: BorderSide.none,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       labelStyle: theme.textTheme.labelLarge?.copyWith(
-        color: selected ? Colors.white : theme.colorScheme.onSurface,
+        color: selected ? Colors.white : Colors.white.withValues(alpha: 0.86),
         fontWeight: FontWeight.w700,
       ),
-      backgroundColor: const Color(0xFFF3F0EA),
-      selectedColor: theme.colorScheme.primary,
+      backgroundColor: Colors.white.withValues(alpha: 0.14),
+      selectedColor: Colors.white.withValues(alpha: 0.24),
     );
   }
 }
@@ -452,31 +427,26 @@ class _SearchResultTile extends StatelessWidget {
     final theme = Theme.of(context);
     final title = _title(transaction);
     final subtitle = _subtitle(transaction);
-    final amountColor = _amountColor(transaction.type);
     final iconColor = _iconColor(transaction.type);
     final trailingTop = _amountText(transaction);
     final trailingBottom = _formatDateTime(transaction.occurredAt);
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.black.withValues(alpha: 0.04)),
+    return GlassCard(
+      blur: 12,
+      borderRadius: BorderRadius.circular(20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 14,
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 14,
-        ),
+        padding: EdgeInsets.zero,
         child: Row(
           children: [
             Container(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.14),
+                color: Colors.white.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -495,6 +465,7 @@ class _SearchResultTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -504,7 +475,7 @@ class _SearchResultTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.58),
+                      color: Colors.white.withValues(alpha: 0.72),
                     ),
                   ),
                 ],
@@ -518,14 +489,14 @@ class _SearchResultTile extends StatelessWidget {
                   trailingTop,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: amountColor,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   trailingBottom,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Colors.white.withValues(alpha: 0.70),
                   ),
                 ),
               ],
@@ -584,17 +555,6 @@ class _SearchResultTile extends StatelessWidget {
       _ => '',
     };
     return '$prefix${_formatCurrency(transaction.amount)}';
-  }
-
-  Color _amountColor(String type) {
-    switch (type) {
-      case 'expense':
-        return AppColors.expense;
-      case 'income':
-        return AppColors.income;
-      default:
-        return const Color(0xFF4B5563);
-    }
   }
 
   Color _iconColor(String type) {
@@ -662,9 +622,6 @@ class _EmptySearchState extends StatelessWidget {
     final title = hasActiveFilter
         ? '조건에 맞는 거래가 없어요'
         : '아직 검색한 거래가 없어요';
-    final description = hasActiveFilter
-        ? '검색어, 거래 유형, 계좌, 카테고리를 조금 넓혀 보세요.'
-        : '메모나 거래처 이름을 입력하면 관련 거래를 바로 찾을 수 있어요.';
 
     return Center(
       child: Padding(
@@ -691,14 +648,6 @@ class _EmptySearchState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
               ),
             ),
             const SizedBox(height: AppSpacing.md),

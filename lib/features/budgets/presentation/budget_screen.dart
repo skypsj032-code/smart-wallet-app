@@ -68,7 +68,7 @@ class BudgetScreen extends ConsumerWidget {
                           value: totalProgress,
                           minHeight: 12,
                           borderRadius: BorderRadius.circular(AppRadius.full),
-                          color: AppColors.primary,
+                          color: _progressColor(totalProgress),
                           backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                         const SizedBox(height: AppSpacing.md),
@@ -119,17 +119,7 @@ class BudgetScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Text(
-                        categorizedItems.isEmpty
-                            ? '어디에 얼마나 쓰는지 나눠보면 확실히 보여요.'
-                            : '${categorizedItems.length}개 항목을 나눠서 보고 있어요.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     if (categorizedItems.isEmpty)
                       Card(
                         child: Padding(
@@ -138,15 +128,8 @@ class BudgetScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '아직 카테고리 예산이 없어요',
+                                '카테고리 예산 없음',
                                 style: theme.textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                '식비, 교통비처럼 관리가 필요한 항목부터 추가해 보세요.',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
                               ),
                               const SizedBox(height: AppSpacing.md),
                               OutlinedButton.icon(
@@ -457,37 +440,24 @@ class BudgetScreen extends ConsumerWidget {
   }
 
   Color _progressColor(double progress) {
+    if (progress >= 1) return AppColors.expense;
+    if (progress >= 0.8) return AppColors.warning;
     return AppColors.primary;
   }
 
   String _overallBudgetMessage(int totalBudget, int totalSpent) {
-    if (totalBudget <= 0) {
-      return '전체 예산부터 정하면, 나눠 쓰기가 훨씬 편해져요.';
-    }
-
+    if (totalBudget <= 0) return '예산 미설정';
     final progress = totalSpent / totalBudget;
-    if (progress >= 1) {
-      return '이번 달 예산을 넘었어요. 한도를 다시 한번 봐요.';
-    }
-    if (progress >= 0.8) {
-      return '거의 다 썼어요. 남은 날들을 조금만 더 아껴봐요.';
-    }
-
-    return '잘 하고 있어요. 이 속도면 충분해요.';
+    if (progress >= 1) return '예산 초과';
+    if (progress >= 0.8) return '80% 이상 사용';
+    return '${(progress * 100).round()}% 사용';
   }
 
   String _categoryBudgetMessage(double progress) {
-    if (progress >= 1) {
-      return '이 항목은 예산을 넘었어요';
-    }
-    if (progress >= 0.8) {
-      return '거의 다 왔어요, 조심히 써요';
-    }
-    if (progress <= 0) {
-      return '아직 한 번도 안 썼어요';
-    }
-
-    return '예산 안에서 잘 쓰고 있어요';
+    if (progress >= 1) return '예산 초과';
+    if (progress >= 0.8) return '80% 이상 사용';
+    if (progress <= 0) return '미사용';
+    return '${(progress * 100).round()}% 사용';
   }
 
   int? _findBudgetAmount(List<BudgetSummaryItem> items, String? categoryId) {

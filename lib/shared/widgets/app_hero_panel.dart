@@ -11,6 +11,7 @@ class AppHeroPanel extends StatelessWidget {
     this.body,
     this.footer,
     this.animatedBackdrop,
+    this.largeTitle = false,
   });
 
   final Widget? eyebrow;
@@ -18,11 +19,35 @@ class AppHeroPanel extends StatelessWidget {
   final String? body;
   final Widget? footer;
   final Widget? animatedBackdrop;
+  final bool largeTitle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mood = theme.extension<AppMood>()!;
+    final titleStyle = largeTitle
+        ? theme.textTheme.displayLarge?.copyWith(
+            color: mood.heroForeground,
+            fontWeight: FontWeight.w300,
+            height: 0.92,
+            letterSpacing: -2.4,
+            shadows: [
+              Shadow(
+                color: Colors.white.withValues(alpha: 0.18),
+                blurRadius: 16,
+              ),
+            ],
+          )
+        : theme.textTheme.headlineMedium?.copyWith(
+            color: mood.heroForeground,
+            fontWeight: FontWeight.w700,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 12,
+              ),
+            ],
+          );
 
     return Stack(
       children: [
@@ -31,7 +56,7 @@ class AppHeroPanel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
-            AppSpacing.xl,
+            AppSpacing.lg,
             AppSpacing.md,
             AppSpacing.lg,
           ),
@@ -39,41 +64,32 @@ class AppHeroPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (eyebrow != null) eyebrow!,
-              if (eyebrow != null) const SizedBox(height: AppSpacing.md),
+              if (eyebrow != null) const SizedBox(height: AppSpacing.lg),
               Text(
                 title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: mood.heroForeground,
-                  fontWeight: FontWeight.w700,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                    ),
-                  ],
-                ),
+                style: titleStyle,
               ),
               if (body != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  body!,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: mood.heroMutedForeground,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 8,
-                      ),
-                    ],
+                const SizedBox(height: AppSpacing.md),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Text(
+                    body!,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: mood.heroMutedForeground,
+                      height: 1.42,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
               if (footer != null) ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 footer!,
               ],
             ],

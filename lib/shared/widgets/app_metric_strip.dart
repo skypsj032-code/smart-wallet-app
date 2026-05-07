@@ -21,17 +21,23 @@ class AppMetricStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final isDark = theme.brightness == Brightness.dark;
+    final foreground = isDark ? Colors.white : theme.colorScheme.onSurface;
+    final mutedForeground = isDark
+        ? Colors.white.withValues(alpha: 0.78)
+        : theme.colorScheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: emphasize
-            ? theme.colorScheme.primary.withValues(alpha: 0.1)
-            : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.55),
+        color: isDark
+            ? Colors.white.withValues(alpha: emphasize ? 0.12 : 0.07)
+            : Colors.white.withValues(alpha: emphasize ? 0.86 : 0.74),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: emphasize
-              ? theme.colorScheme.primary.withValues(alpha: 0.18)
-              : theme.colorScheme.outline,
+          color: isDark
+              ? Colors.white.withValues(alpha: emphasize ? 0.40 : 0.22)
+              : theme.colorScheme.outline
+                  .withValues(alpha: emphasize ? 0.72 : 0.48),
         ),
       ),
       child: Column(
@@ -42,9 +48,8 @@ class AppMetricStrip extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelLarge?.copyWith(
-              color: emphasize
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
+              color: emphasize ? foreground : mutedForeground,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -54,6 +59,7 @@ class AppMetricStrip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
+              color: foreground,
             ),
           ),
           if (caption != null) ...[
@@ -63,7 +69,8 @@ class AppMetricStrip extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: mutedForeground,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

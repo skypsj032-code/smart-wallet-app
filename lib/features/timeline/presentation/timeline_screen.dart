@@ -35,7 +35,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ? items
               : items.where((tx) {
                   if (_selectedType == 'transfer') {
-                    return tx.type == 'transfer' || tx.type == 'transfer_reserved';
+                    return tx.type == 'transfer' ||
+                        tx.type == 'transfer_reserved';
                   }
                   return tx.type == _selectedType;
                 }).toList();
@@ -56,7 +57,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
                 title: '필터',
-                subtitle: '보고 싶은 흐름만 골라서 훑으면 더 빨리 확인할 수 있어요.',
                 trailing: filteredItems.isEmpty
                     ? null
                     : AppStatusChip(
@@ -71,8 +71,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
-                title: '최근 흐름',
-                subtitle: '상호명과 메모를 먼저 읽고, 금액과 시간으로 빠르게 교차 확인하세요.',
+                title: '최근 내역',
               ),
               const SizedBox(height: AppSpacing.sm),
               filteredItems.isEmpty
@@ -80,7 +79,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   : _TimelineList(
                       items: filteredItems,
                       onEdit: (tx) {
-                        ref.read(quickEntryFormProvider.notifier).loadTransaction(tx);
+                        ref
+                            .read(quickEntryFormProvider.notifier)
+                            .loadTransaction(tx);
                         context.pushNamed('quick-entry');
                       },
                       onDelete: (tx) => _deleteTransaction(context, tx),
@@ -105,7 +106,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('거래를 숨길까요?'),
-          content: const Text('이 거래는 타임라인에서 사라지지만, 필요하면 다시 복원할 수 있습니다.'),
+          content: const Text('이 거래를 숨기겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -124,7 +125,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       return;
     }
 
-    await ref.read(transactionRepositoryProvider).softDeleteTransaction(tx.localId);
+    await ref
+        .read(transactionRepositoryProvider)
+        .softDeleteTransaction(tx.localId);
 
     if (!context.mounted) {
       return;
@@ -149,10 +152,6 @@ class _TimelineSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final helperText = selectedType == null
-        ? '최신 거래를 시간 순서대로 정리해 보여줍니다.'
-        : '${_typeLabel(selectedType!)}만 골라서 보고 있어요.';
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -164,18 +163,7 @@ class _TimelineSummaryCard extends StatelessWidget {
               dotColor: AppColors.primary,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              '빠르게 훑고 바로 고칠 수 있는 기록 화면',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              helperText,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
@@ -236,7 +224,8 @@ class _TypeFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           _FilterChipButton(
             label: '이체',
-            selected: selectedType == 'transfer' || selectedType == 'transfer_reserved',
+            selected: selectedType == 'transfer' ||
+                selectedType == 'transfer_reserved',
             onTap: () => onSelected('transfer'),
           ),
         ],
@@ -301,18 +290,10 @@ class _TimelineEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              isFiltered ? '선택한 조건에 맞는 거래가 아직 없어요' : '기록이 쌓이면 여기서 흐름이 보이기 시작해요',
+              isFiltered ? '조건에 맞는 거래가 없어요' : '거래 내역이 없어요',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              isFiltered
-                  ? '필터를 바꾸면 다른 흐름이 바로 보일 수 있어요.'
-                  : '첫 기록 몇 건만 쌓여도 생활의 리듬이 생각보다 빨리 드러납니다.',
-              style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
           ],
@@ -364,8 +345,8 @@ class _TimelineList extends StatelessWidget {
                 Text(
                   _sectionDateLabel(transactions.first.occurredAt),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 ...List.generate(transactions.length, (index) {
@@ -404,7 +385,8 @@ class _TimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTransfer = transaction.type == 'transfer' || transaction.type == 'transfer_reserved';
+    final isTransfer = transaction.type == 'transfer' ||
+        transaction.type == 'transfer_reserved';
     final accentColor = isTransfer
         ? AppColors.primary
         : transaction.type == 'expense'

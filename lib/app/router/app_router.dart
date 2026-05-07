@@ -8,6 +8,7 @@ import '../../features/calendar/presentation/calendar_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/ocr/presentation/ocr_capture_screen.dart';
 import '../../features/ocr/presentation/ocr_review_screen.dart';
+import '../../features/recurring_expenses/presentation/recurring_expenses_screen.dart';
 import '../../features/root/presentation/app_shell.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/settings/application/settings_provider.dart';
@@ -16,6 +17,7 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
 import '../../features/transactions/presentation/quick_entry_screen.dart';
+import '../../features/tools/presentation/tools_screen.dart';
 
 final sessionUnlockedProvider = StateProvider<bool>((ref) => false);
 
@@ -28,7 +30,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isLockRoute = state.matchedLocation == '/lock';
 
-      if (appSettings != null && appSettings.appLockEnabled && !isSessionUnlocked) {
+      if (appSettings != null &&
+          appSettings.appLockEnabled &&
+          !isSessionUnlocked) {
         return isLockRoute ? null : '/lock';
       }
 
@@ -85,6 +89,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 _buildShellPage(state: state, child: const AccountsScreen()),
           ),
           GoRoute(
+            path: '/tools',
+            name: 'tools',
+            pageBuilder: (context, state) =>
+                _buildShellPage(state: state, child: const ToolsScreen()),
+          ),
+          GoRoute(
             path: '/settings',
             name: 'settings',
             pageBuilder: (context, state) =>
@@ -113,6 +123,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'budgets',
             pageBuilder: (context, state) =>
                 _buildShellPage(state: state, child: const BudgetScreen()),
+          ),
+          GoRoute(
+            path: '/recurring-expenses',
+            name: 'recurring-expenses',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const RecurringExpensesScreen(),
+            ),
           ),
         ],
       ),

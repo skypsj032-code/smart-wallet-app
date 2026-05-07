@@ -52,6 +52,22 @@ class Budgets extends Table {
   Set<Column<Object>> get primaryKey => {localId};
 }
 
+class RecurringExpenses extends Table {
+  TextColumn get localId => text()();
+  TextColumn get name => text()();
+  IntColumn get amount => integer()();
+  IntColumn get dayOfMonth => integer()();
+  TextColumn get accountId => text()();
+  TextColumn get categoryId => text().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get lastCreatedMonthKey => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastModifiedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {localId};
+}
+
 class Accounts extends Table {
   TextColumn get localId => text()();
   TextColumn get name => text()();
@@ -72,6 +88,8 @@ class AppSettings extends Table {
   TextColumn get currencyCode => text().withDefault(const Constant('KRW'))();
   TextColumn get weekStart => text().withDefault(const Constant('monday'))();
   TextColumn get themeMode => text().withDefault(const Constant('system'))();
+  IntColumn get defaultCategorySeedVersion =>
+      integer().withDefault(const Constant(0))();
   BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
   BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
   BoolColumn get exportIncludeDeleted =>

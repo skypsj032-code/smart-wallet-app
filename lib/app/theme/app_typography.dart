@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'app_colors.dart';
+
 abstract final class AppTypography {
   static TextTheme textTheme(Brightness brightness) {
     final bodyColor =
-        brightness == Brightness.dark ? const Color(0xFFFFFBF6) : const Color(0xFF1E1B18);
-    final mutedColor =
-        brightness == Brightness.dark ? const Color(0xFFB1A699) : const Color(0xFF746B61);
+        brightness == Brightness.dark ? const Color(0xFFFFFBF6) : AppColors.ink;
+    final mutedColor = brightness == Brightness.dark
+        ? const Color(0xFFC6BAAC)
+        : AppColors.mutedInk;
 
     final base = GoogleFonts.notoSansKrTextTheme().apply(
       bodyColor: bodyColor,
@@ -117,9 +120,10 @@ abstract final class AppTypography {
     Color? color,
     double letterSpacing = 0.4,
   }) {
-    final resolvedColor =
-        color ??
-        (brightness == Brightness.dark ? const Color(0xFFB1A699) : const Color(0xFF746B61));
+    final resolvedColor = color ??
+        (brightness == Brightness.dark
+            ? const Color(0xFFC6BAAC)
+            : AppColors.mutedInk);
 
     return GoogleFonts.jetBrainsMono(
       fontSize: fontSize,

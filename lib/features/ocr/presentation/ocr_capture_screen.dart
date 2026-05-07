@@ -47,7 +47,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
 
       if (backCamera.isEmpty) {
         setState(() {
-          _cameraError = 'A back camera is required to capture receipts.';
+          _cameraError = '후면 카메라가 필요합니다.';
           _initializing = false;
         });
         return;
@@ -72,7 +72,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
       });
     } catch (error) {
       setState(() {
-        _cameraError = 'The camera preview could not be opened. $error';
+        _cameraError = '카메라를 열 수 없습니다. $error';
         _initializing = false;
       });
     }
@@ -96,7 +96,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
     final canRetrySavedCapture = !isBusy && draft.hasImage;
 
     return AppScaffold(
-      title: 'Capture Receipt',
+      title: '영수증 스캔',
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -117,8 +117,8 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                   Expanded(
                     child: _FlowStageCard(
                       step: '1',
-                      title: 'Capture',
-                      status: draft.hasImage ? 'Saved photo ready' : 'Point camera at receipt',
+                      title: '촬영',
+                      status: draft.hasImage ? '사진 저장됨' : '영수증에 카메라를 맞춰주세요',
                       isActive:
                           draft.status == OcrFlowStatus.idle || draft.status == OcrFlowStatus.capturing,
                       isDone: draft.hasImage,
@@ -128,8 +128,8 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                   Expanded(
                     child: _FlowStageCard(
                       step: '2',
-                      title: 'Extract',
-                      status: draft.hasRawText ? 'Text extracted' : 'Run OCR on capture',
+                      title: '추출',
+                      status: draft.hasRawText ? '텍스트 추출 완료' : 'OCR 대기 중',
                       isActive: draft.status == OcrFlowStatus.capturing ||
                           draft.status == OcrFlowStatus.extracted ||
                           draft.status == OcrFlowStatus.parsed,
@@ -140,8 +140,8 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                   Expanded(
                     child: _FlowStageCard(
                       step: '3',
-                      title: 'Review',
-                      status: canOpenReview ? 'Ready to correct' : 'Review after OCR',
+                      title: '검토',
+                      status: canOpenReview ? '검토 준비됨' : 'OCR 후 검토',
                       isActive: draft.status == OcrFlowStatus.reviewRequired ||
                           draft.status == OcrFlowStatus.failed,
                       isDone: draft.canContinueToQuickEntry,
@@ -179,7 +179,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                                       if (draft.confidence != null)
                                         _StatusPill(
                                           label:
-                                              'Confidence ${draft.confidence!.toStringAsFixed(2)}',
+                                              '인식률 ${draft.confidence!.toStringAsFixed(2)}',
                                         ),
                                     ],
                                   ),
@@ -239,7 +239,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                             ref.read(ocrCaptureProvider.notifier).reset();
                           },
                     icon: Icon(hasDraft ? Icons.delete_outline : Icons.refresh_outlined),
-                    label: Text(hasDraft ? 'Clear Draft' : 'Reset View'),
+                    label: Text(hasDraft ? '초안 삭제' : '초기화'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -265,10 +265,10 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                     icon: const Icon(Icons.camera_alt_outlined),
                     label: Text(
                       isBusy
-                          ? 'Processing...'
+                          ? '처리 중...'
                           : hasDraft
-                              ? 'Retake Receipt'
-                              : 'Capture Receipt',
+                              ? '다시 촬영'
+                              : '영수증 촬영',
                     ),
                   ),
                 ),
@@ -291,7 +291,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                   }
                 },
                 icon: const Icon(Icons.document_scanner_outlined),
-                label: const Text('Retry OCR From Saved Photo'),
+                label: const Text('저장된 사진으로 OCR 재시도'),
               ),
             ],
             if (canOpenReview) ...[
@@ -300,7 +300,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
                 onPressed: () => context.go('/ocr-review'),
                 icon: const Icon(Icons.edit_note_outlined),
                 label: Text(
-                  draft.errorMessage != null ? 'Open Review And Fix' : 'Continue To Review',
+                  draft.errorMessage != null ? '검토 화면 열기' : '검토하기',
                 ),
               ),
             ],
@@ -312,39 +312,38 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
 
   String _bannerTitle(OcrDraftState draft) {
     if (draft.status == OcrFlowStatus.failed) {
-      return 'OCR needs help';
+      return 'OCR 실패';
     }
 
     if (draft.status == OcrFlowStatus.reviewRequired) {
-      return 'Capture complete';
+      return '촬영 완료';
     }
 
     if (draft.status == OcrFlowStatus.capturing) {
-      return 'Processing receipt';
+      return '영수증 처리 중';
     }
 
-    return 'Capture a clean receipt photo';
+    return '영수증을 촬영하세요';
   }
 
   String _bannerMessage(OcrDraftState draft) {
     if (_cameraError != null) {
-      return 'Camera preview is unavailable. You can still reopen an existing OCR draft if one was already captured.';
+      return '카메라 미리보기를 사용할 수 없습니다. 이미 촬영된 초안이 있다면 열 수 있어요.';
     }
 
     if (draft.status == OcrFlowStatus.failed) {
-      return draft.errorMessage ??
-          'The last OCR pass did not finish cleanly. Retake the receipt, retry OCR on the saved image, or open review to finish manually.';
+      return draft.errorMessage ?? 'OCR이 완료되지 않았습니다. 다시 촬영하거나 검토 화면에서 직접 입력해 주세요.';
     }
 
     if (draft.status == OcrFlowStatus.reviewRequired) {
-      return 'The receipt draft is ready for review. Open the next step to confirm merchant, amount, and category before creating the transaction.';
+      return '영수증 초안이 준비되었습니다. 검토 화면에서 상점명, 금액, 카테고리를 확인해 주세요.';
     }
 
     if (draft.hasImage && !draft.hasRawText) {
-      return 'A receipt photo is already saved. You can retry OCR without retaking the photo, or capture again if the frame was unclear.';
+      return '저장된 사진이 있습니다. OCR을 재시도하거나 다시 촬영할 수 있어요.';
     }
 
-    return 'Align the receipt inside the frame, keep edges visible, and avoid glare. After capture, OCR will open the review step so you can correct anything before continuing.';
+    return '테두리 안에 영수증을 맞추고 촬영하세요.';
   }
 
   String _previewMessage(OcrDraftState draft) {
@@ -357,26 +356,26 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
     }
 
     if (draft.hasImage) {
-      return 'Saved photo ready. Run OCR again or continue to review once you are satisfied with the capture.';
+      return '사진이 저장되었습니다. OCR을 재시도하거나 검토 화면으로 이동할 수 있어요.';
     }
 
-    return 'A short OCR preview will appear here after capture.';
+    return '촬영 후 OCR 결과가 여기에 표시됩니다.';
   }
 
   String _statusLabel(OcrFlowStatus status) {
     switch (status) {
       case OcrFlowStatus.idle:
-        return 'Ready';
+        return '대기';
       case OcrFlowStatus.capturing:
-        return 'Capturing / OCR';
+        return '촬영 / OCR 처리 중';
       case OcrFlowStatus.extracted:
-        return 'Text extracted';
+        return '텍스트 추출 완료';
       case OcrFlowStatus.parsed:
-        return 'Refreshing suggestion';
+        return '추천 갱신 중';
       case OcrFlowStatus.reviewRequired:
-        return 'Needs review';
+        return '검토 필요';
       case OcrFlowStatus.failed:
-        return 'Needs retry';
+        return '재시도 필요';
     }
   }
 }
@@ -551,7 +550,7 @@ class _DraftSnapshotCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Current draft',
+            '현재 초안',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -561,17 +560,17 @@ class _DraftSnapshotCard extends StatelessWidget {
             children: [
               _SnapshotChip(
                 icon: Icons.image_outlined,
-                label: draft.hasImage ? 'Photo saved' : 'No photo',
+                label: draft.hasImage ? '사진 저장됨' : '사진 없음',
               ),
               _SnapshotChip(
                 icon: Icons.storefront_outlined,
                 label: draft.storeName?.trim().isNotEmpty ?? false
                     ? draft.storeName!
-                    : 'Merchant pending',
+                    : '상점명 미확인',
               ),
               _SnapshotChip(
                 icon: Icons.payments_outlined,
-                label: draft.amount != null ? '${draft.amount} won' : 'Amount pending',
+                label: draft.amount != null ? '${draft.amount}원' : '금액 미확인',
               ),
             ],
           ),
@@ -659,7 +658,7 @@ class _UnsupportedOcrCaptureScreen extends StatelessWidget {
     };
 
     return AppScaffold(
-      title: 'Capture Receipt',
+      title: '영수증 스캔',
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -677,12 +676,12 @@ class _UnsupportedOcrCaptureScreen extends StatelessWidget {
                   const Icon(Icons.devices_outlined, size: 32),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'OCR is not available on this platform',
+                    '이 기기에서는 OCR을 사용할 수 없어요',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'The current app target is $platformLabel. Receipt capture and on-device OCR are only enabled on Android and iOS.',
+                    '현재 실행 중인 환경은 $platformLabel입니다. 영수증 촬영과 OCR은 Android, iOS에서만 지원됩니다.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
@@ -696,13 +695,13 @@ class _UnsupportedOcrCaptureScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'What you can do instead',
+                      '대신 할 수 있는 것',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    const Text('Run the app on Android or iOS if you need camera OCR.'),
+                    const Text('카메라 OCR이 필요하다면 Android 또는 iOS에서 실행하세요.'),
                     const SizedBox(height: AppSpacing.xs),
-                    const Text('Use quick entry on desktop or web to record the transaction manually.'),
+                    const Text('데스크탑에서는 빠른 입력으로 거래를 직접 기록할 수 있어요.'),
                   ],
                 ),
               ),
@@ -711,7 +710,7 @@ class _UnsupportedOcrCaptureScreen extends StatelessWidget {
             FilledButton.icon(
               onPressed: () => context.go('/quick-entry'),
               icon: const Icon(Icons.keyboard_alt_outlined),
-              label: const Text('Open Quick Entry'),
+              label: const Text('빠른 입력 열기'),
             ),
           ],
         ),
