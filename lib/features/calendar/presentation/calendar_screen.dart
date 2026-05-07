@@ -968,17 +968,17 @@ class _CalendarSelectedDayCard extends StatelessWidget {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      _SummaryTile(
+                      _CompactSummaryChip(
                         label: '수입',
                         value: formatCurrency(selectedDay!.income),
                         color: AppColors.income,
                       ),
-                      _SummaryTile(
+                      _CompactSummaryChip(
                         label: '지출',
                         value: formatCurrency(selectedDay!.expense),
                         color: AppColors.expense,
                       ),
-                      _SummaryTile(
+                      _CompactSummaryChip(
                         label: '거래',
                         value: '${selectedDay!.transactionCount}건',
                         color: AppColors.primary,
@@ -1218,6 +1218,51 @@ class _SummaryTile extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactSummaryChip extends StatelessWidget {
+  const _CompactSummaryChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
           ),
         ],
