@@ -1,10 +1,5 @@
 # Calendar Home And Keyboard Policy Implementation Plan
 
-Implementation note on 2026-05-07:
-- Final calendar modes are `week / day / month / year`.
-- `week` stays, and `day` is added as a separate detail mode.
-- Inline entry is attached to the selected-day detail card in calendar flow.
-
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rework calendar navigation to `일별 / 월별 / 연별`, keep home calendar/statistics previews always visible, and introduce an app-wide keyboard avoidance policy so input UIs stop being covered.

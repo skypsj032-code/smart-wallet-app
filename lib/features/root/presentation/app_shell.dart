@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../application/navigation_depth_policy.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -99,7 +98,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               layoutBuilder: (currentChild, previousChildren) {
-                return currentChild ?? const SizedBox.shrink();
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
               },
               transitionBuilder: (child, animation) {
                 final curved = CurvedAnimation(
@@ -397,7 +402,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       return false;
     }
 
-    if (!isHomeLocation(location)) {
+    if (!_isHomeLocation(location)) {
       _lastBackPressedAt = null;
       context.go('/');
       return false;
@@ -425,4 +430,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return false;
   }
 
+  bool _isHomeLocation(String location) {
+    return location == '/' || location.startsWith('/?');
+  }
 }

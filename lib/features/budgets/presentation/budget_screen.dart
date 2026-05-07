@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -327,7 +326,7 @@ class BudgetScreen extends ConsumerWidget {
     var useOverallBudget = initialCategoryId == null;
 
     try {
-      final result = await showGuardedDialog<_BudgetEditorResult>(
+      final result = await showDialog<_BudgetEditorResult>(
         context: context,
         builder: (dialogContext) {
           return AnimatedPadding(

@@ -7,7 +7,6 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 
 enum CalendarViewMode {
-  week,
   day,
   month,
   year,
@@ -17,11 +16,6 @@ enum CalendarTransactionFilter {
   all,
   income,
   expense,
-}
-
-enum CalendarTransactionSortOrder {
-  newestFirst,
-  oldestFirst,
 }
 
 class CalendarDaySummary {
@@ -107,11 +101,6 @@ final calendarTypeFilterProvider =
 });
 
 final calendarSearchQueryProvider = StateProvider<String>((ref) => '');
-
-final calendarTransactionSortOrderProvider =
-    StateProvider<CalendarTransactionSortOrder>(
-  (ref) => CalendarTransactionSortOrder.newestFirst,
-);
 
 final _calendarTodayTickProvider = StreamProvider<DateTime>((ref) async* {
   while (true) {
@@ -274,7 +263,6 @@ final selectedCalendarTransactionsProvider =
   final selected = ref.watch(selectedCalendarDateProvider);
   final filter = ref.watch(calendarTypeFilterProvider);
   final query = ref.watch(calendarSearchQueryProvider);
-  final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
   if (selected == null) {
     return Stream.value(const <Transaction>[]);
   }
@@ -289,13 +277,8 @@ final selectedCalendarTransactionsProvider =
             t.occurredAt.isBiggerOrEqualValue(dayStart) &
             t.occurredAt.isSmallerThanValue(nextDay))
         ..orderBy([
-          if (sortOrder == CalendarTransactionSortOrder.newestFirst) ...[
-            (t) => OrderingTerm.desc(t.occurredAt),
-            (t) => OrderingTerm.desc(t.createdAt),
-          ] else ...[
-            (t) => OrderingTerm.asc(t.occurredAt),
-            (t) => OrderingTerm.asc(t.createdAt),
-          ],
+          (t) => OrderingTerm.desc(t.occurredAt),
+          (t) => OrderingTerm.desc(t.createdAt),
         ]))
       .watch();
   final categories = database.select(database.categories).watch();
@@ -383,9 +366,11 @@ final calendarHomeMonthPreviewProvider =
 
       grouped[key] = CalendarDaySummary(
         date: key,
-        income: row.type == 'income' ? current.income + row.amount : current.income,
-        expense:
-            row.type == 'expense' ? current.expense + row.amount : current.expense,
+        income:
+            row.type == 'income' ? current.income + row.amount : current.income,
+        expense: row.type == 'expense'
+            ? current.expense + row.amount
+            : current.expense,
         transactionCount: current.transactionCount + 1,
         matchCount: current.matchCount + 1,
       );
@@ -408,10 +393,6 @@ void refreshCalendarData(WidgetRef ref) {
 
 DateTime _periodStart(DateTime anchorDate, CalendarViewMode mode) {
   switch (mode) {
-    case CalendarViewMode.week:
-      final normalized =
-          DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-      return normalized.subtract(Duration(days: normalized.weekday - 1));
     case CalendarViewMode.day:
       return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
     case CalendarViewMode.month:
@@ -423,8 +404,6 @@ DateTime _periodStart(DateTime anchorDate, CalendarViewMode mode) {
 
 DateTime _periodEnd(DateTime periodStart, CalendarViewMode mode) {
   switch (mode) {
-    case CalendarViewMode.week:
-      return periodStart.add(const Duration(days: 7));
     case CalendarViewMode.day:
       return periodStart.add(const Duration(days: 1));
     case CalendarViewMode.month:

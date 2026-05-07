@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
-import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section_intro.dart';
@@ -67,7 +66,7 @@ class RecurringExpensesScreen extends ConsumerWidget {
     WidgetRef ref, {
     RecurringExpense? existing,
   }) async {
-    final result = await showGuardedDialog<_RecurringExpenseEditorResult>(
+    final result = await showDialog<_RecurringExpenseEditorResult>(
       context: context,
       builder: (dialogContext) {
         return _RecurringExpenseEditorDialog(existing: existing);

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
-import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -48,7 +47,7 @@ class AccountsScreen extends ConsumerWidget {
                         balances: balances,
                         onEdit: (account) => _showAccountDialog(context, ref, account),
                         onDelete: (account) async {
-                          final confirmed = await showGuardedDialog<bool>(
+                          final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (dialogContext) => AlertDialog(
                               title: const Text('계좌 삭제'),
@@ -98,7 +97,7 @@ class AccountsScreen extends ConsumerWidget {
     final nameController = TextEditingController(text: account?.name ?? '');
     String selectedType = account?.type ?? 'cash';
 
-    showGuardedDialog<void>(
+    showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AnimatedPadding(

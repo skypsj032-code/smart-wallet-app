@@ -88,10 +88,7 @@ class _PreviewSurface extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: child,
-            ),
+            child: child,
           ),
         ),
       ),
@@ -114,7 +111,7 @@ class _CalendarPreview extends StatelessWidget {
 
     if (preview == null) {
       return Text(
-        '달력 미리보기를 준비하고 있어요.',
+        '이번 달 달력 미리보기를 준비하는 중이에요.',
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -129,24 +126,24 @@ class _CalendarPreview extends StatelessWidget {
             Text(
               '${preview!.monthStart.month}월',
               style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: AppSpacing.sm),
             if (summary != null)
               Text(
                 '오늘 ${summary!.transactionCount}건',
                 key: const Key('dashboard-calendar-count'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
         _MiniMonthCalendar(preview: preview!),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
@@ -167,9 +164,7 @@ class _CalendarPreview extends StatelessWidget {
 }
 
 class _MiniMonthCalendar extends StatelessWidget {
-  const _MiniMonthCalendar({
-    required this.preview,
-  });
+  const _MiniMonthCalendar({required this.preview});
 
   final CalendarHomeMonthPreview preview;
 
@@ -214,7 +209,7 @@ class _MiniMonthCalendar extends StatelessWidget {
             crossAxisCount: 7,
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
-            childAspectRatio: 0.72,
+            childAspectRatio: 1.18,
           ),
           itemBuilder: (context, index) {
             if (index < leadingBlanks) {
@@ -256,84 +251,48 @@ class _MiniCalendarDayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasFlow = summary != null && summary!.transactionCount > 0;
-    final incomeText =
-        (summary?.income ?? 0) > 0 ? formatCurrency(summary!.income) : '';
-    final expenseText =
-        (summary?.expense ?? 0) > 0 ? formatCurrency(summary!.expense) : '';
 
     return Container(
       decoration: BoxDecoration(
         color: hasFlow
-            ? theme.colorScheme.primary.withValues(alpha: 0.06)
-            : theme.colorScheme.surface.withValues(alpha: 0.36),
-        borderRadius: BorderRadius.circular(12),
+            ? theme.colorScheme.onSurface.withValues(alpha: 0.06)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isToday
-              ? AppColors.primary.withValues(alpha: 0.72)
-              : theme.colorScheme.outline.withValues(alpha: 0.10),
+              ? AppColors.primary.withValues(alpha: 0.65)
+              : theme.colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             '$dayNumber',
-            textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
-              fontSize: 10,
-              height: 1,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      incomeText,
-                      maxLines: 1,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppColors.income,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 6.6,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
+          const SizedBox(height: 2),
+          if (hasFlow)
+            Text(
+              '${summary!.transactionCount}건',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      expenseText,
-                      maxLines: 1,
-                      textAlign: TextAlign.right,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppColors.expense,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 6.6,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
+            )
+          else
+            Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );
@@ -375,10 +334,10 @@ class _StatisticsPreview extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
         if (topExpenseCategories.isEmpty)
           Text(
-            '아직 지출 흐름이 없어요.',
+            '아직 데이터가 없어요.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -422,7 +381,7 @@ class _StatisticPreviewRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 8,
+        vertical: 7,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
@@ -458,6 +417,13 @@ class _StatisticPreviewRow extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            formatCurrency(stat.amount),
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -482,13 +448,14 @@ class _SummaryChip extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: theme.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

@@ -16,13 +16,11 @@ import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section_intro.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/app_utility_group.dart';
-import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../application/backup_service.dart';
 import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
 import 'csv_export_options_dialog.dart';
 import 'lock_setup_dialog.dart';
-import 'theme_mode_tile.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -150,7 +148,7 @@ class SettingsScreen extends ConsumerWidget {
           appSettingsAsync.when(
             data: (settings) => AppUtilityGroup(
               children: [
-                ThemeModeTile(
+                _ThemeModeTile(
                   currentMode: settings.themeMode,
                   onChanged: (mode) =>
                       _updateThemeMode(context, ref, settings, mode),
@@ -220,7 +218,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppSetting settings,
   ) async {
-    final confirmed = await showGuardedDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -275,7 +273,7 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
-    await showGuardedDialog<void>(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('백업 파일을 만들었습니다'),
@@ -402,7 +400,7 @@ class SettingsScreen extends ConsumerWidget {
     BackupPreview preview,
     String filePath,
   ) {
-    return showGuardedDialog<bool>(
+    return showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -439,7 +437,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _showRestoreStoppedDialog(BuildContext context, Object error) {
-    return showGuardedDialog<void>(
+    return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원을 멈췄습니다'),
@@ -464,7 +462,7 @@ class SettingsScreen extends ConsumerWidget {
     required RestoreSafetyBackup safetyBackup,
     required BackupSummary summary,
   }) {
-    return showGuardedDialog<void>(
+    return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원이 완료되었습니다'),
@@ -509,7 +507,7 @@ class SettingsScreen extends ConsumerWidget {
     required RestoreSafetyBackup safetyBackup,
     required Object error,
   }) {
-    return showGuardedDialog<void>(
+    return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원에 실패했습니다'),
@@ -561,7 +559,7 @@ class SettingsScreen extends ConsumerWidget {
         ? ''
         : '내보내기 범위: ${payload.filterDescription}\n';
 
-    await showGuardedDialog<void>(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('CSV 파일을 만들었습니다'),
@@ -830,3 +828,66 @@ class _SettingsActionTile extends StatelessWidget {
   }
 }
 
+class _ThemeModeTile extends StatelessWidget {
+  const _ThemeModeTile({
+    required this.currentMode,
+    required this.onChanged,
+  });
+
+  final String currentMode;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      leading: CircleAvatar(
+        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        child: Icon(
+          currentMode == 'dark'
+              ? Icons.dark_mode_outlined
+              : currentMode == 'light'
+                  ? Icons.light_mode_outlined
+                  : Icons.brightness_auto_outlined,
+          color: AppColors.primary,
+        ),
+      ),
+      title: Text(
+        '화면 모드',
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(_modeLabel(currentMode)),
+      ),
+      trailing: DropdownButton<String>(
+        value: currentMode,
+        underline: const SizedBox.shrink(),
+        items: const [
+          DropdownMenuItem(value: 'system', child: Text('시스템')),
+          DropdownMenuItem(value: 'light', child: Text('라이트')),
+          DropdownMenuItem(value: 'dark', child: Text('다크')),
+        ],
+        onChanged: (value) {
+          if (value != null) onChanged(value);
+        },
+      ),
+    );
+  }
+
+  String _modeLabel(String mode) {
+    switch (mode) {
+      case 'light':
+        return '밝은 화면으로 표시합니다.';
+      case 'dark':
+        return '어두운 화면으로 표시합니다.';
+      default:
+        return '기기 설정에 따라 자동으로 맞춥니다.';
+    }
+  }
+}

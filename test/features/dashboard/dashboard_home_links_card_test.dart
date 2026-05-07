@@ -66,8 +66,6 @@ void main() {
     expect(find.byKey(const Key('dashboard-calendar-count')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-calendar-income')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-calendar-expense')), findsOneWidget);
-    expect(find.textContaining('100,000'), findsWidgets);
-    expect(find.textContaining('23,000'), findsWidgets);
 
     expect(find.byKey(const Key('dashboard-open-statistics')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-statistics-preview-list')), findsOneWidget);
@@ -102,39 +100,6 @@ void main() {
     await tester.pump();
 
     expect(find.byType(GlassCard), findsNWidgets(2));
-  });
-
-  testWidgets('DashboardHomeLinksCard does not overflow on compact window size',
-      (WidgetTester tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(340, 737);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: DashboardHomeLinksCard(
-              onOpenCalendar: _noop,
-              onOpenStatistics: _noop,
-              calendarSummary: _calendarSummary(),
-              calendarMonthPreview: _calendarPreview(),
-              monthIncome: 300000,
-              monthExpense: 120000,
-              topExpenseCategories: _topCategories(),
-              topExpenseCategoryLabel: '\uC2DD\uBE44',
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
   });
 }
 

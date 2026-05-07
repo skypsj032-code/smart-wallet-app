@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
-import '../../root/presentation/guarded_navigation_overlays.dart';
 
 class LockSetupDialog extends ConsumerStatefulWidget {
   const LockSetupDialog({
@@ -22,7 +21,7 @@ class LockSetupDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     bool isChangingPin = false,
   }) {
-    return showGuardedDialog<bool>(
+    return showDialog<bool>(
       context: context,
       builder: (dialogContext) => AnimatedPadding(
         duration: const Duration(milliseconds: 180),
