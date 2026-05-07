@@ -147,24 +147,59 @@ void main() {
     expect(find.text('Night Market'), findsNothing);
   });
 
-  testWidgets('month view shows income and expense summary above the grid',
+  testWidgets('month view keeps a compact summary block above a dominant grid',
       (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(340, 737);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await _pumpCalendarScreen(
       tester,
       snapshot: snapshot,
       transactions: transactions,
     );
 
+    final summaryBlock = find.byKey(const Key('calendar-month-summary-block'));
+    final gridShell = find.byKey(const Key('calendar-month-grid-shell'));
+
+    expect(summaryBlock, findsOneWidget);
+    expect(gridShell, findsOneWidget);
     expect(
       find.byKey(const Key('calendar-month-summary-expense')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const Key('calendar-month-summary-income')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: summaryBlock, matching: find.text('지출')),
       findsOneWidget,
     );
-    expect(find.text('26,000\uC6D0'), findsOneWidget);
-    expect(find.text('3,200,000\uC6D0'), findsOneWidget);
+    expect(
+      find.descendant(of: summaryBlock, matching: find.text('수입')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summaryBlock, matching: find.text('26,000\uC6D0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: summaryBlock,
+        matching: find.text('3,200,000\uC6D0'),
+      ),
+      findsOneWidget,
+    );
+
+    final summaryRect = tester.getRect(summaryBlock);
+    final gridRect = tester.getRect(gridShell);
+
+    expect(summaryRect.bottom, lessThan(gridRect.top));
+    expect(gridRect.height, greaterThan(summaryRect.height * 3));
   });
 
   testWidgets('month grid follows the displayed month provider state',

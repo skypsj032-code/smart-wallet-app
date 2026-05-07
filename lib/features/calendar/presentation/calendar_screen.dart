@@ -616,69 +616,111 @@ class _MonthCalendarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summaryTextStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w800,
-        );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _MonthSummaryLine(
-          key: const Key('calendar-month-summary-expense'),
-          label: '지출',
-          value: formatCurrency(snapshot.totalExpense),
-          color: AppColors.expense,
-          textStyle: summaryTextStyle,
-        ),
-        const SizedBox(height: 6),
-        _MonthSummaryLine(
-          key: const Key('calendar-month-summary-income'),
-          label: '수입',
-          value: formatCurrency(snapshot.totalIncome),
-          color: AppColors.income,
-          textStyle: summaryTextStyle,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _MonthCalendarView(
-          cells: cells,
-          selectedDate: selectedDate,
-          onSelectDate: onSelectDate,
+        _MonthSummaryBlock(snapshot: snapshot),
+        const SizedBox(height: AppSpacing.md),
+        Container(
+          key: const Key('calendar-month-grid-shell'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: _MonthCalendarView(
+            cells: cells,
+            selectedDate: selectedDate,
+            onSelectDate: onSelectDate,
+          ),
         ),
       ],
     );
   }
 }
 
-class _MonthSummaryLine extends StatelessWidget {
-  const _MonthSummaryLine({
-    super.key,
+class _MonthSummaryBlock extends StatelessWidget {
+  const _MonthSummaryBlock({
+    required this.snapshot,
+  });
+
+  final CalendarSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        );
+    final valueStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+        );
+
+    return Container(
+      key: const Key('calendar-month-summary-block'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _MonthSummaryEntry(
+            label: '지출',
+            value: formatCurrency(snapshot.totalExpense),
+            color: AppColors.expense,
+            labelStyle: labelStyle,
+            valueStyle: valueStyle,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          _MonthSummaryEntry(
+            label: '수입',
+            value: formatCurrency(snapshot.totalIncome),
+            color: AppColors.income,
+            labelStyle: labelStyle,
+            valueStyle: valueStyle,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthSummaryEntry extends StatelessWidget {
+  const _MonthSummaryEntry({
     required this.label,
     required this.value,
     required this.color,
-    required this.textStyle,
+    required this.labelStyle,
+    required this.valueStyle,
   });
 
   final String label;
   final String value;
   final Color color;
-  final TextStyle? textStyle;
+  final TextStyle? labelStyle;
+  final TextStyle? valueStyle;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+        SizedBox(
+          width: 28,
+          child: Text(label, style: labelStyle),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             value,
-            style: textStyle?.copyWith(color: color),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: valueStyle?.copyWith(color: color),
           ),
         ),
       ],
