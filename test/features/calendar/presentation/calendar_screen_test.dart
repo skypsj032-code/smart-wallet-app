@@ -199,6 +199,30 @@ void main() {
     expect(find.byKey(const Key('calendar-inline-amount-field')), findsOneWidget);
     expect(find.byKey(const Key('calendar-inline-save-button')), findsOneWidget);
   });
+
+  testWidgets('selected-day summary chips stay above the inline entry card',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-selected-summary-income')),
+      240,
+    );
+
+    final summaryTop = tester
+        .getTopLeft(find.byKey(const Key('calendar-selected-summary-income')))
+        .dy;
+    final inlineTop =
+        tester.getTopLeft(find.byKey(const Key('calendar-inline-entry-card'))).dy;
+
+    expect(summaryTop, lessThan(inlineTop));
+  });
 }
 
 Future<void> _pumpCalendarScreen(

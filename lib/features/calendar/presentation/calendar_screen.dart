@@ -959,32 +959,35 @@ class _CalendarSelectedDayCard extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (selectedDate != null) ...[
-                  CalendarInlineEntryCard(selectedDate: selectedDate!),
-                  const SizedBox(height: AppSpacing.md),
-                ],
                 if (selectedDay != null) ...[
                   Wrap(
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
                       _CompactSummaryChip(
+                        key: const Key('calendar-selected-summary-income'),
                         label: '수입',
                         value: formatCurrency(selectedDay!.income),
                         color: AppColors.income,
                       ),
                       _CompactSummaryChip(
+                        key: const Key('calendar-selected-summary-expense'),
                         label: '지출',
                         value: formatCurrency(selectedDay!.expense),
                         color: AppColors.expense,
                       ),
                       _CompactSummaryChip(
+                        key: const Key('calendar-selected-summary-count'),
                         label: '거래',
                         value: '${selectedDay!.transactionCount}건',
                         color: AppColors.primary,
                       ),
                     ],
                   ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                if (selectedDate != null) ...[
+                  CalendarInlineEntryCard(selectedDate: selectedDate!),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 for (var index = 0; index < transactions.length; index++) ...[
@@ -1228,6 +1231,7 @@ class _SummaryTile extends StatelessWidget {
 
 class _CompactSummaryChip extends StatelessWidget {
   const _CompactSummaryChip({
+    super.key,
     required this.label,
     required this.value,
     required this.color,
@@ -1242,7 +1246,7 @@ class _CompactSummaryChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
