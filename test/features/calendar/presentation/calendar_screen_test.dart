@@ -163,8 +163,8 @@ void main() {
       find.byKey(const Key('calendar-month-summary-income')),
       findsOneWidget,
     );
-    expect(find.text('26,000원'), findsOneWidget);
-    expect(find.text('3,200,000원'), findsOneWidget);
+    expect(find.text('26,000\uC6D0'), findsOneWidget);
+    expect(find.text('3,200,000\uC6D0'), findsOneWidget);
   });
 
   testWidgets('month grid follows the displayed month provider state',
@@ -227,7 +227,8 @@ void main() {
     expect(find.text('Star Cafe'), findsNothing);
   });
 
-  testWidgets('selected day transactions default to newest first and can be reversed',
+  testWidgets(
+      'selected day transactions default to newest first and can be reversed',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -245,7 +246,7 @@ void main() {
     expect(marketTop, lessThan(salaryTop));
     expect(salaryTop, lessThan(cafeTop));
 
-    await tester.tap(find.text('오래된순'));
+    await tester.tap(find.text('\uC624\uB798\uB41C\uC21C'));
     await tester.pumpAndSettle();
     await _scrollUntilTextVisible(tester, 'Star Cafe');
 
@@ -257,7 +258,7 @@ void main() {
     expect(salaryTop, lessThan(marketTop));
   });
 
-  testWidgets('switches to day mode and shows the selected date details',
+  testWidgets('calendar header uses a month label instead of mode chips',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -265,24 +266,21 @@ void main() {
       transactions: transactions,
     );
 
-    expect(find.byKey(const Key('calendar-view-day')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-view-week')), findsOneWidget);
-
-    await _tapCalendarDay(tester, '2026-05-05');
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-view-day')),
-      -200,
-    );
-    await tester.tap(find.byKey(const Key('calendar-view-day')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('5월 5일'), findsWidgets);
-    expect(find.text('화요일'), findsOneWidget);
-    expect(find.byKey(const Key('calendar-inline-entry-card')), findsNothing);
+    expect(find.byKey(const Key('calendar-month-label')), findsOneWidget);
+    expect(find.text('2026.05'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-previous-period')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-next-period')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-view-week')), findsNothing);
+    expect(find.byKey(const Key('calendar-view-day')), findsNothing);
+    expect(find.byKey(const Key('calendar-view-month')), findsNothing);
+    expect(find.byKey(const Key('calendar-view-year')), findsNothing);
+    expect(find.text('\uC8FC\uAC04'), findsNothing);
+    expect(find.text('\uC77C\uBCC4'), findsNothing);
+    expect(find.text('\uC6D4\uBCC4'), findsNothing);
+    expect(find.text('\uC5F0\uBCC4'), findsNothing);
   });
 
-  testWidgets('switching from month to week keeps the focused date visible',
+  testWidgets('month header arrows move the displayed month label',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -290,42 +288,18 @@ void main() {
       transactions: transactions,
     );
 
-    await _tapCalendarDay(tester, '2026-05-06');
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-view-week')),
-      -200,
-    );
-    await tester.tap(find.byKey(const Key('calendar-view-week')));
-    await tester.pumpAndSettle();
+    expect(find.text('2026.05'), findsOneWidget);
 
-    expect(find.text('5월 6일'), findsOneWidget);
-    expect(find.byKey(const Key('calendar-day-2026-05-06')), findsOneWidget);
-    expect(find.text('Bakery'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('calendar-next-period')));
+    await tester.pumpAndSettle();
+    expect(find.text('2026.06'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('calendar-previous-period')));
+    await tester.pumpAndSettle();
+    expect(find.text('2026.05'), findsOneWidget);
   });
 
-  testWidgets('switching from month to day without a selected date shows the focused day',
-      (WidgetTester tester) async {
-    await _pumpCalendarScreen(
-      tester,
-      snapshot: snapshot,
-      transactions: transactions,
-    );
-
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-view-day')),
-      -200,
-    );
-    await tester.tap(find.byKey(const Key('calendar-view-day')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('5월 5일'), findsWidgets);
-    expect(find.text('화요일'), findsOneWidget);
-    expect(find.byKey(const Key('calendar-inline-entry-card')), findsNothing);
-  });
-
-  testWidgets('switching view mode scrolls back to the top',
+  testWidgets('changing the displayed month scrolls back to the top',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -336,16 +310,17 @@ void main() {
     await _tapCalendarDay(tester, '2026-05-05');
     await _scrollUntilTextVisible(tester, 'Star Cafe');
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final scrollable =
+        tester.state<ScrollableState>(find.byType(Scrollable).first);
     final beforeSwitchOffset = scrollable.position.pixels;
     expect(beforeSwitchOffset, greaterThan(0));
 
     await _scrollUntilFinderVisible(
       tester,
-      find.byKey(const Key('calendar-view-day')),
+      find.byKey(const Key('calendar-next-period')),
       -240,
     );
-    await tester.tap(find.byKey(const Key('calendar-view-day')));
+    await tester.tap(find.byKey(const Key('calendar-next-period')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 260));
 
@@ -395,7 +370,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switching between week day month and year modes does not crash',
+  testWidgets('month header controls do not crash the calendar screen',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -403,16 +378,10 @@ void main() {
       transactions: transactions,
     );
 
-    await tester.tap(find.byKey(const Key('calendar-view-week')));
+    await tester.tap(find.byKey(const Key('calendar-next-period')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('calendar-view-day')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('calendar-view-year')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('calendar-view-month')));
+    await tester.tap(find.byKey(const Key('calendar-previous-period')));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -430,7 +399,8 @@ Future<void> _pumpCalendarScreen(
       overrides: [
         calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
         displayedCalendarMonthProvider.overrideWith(
-          (ref) => displayedMonth ?? DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1),
+          (ref) => displayedMonth ??
+              DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1),
         ),
         visibleCalendarDateProvider.overrideWith((ref) => snapshot.anchorDate),
         calendarSnapshotProvider.overrideWith((ref) {
@@ -447,7 +417,10 @@ Future<void> _pumpCalendarScreen(
         quickEntryAccountsProvider.overrideWith(
           (ref) => Stream.value(
             const [
-              QuickEntryAccountOption(id: 'cash-wallet', name: '현금'),
+              QuickEntryAccountOption(
+                id: 'cash-wallet',
+                name: '\uD604\uAE08',
+              ),
             ],
           ),
         ),
@@ -456,7 +429,7 @@ Future<void> _pumpCalendarScreen(
             const [
               QuickEntryCategoryOption(
                 id: 'expense-food',
-                name: '식비',
+                name: '\uC2DD\uBE44',
                 type: 'expense',
               ),
             ],
@@ -467,7 +440,7 @@ Future<void> _pumpCalendarScreen(
             const [
               QuickEntryCategoryOption(
                 id: 'income-salary',
-                name: '급여',
+                name: '\uAE09\uC5EC',
                 type: 'income',
               ),
             ],

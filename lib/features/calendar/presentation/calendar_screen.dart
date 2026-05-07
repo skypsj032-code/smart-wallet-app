@@ -32,6 +32,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final snapshotAsync = ref.watch(calendarSnapshotProvider);
+    final displayedMonth = ref.watch(displayedCalendarMonthProvider);
     final selectedDate = ref.watch(selectedCalendarDateProvider);
     final selectedTransactionsAsync =
         ref.watch(selectedCalendarTransactionsProvider);
@@ -93,73 +94,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
               if (_explorerExpanded) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: _CalendarExplorerPanel(
-                    snapshot: snapshot,
-                    viewMode: viewMode,
-                    onChangeViewMode: (mode) =>
-                        _changeViewMode(mode, snapshot.anchorDate),
-                    onMovePeriod: (direction) =>
-                        _movePeriod(viewMode, snapshot.anchorDate, direction),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: _CalendarExplorerPanel(),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: _CalendarHeaderBar(
-                  label: _periodLabel(snapshot),
-                  onPrevious: () => _movePeriod(
-                    viewMode,
-                    snapshot.anchorDate,
-                    -1,
-                  ),
-                  onNext: () => _movePeriod(
-                    viewMode,
-                    snapshot.anchorDate,
-                    1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    _ViewModeChip(
-                      key: const Key('calendar-view-week'),
-                      label: '주간',
-                      selected: viewMode == CalendarViewMode.week,
-                      onSelected: () =>
-                          _changeViewMode(CalendarViewMode.week, snapshot.anchorDate),
-                    ),
-                    _ViewModeChip(
-                      key: const Key('calendar-view-day'),
-                      label: '일별',
-                      selected: viewMode == CalendarViewMode.day,
-                      onSelected: () =>
-                          _changeViewMode(CalendarViewMode.day, snapshot.anchorDate),
-                    ),
-                    _ViewModeChip(
-                      key: const Key('calendar-view-month'),
-                      label: '월별',
-                      selected: viewMode == CalendarViewMode.month,
-                      onSelected: () => _changeViewMode(
-                        CalendarViewMode.month,
-                        snapshot.anchorDate,
-                      ),
-                    ),
-                    _ViewModeChip(
-                      key: const Key('calendar-view-year'),
-                      label: '연별',
-                      selected: viewMode == CalendarViewMode.year,
-                      onSelected: () =>
-                          _changeViewMode(CalendarViewMode.year, snapshot.anchorDate),
-                    ),
-                  ],
+                  label: _formatMonth(displayedMonth),
+                  onTapLabel: () {
+                    ref.read(calendarMonthPickerOpenProvider.notifier).state =
+                        true;
+                  },
+                  onPrevious: () => _moveDisplayedMonth(-1),
+                  onNext: () => _moveDisplayedMonth(1),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -271,47 +221,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     refreshCalendarData(ref);
   }
 
-  void _changeViewMode(
-    CalendarViewMode mode,
-    DateTime anchorDate,
-  ) {
-    final selected = ref.read(selectedCalendarDateProvider);
-    final focusDate = selected ?? anchorDate;
-    final nextAnchor =
-        mode == CalendarViewMode.day || mode == CalendarViewMode.week
-            ? focusDate
-            : anchorDate;
+  void _moveDisplayedMonth(int direction) {
+    final displayedMonth = ref.read(displayedCalendarMonthProvider);
+    final nextMonth =
+        DateTime(displayedMonth.year, displayedMonth.month + direction, 1);
 
-    ref.read(calendarViewModeProvider.notifier).state = mode;
-    ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
-    ref.read(selectedCalendarDateProvider.notifier).state =
-        mode == CalendarViewMode.year
-            ? null
-            : mode == CalendarViewMode.day || mode == CalendarViewMode.week
-                ? focusDate
-                : selected;
-    _scrollToTop();
-  }
-
-  void _movePeriod(
-    CalendarViewMode mode,
-    DateTime anchorDate,
-    int direction,
-  ) {
-    final nextAnchor = switch (mode) {
-      CalendarViewMode.week => anchorDate.add(Duration(days: 7 * direction)),
-      CalendarViewMode.day => anchorDate.add(Duration(days: direction)),
-      CalendarViewMode.month =>
-        DateTime(anchorDate.year, anchorDate.month + direction, 1),
-      CalendarViewMode.year =>
-        DateTime(anchorDate.year + direction, anchorDate.month, anchorDate.day),
-    };
-
-    ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
-    ref.read(selectedCalendarDateProvider.notifier).state =
-        mode == CalendarViewMode.day || mode == CalendarViewMode.week
-            ? nextAnchor
-            : null;
+    ref.read(displayedCalendarMonthProvider.notifier).state = nextMonth;
+    ref.read(visibleCalendarDateProvider.notifier).state = nextMonth;
+    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(calendarMonthPickerOpenProvider.notifier).state = false;
     _scrollToTop();
   }
 
@@ -379,18 +297,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     ];
   }
 
-  String _periodLabel(CalendarSnapshot snapshot) {
-    switch (snapshot.mode) {
-      case CalendarViewMode.week:
-        final endDate = snapshot.periodEnd.subtract(const Duration(days: 1));
-        return '${snapshot.periodStart.month}.${snapshot.periodStart.day} - ${endDate.month}.${endDate.day}';
-      case CalendarViewMode.day:
-        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}.${snapshot.periodStart.day.toString().padLeft(2, '0')}';
-      case CalendarViewMode.month:
-        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}';
-      case CalendarViewMode.year:
-        return '${snapshot.periodStart.year}년';
-    }
+  String _formatMonth(DateTime month) {
+    return '${month.year}.${month.month.toString().padLeft(2, '0')}';
   }
 
   String _selectedDateLabel(DateTime date) {
@@ -452,17 +360,7 @@ class _ExplorerHandle extends StatelessWidget {
 }
 
 class _CalendarExplorerPanel extends ConsumerWidget {
-  const _CalendarExplorerPanel({
-    required this.snapshot,
-    required this.viewMode,
-    required this.onChangeViewMode,
-    required this.onMovePeriod,
-  });
-
-  final CalendarSnapshot snapshot;
-  final CalendarViewMode viewMode;
-  final ValueChanged<CalendarViewMode> onChangeViewMode;
-  final ValueChanged<int> onMovePeriod;
+  const _CalendarExplorerPanel();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -500,37 +398,6 @@ class _CalendarExplorerPanel extends ConsumerWidget {
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
-                _ViewModeChip(
-                  key: const Key('calendar-explorer-view-week'),
-                  label: '주간',
-                  selected: viewMode == CalendarViewMode.week,
-                  onSelected: () => onChangeViewMode(CalendarViewMode.week),
-                ),
-                _ViewModeChip(
-                  key: const Key('calendar-explorer-view-day'),
-                  label: '일별',
-                  selected: viewMode == CalendarViewMode.day,
-                  onSelected: () => onChangeViewMode(CalendarViewMode.day),
-                ),
-                _ViewModeChip(
-                  key: const Key('calendar-explorer-view-month'),
-                  label: '월간',
-                  selected: viewMode == CalendarViewMode.month,
-                  onSelected: () => onChangeViewMode(CalendarViewMode.month),
-                ),
-                _ViewModeChip(
-                  key: const Key('calendar-explorer-view-year'),
-                  label: '연간',
-                  selected: viewMode == CalendarViewMode.year,
-                  onSelected: () => onChangeViewMode(CalendarViewMode.year),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
                 _TransactionFilterChip(
                   key: const Key('calendar-filter-all'),
                   label: '전체',
@@ -560,70 +427,9 @@ class _CalendarExplorerPanel extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _periodLabel(snapshot),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => onMovePeriod(-1),
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
-                    IconButton(
-                      onPressed: () => onMovePeriod(1),
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ],
         ),
       ),
-    );
-  }
-
-  String _periodLabel(CalendarSnapshot snapshot) {
-    switch (snapshot.mode) {
-      case CalendarViewMode.week:
-        final endDate = snapshot.periodEnd.subtract(const Duration(days: 1));
-        return '${snapshot.periodStart.month}.${snapshot.periodStart.day} - ${endDate.month}.${endDate.day}';
-      case CalendarViewMode.day:
-        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}.${snapshot.periodStart.day.toString().padLeft(2, '0')}';
-      case CalendarViewMode.month:
-        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}';
-      case CalendarViewMode.year:
-        return '${snapshot.periodStart.year}년';
-    }
-  }
-}
-
-class _ViewModeChip extends StatelessWidget {
-  const _ViewModeChip({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      showCheckmark: false,
     );
   }
 }
@@ -718,11 +524,13 @@ class _TransactionFilterChip extends StatelessWidget {
 class _CalendarHeaderBar extends StatelessWidget {
   const _CalendarHeaderBar({
     required this.label,
+    required this.onTapLabel,
     required this.onPrevious,
     required this.onNext,
   });
 
   final String label;
+  final VoidCallback onTapLabel;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
 
@@ -731,19 +539,29 @@ class _CalendarHeaderBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+          child: InkWell(
+            key: const Key('calendar-month-label'),
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTapLabel,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
           ),
         ),
         IconButton(
+          key: const Key('calendar-previous-period'),
           onPressed: onPrevious,
           icon: const Icon(Icons.chevron_left_rounded),
           visualDensity: VisualDensity.compact,
         ),
         IconButton(
+          key: const Key('calendar-next-period'),
           onPressed: onNext,
           icon: const Icon(Icons.chevron_right_rounded),
           visualDensity: VisualDensity.compact,
