@@ -23,6 +23,7 @@ import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
 import 'dashboard_narrative_card.dart';
 import 'recurring_transaction_suggestion_card.dart';
+import 'upcoming_recurring_transactions_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -119,7 +120,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SliverToBoxAdapter(
                     child: SizedBox(height: AppSpacing.md)),
                 SliverToBoxAdapter(
-                  child: _UpcomingRecurringExpenseCard(
+                  child: UpcomingRecurringTransactionsCard(
                     items: recurringAsync.valueOrNull!,
                   ),
                 ),
@@ -537,6 +538,7 @@ class _TodayLoopCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _UpcomingRecurringExpenseCard extends ConsumerWidget {
   const _UpcomingRecurringExpenseCard({required this.items});
 
