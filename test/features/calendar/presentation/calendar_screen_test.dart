@@ -299,6 +299,46 @@ void main() {
     expect(find.text('2026.05'), findsOneWidget);
   });
 
+  testWidgets('tapping the month label opens the inline picker in place',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    expect(find.byKey(const Key('calendar-month-grid')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-month-grid')), findsNothing);
+    expect(find.byType(CalendarScreen), findsOneWidget);
+  });
+
+  testWidgets('selecting a month in the inline picker returns to the month grid',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('11월'), findsOneWidget);
+
+    await tester.tap(find.text('11월'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
+    expect(find.byKey(const Key('calendar-month-grid')), findsOneWidget);
+    expect(find.text('2026.11'), findsOneWidget);
+  });
+
   testWidgets('changing the displayed month scrolls back to the top',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
@@ -367,6 +407,28 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('inline picker does not overflow on compact window size',
+      (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(340, 737);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

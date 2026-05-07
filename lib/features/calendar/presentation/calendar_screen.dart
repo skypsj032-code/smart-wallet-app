@@ -33,6 +33,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget build(BuildContext context) {
     final snapshotAsync = ref.watch(calendarSnapshotProvider);
     final displayedMonth = ref.watch(displayedCalendarMonthProvider);
+    final isMonthPickerOpen = ref.watch(calendarMonthPickerOpenProvider);
     final selectedDate = ref.watch(selectedCalendarDateProvider);
     final selectedTransactionsAsync =
         ref.watch(selectedCalendarTransactionsProvider);
@@ -122,39 +123,48 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
-                    child: switch (viewMode) {
-                      CalendarViewMode.week => _WeekCalendarView(
-                          cells: weekCells,
-                          selectedDate: selectedDate,
-                          onSelectDate: _selectDate,
-                        ),
-                      CalendarViewMode.day => _DayCalendarView(
-                          date: snapshot.anchorDate,
-                          summary: effectiveSelectedDay,
-                        ),
-                      CalendarViewMode.month => _MonthCalendarContent(
-                          snapshot: snapshot,
-                          cells: monthCells,
-                          selectedDate: selectedDate,
-                          onSelectDate: _selectDate,
-                        ),
-                      CalendarViewMode.year => _YearCalendarView(
-                          months: yearMonths,
-                          onTapMonth: (month) {
-                            ref
-                                .read(visibleCalendarDateProvider.notifier)
-                                .state = month;
-                            ref.read(calendarViewModeProvider.notifier).state =
-                                CalendarViewMode.month;
-                            ref
-                                .read(selectedCalendarDateProvider.notifier)
-                                .state = null;
-                            setState(() {
-                              _explorerExpanded = false;
-                            });
+                    child: isMonthPickerOpen
+                        ? _InlineMonthPicker(
+                            displayedMonth: displayedMonth,
+                            onPreviousYear: () => _movePickerYear(-1),
+                            onNextYear: () => _movePickerYear(1),
+                            onSelectMonth: (month) =>
+                                _selectDisplayedMonth(month),
+                          )
+                        : switch (viewMode) {
+                            CalendarViewMode.week => _WeekCalendarView(
+                                cells: weekCells,
+                                selectedDate: selectedDate,
+                                onSelectDate: _selectDate,
+                              ),
+                            CalendarViewMode.day => _DayCalendarView(
+                                date: snapshot.anchorDate,
+                                summary: effectiveSelectedDay,
+                              ),
+                            CalendarViewMode.month => _MonthCalendarContent(
+                                snapshot: snapshot,
+                                cells: monthCells,
+                                selectedDate: selectedDate,
+                                onSelectDate: _selectDate,
+                              ),
+                            CalendarViewMode.year => _YearCalendarView(
+                                months: yearMonths,
+                                onTapMonth: (month) {
+                                  ref
+                                      .read(visibleCalendarDateProvider.notifier)
+                                      .state = month;
+                                  ref
+                                      .read(calendarViewModeProvider.notifier)
+                                      .state = CalendarViewMode.month;
+                                  ref
+                                      .read(selectedCalendarDateProvider.notifier)
+                                      .state = null;
+                                  setState(() {
+                                    _explorerExpanded = false;
+                                  });
+                                },
+                              ),
                           },
-                        ),
-                    },
                   ),
                 ),
               ),
@@ -225,6 +235,26 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final displayedMonth = ref.read(displayedCalendarMonthProvider);
     final nextMonth =
         DateTime(displayedMonth.year, displayedMonth.month + direction, 1);
+
+    ref.read(displayedCalendarMonthProvider.notifier).state = nextMonth;
+    ref.read(visibleCalendarDateProvider.notifier).state = nextMonth;
+    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(calendarMonthPickerOpenProvider.notifier).state = false;
+    _scrollToTop();
+  }
+
+  void _movePickerYear(int direction) {
+    final displayedMonth = ref.read(displayedCalendarMonthProvider);
+    ref.read(displayedCalendarMonthProvider.notifier).state = DateTime(
+      displayedMonth.year + direction,
+      displayedMonth.month,
+      1,
+    );
+  }
+
+  void _selectDisplayedMonth(int month) {
+    final displayedMonth = ref.read(displayedCalendarMonthProvider);
+    final nextMonth = DateTime(displayedMonth.year, month, 1);
 
     ref.read(displayedCalendarMonthProvider.notifier).state = nextMonth;
     ref.read(visibleCalendarDateProvider.notifier).state = nextMonth;
@@ -728,6 +758,7 @@ class _MonthCalendarView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      key: const Key('calendar-month-grid'),
       children: [
         Row(
           children: [
@@ -1150,6 +1181,84 @@ class _CalendarDayCell extends StatelessWidget {
     }
 
     return buffer.toString();
+  }
+}
+
+class _InlineMonthPicker extends StatelessWidget {
+  const _InlineMonthPicker({
+    required this.displayedMonth,
+    required this.onPreviousYear,
+    required this.onNextYear,
+    required this.onSelectMonth,
+  });
+
+  final DateTime displayedMonth;
+  final VoidCallback onPreviousYear;
+  final VoidCallback onNextYear;
+  final ValueChanged<int> onSelectMonth;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = AppSpacing.sm;
+        final cellWidth = ((constraints.maxWidth - (spacing * 2)) / 3)
+            .clamp(0.0, constraints.maxWidth);
+
+        return Column(
+          key: const Key('calendar-inline-month-picker'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${displayedMonth.year}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: onPreviousYear,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  onPressed: onNextYear,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: List.generate(12, (index) {
+                final month = index + 1;
+                final isSelected = month == displayedMonth.month;
+
+                return SizedBox(
+                  width: cellWidth,
+                  child: OutlinedButton(
+                    onPressed: () => onSelectMonth(month),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      backgroundColor: isSelected
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : null,
+                    ),
+                    child: Text('$month월'),
+                  ),
+                );
+              }),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
