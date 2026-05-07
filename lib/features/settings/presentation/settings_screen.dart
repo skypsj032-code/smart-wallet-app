@@ -16,6 +16,7 @@ import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section_intro.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/app_utility_group.dart';
+import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../application/backup_service.dart';
 import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
@@ -219,7 +220,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppSetting settings,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGuardedDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -274,7 +275,7 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
-    await showDialog<void>(
+    await showGuardedDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('백업 파일을 만들었습니다'),
@@ -401,7 +402,7 @@ class SettingsScreen extends ConsumerWidget {
     BackupPreview preview,
     String filePath,
   ) {
-    return showDialog<bool>(
+    return showGuardedDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -438,7 +439,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _showRestoreStoppedDialog(BuildContext context, Object error) {
-    return showDialog<void>(
+    return showGuardedDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원을 멈췄습니다'),
@@ -463,7 +464,7 @@ class SettingsScreen extends ConsumerWidget {
     required RestoreSafetyBackup safetyBackup,
     required BackupSummary summary,
   }) {
-    return showDialog<void>(
+    return showGuardedDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원이 완료되었습니다'),
@@ -508,7 +509,7 @@ class SettingsScreen extends ConsumerWidget {
     required RestoreSafetyBackup safetyBackup,
     required Object error,
   }) {
-    return showDialog<void>(
+    return showGuardedDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('복원에 실패했습니다'),
@@ -560,7 +561,7 @@ class SettingsScreen extends ConsumerWidget {
         ? ''
         : '내보내기 범위: ${payload.filterDescription}\n';
 
-    await showDialog<void>(
+    await showGuardedDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('CSV 파일을 만들었습니다'),

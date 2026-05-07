@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../root/presentation/guarded_navigation_overlays.dart';
 import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_status_chip.dart';
@@ -422,7 +423,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final state = this;
     final parentContext = context;
-    final selected = await showModalBottomSheet<String>(
+    final selected = await showGuardedModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -461,7 +462,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         (ref, form) async {
           final controller = TextEditingController();
           try {
-            return await showDialog<String>(
+            return await showGuardedDialog<String>(
               context: parentContext,
               builder: (dialogContext) {
                 return AlertDialog(
@@ -520,7 +521,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     List<QuickEntryAccountOption> accounts,
     String? selectedId,
   ) async {
-    final selected = await showModalBottomSheet<String>(
+    final selected = await showGuardedModalBottomSheet<String>(
       context: context,
       builder: (context) {
         final navigator = Navigator.of(context);
@@ -580,7 +581,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     String? selectedId, {
     required bool isSource,
   }) async {
-    final selected = await showModalBottomSheet<String>(
+    final selected = await showGuardedModalBottomSheet<String>(
       context: context,
       builder: (context) {
         final navigator = Navigator.of(context);
@@ -633,7 +634,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     ScaffoldMessengerState messenger,
   ) async {
     final manageContext = context;
-    final action = await showModalBottomSheet<String>(
+    final action = await showGuardedModalBottomSheet<String>(
       context: manageContext,
       builder: (context) {
         final navigator = Navigator.of(context);
@@ -666,7 +667,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showGuardedDialog<bool>(
       context: manageContext,
       builder: (context) {
         return AlertDialog(
@@ -711,7 +712,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       (ref, form) async {
         final controller = TextEditingController();
         try {
-          return await showDialog<String>(
+          return await showGuardedDialog<String>(
             context: context,
             builder: (dialogContext) {
               return AlertDialog(
@@ -762,7 +763,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final controller = TextEditingController(text: category.name);
 
     try {
-      await showDialog<void>(
+      await showGuardedDialog<void>(
         context: renameContext,
         builder: (context) {
           return AlertDialog(
