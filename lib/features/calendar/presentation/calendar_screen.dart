@@ -337,13 +337,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   String _periodTitle(CalendarViewMode mode) {
     switch (mode) {
       case CalendarViewMode.week:
-        return '주간 달력';
+        return '주간';
       case CalendarViewMode.day:
-        return '일별 보기';
+        return '일별';
       case CalendarViewMode.month:
-        return '월간 달력';
+        return '월별';
       case CalendarViewMode.year:
-        return '연간 흐름';
+        return '연별';
     }
   }
 
@@ -1171,11 +1171,16 @@ class _CalendarDayCell extends StatelessWidget {
                       ),
                 ),
               if (!hasIncome && !hasExpense)
-                Text(
-                  '기록 없음',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.36),
+                    shape: BoxShape.circle,
+                  ),
                 ),
             ],
           ),

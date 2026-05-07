@@ -197,52 +197,6 @@ class _ControlsPanel extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
-class _TypeFilterPanel extends StatelessWidget {
-  const _TypeFilterPanel({
-    required this.filter,
-    required this.onChanged,
-  });
-
-  final StatisticsTypeFilter filter;
-  final ValueChanged<Set<StatisticsTypeFilter>> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SegmentedButton<StatisticsTypeFilter>(
-              key: const Key('statistics-type-filter'),
-              segments: const [
-                ButtonSegment(
-                  value: StatisticsTypeFilter.all,
-                  label: Text('전체'),
-                ),
-                ButtonSegment(
-                  value: StatisticsTypeFilter.income,
-                  label: Text('수입'),
-                ),
-                ButtonSegment(
-                  value: StatisticsTypeFilter.expense,
-                  label: Text('지출'),
-                ),
-              ],
-              selected: {filter},
-              onSelectionChanged: onChanged,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _InsightPanel extends StatelessWidget {
   const _InsightPanel({
     required this.snapshot,
