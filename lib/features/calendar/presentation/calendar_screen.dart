@@ -106,6 +106,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: _CalendarHeaderBar(
+                  label: _periodLabel(snapshot),
+                  onPrevious: () => _movePeriod(
+                    viewMode,
+                    snapshot.anchorDate,
+                    -1,
+                  ),
+                  onNext: () => _movePeriod(
+                    viewMode,
+                    snapshot.anchorDate,
+                    1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
@@ -144,21 +161,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              AppSection(
-                title: _periodTitle(viewMode),
-                action: _CalendarPeriodSwitcher(
-                  label: _periodLabel(snapshot),
-                  onPrevious: () => _movePeriod(
-                    viewMode,
-                    snapshot.anchorDate,
-                    -1,
-                  ),
-                  onNext: () => _movePeriod(
-                    viewMode,
-                    snapshot.anchorDate,
-                    1,
-                  ),
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -176,7 +180,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           date: snapshot.anchorDate,
                           summary: effectiveSelectedDay,
                         ),
-                      CalendarViewMode.month => _MonthCalendarView(
+                      CalendarViewMode.month => _MonthCalendarContent(
+                          snapshot: snapshot,
                           cells: monthCells,
                           selectedDate: selectedDate,
                           onSelectDate: _selectDate,
@@ -364,19 +369,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               _dateKey(snapshot.periodStart.add(Duration(days: offset)))],
         ),
     ];
-  }
-
-  String _periodTitle(CalendarViewMode mode) {
-    switch (mode) {
-      case CalendarViewMode.week:
-        return '주간';
-      case CalendarViewMode.day:
-        return '일별';
-      case CalendarViewMode.month:
-        return '월별';
-      case CalendarViewMode.year:
-        return '연별';
-    }
   }
 
   String _periodLabel(CalendarSnapshot snapshot) {
@@ -715,8 +707,8 @@ class _TransactionFilterChip extends StatelessWidget {
   }
 }
 
-class _CalendarPeriodSwitcher extends StatelessWidget {
-  const _CalendarPeriodSwitcher({
+class _CalendarHeaderBar extends StatelessWidget {
+  const _CalendarHeaderBar({
     required this.label,
     required this.onPrevious,
     required this.onNext,
@@ -729,21 +721,109 @@ class _CalendarPeriodSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ),
         IconButton(
           onPressed: onPrevious,
           icon: const Icon(Icons.chevron_left_rounded),
           visualDensity: VisualDensity.compact,
         ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
         IconButton(
           onPressed: onNext,
           icon: const Icon(Icons.chevron_right_rounded),
           visualDensity: VisualDensity.compact,
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthCalendarContent extends StatelessWidget {
+  const _MonthCalendarContent({
+    required this.snapshot,
+    required this.cells,
+    required this.selectedDate,
+    required this.onSelectDate,
+  });
+
+  final CalendarSnapshot snapshot;
+  final List<_CalendarCellData> cells;
+  final DateTime? selectedDate;
+  final ValueChanged<DateTime> onSelectDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final summaryTextStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _MonthSummaryLine(
+          key: const Key('calendar-month-summary-expense'),
+          label: '지출',
+          value: formatCurrency(snapshot.totalExpense),
+          color: AppColors.expense,
+          textStyle: summaryTextStyle,
+        ),
+        const SizedBox(height: 6),
+        _MonthSummaryLine(
+          key: const Key('calendar-month-summary-income'),
+          label: '수입',
+          value: formatCurrency(snapshot.totalIncome),
+          color: AppColors.income,
+          textStyle: summaryTextStyle,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _MonthCalendarView(
+          cells: cells,
+          selectedDate: selectedDate,
+          onSelectDate: onSelectDate,
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthSummaryLine extends StatelessWidget {
+  const _MonthSummaryLine({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.textStyle,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            value,
+            style: textStyle?.copyWith(color: color),
+          ),
         ),
       ],
     );
@@ -788,7 +868,7 @@ class _WeekCalendarView extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: AspectRatio(
-                    aspectRatio: 0.82,
+                    aspectRatio: 0.76,
                     child: _CalendarDayCell(
                       cell: cell,
                       isSelected: selectedDate != null &&
@@ -847,7 +927,7 @@ class _MonthCalendarView extends StatelessWidget {
             crossAxisCount: 7,
             mainAxisSpacing: AppSpacing.xs,
             crossAxisSpacing: AppSpacing.xs,
-            childAspectRatio: 0.82,
+            childAspectRatio: 0.74,
           ),
           itemBuilder: (context, index) {
             final cell = cells[index];
@@ -1151,11 +1231,11 @@ class _CalendarDayCell extends StatelessWidget {
           ? Theme.of(context).colorScheme.primaryContainer
           : Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xs),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+            child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
           decoration: BoxDecoration(
             border: Border.all(
               color: isSelected
@@ -1167,67 +1247,93 @@ class _CalendarDayCell extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${cell.date!.day}',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontSize: 13,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${cell.date!.day}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontSize: 11,
                       height: 1,
                       fontWeight: FontWeight.w800,
                     ),
-              ),
-              const Spacer(),
-              if (hasIncome)
-                Text(
-                  '+${_compactAmount(summary!.income)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: 8,
-                        height: 1,
-                        color: AppColors.income,
-                        fontWeight: FontWeight.w700,
-                      ),
                 ),
-              if (hasExpense)
-                Text(
-                  '-${_compactAmount(summary!.expense)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: 8,
-                        height: 1,
-                        color: AppColors.expense,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(height: 2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _CalendarAmountLine(
+                          text: hasIncome ? '+${_fullAmount(summary!.income)}' : '',
+                          color: AppColors.income,
+                        ),
                       ),
-                ),
-              if (!hasIncome && !hasExpense)
-                Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.36),
-                    shape: BoxShape.circle,
+                      Expanded(
+                        child: _CalendarAmountLine(
+                          text: hasExpense ? '-${_fullAmount(summary!.expense)}' : '',
+                          color: AppColors.expense,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
+        ),
+      );
+  }
+
+  String _fullAmount(int amount) {
+    final raw = amount.abs().toString();
+    final buffer = StringBuffer();
+
+    for (var i = 0; i < raw.length; i++) {
+      final reverseIndex = raw.length - i;
+      buffer.write(raw[i]);
+      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+        buffer.write(',');
+      }
+    }
+
+    return buffer.toString();
+  }
+}
+
+class _CalendarAmountLine extends StatelessWidget {
+  const _CalendarAmountLine({
+    required this.text,
+    required this.color,
+  });
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.isEmpty) {
+      return const SizedBox.expand();
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text,
+          maxLines: 1,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 7,
+                height: 1,
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
         ),
       ),
     );
-  }
-
-  String _compactAmount(int amount) {
-    if (amount >= 10000) {
-      final tenThousand = amount / 10000;
-      return '${tenThousand.toStringAsFixed(tenThousand >= 10 ? 0 : 1)}만';
-    }
-    return '$amount원';
   }
 }
 

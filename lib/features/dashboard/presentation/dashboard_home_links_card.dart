@@ -114,7 +114,7 @@ class _CalendarPreview extends StatelessWidget {
 
     if (preview == null) {
       return Text(
-        '이번 달 달력을 준비하는 중이에요.',
+        '달력 미리보기를 준비하고 있어요.',
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -214,7 +214,7 @@ class _MiniMonthCalendar extends StatelessWidget {
             crossAxisCount: 7,
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
-            childAspectRatio: 0.76,
+            childAspectRatio: 0.72,
           ),
           itemBuilder: (context, index) {
             if (index < leadingBlanks) {
@@ -273,12 +273,14 @@ class _MiniCalendarDayCell extends StatelessWidget {
               : theme.colorScheme.outline.withValues(alpha: 0.10),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             '$dayNumber',
+            textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
               fontSize: 10,
               height: 1,
@@ -286,8 +288,9 @@ class _MiniCalendarDayCell extends StatelessWidget {
               color: theme.colorScheme.onSurface,
             ),
           ),
+          const SizedBox(height: 4),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Align(
@@ -301,7 +304,7 @@ class _MiniCalendarDayCell extends StatelessWidget {
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: AppColors.income,
                         fontWeight: FontWeight.w700,
-                        fontSize: 7,
+                        fontSize: 6.6,
                         height: 1,
                       ),
                     ),
@@ -322,7 +325,7 @@ class _MiniCalendarDayCell extends StatelessWidget {
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: AppColors.expense,
                         fontWeight: FontWeight.w700,
-                        fontSize: 7,
+                        fontSize: 6.6,
                         height: 1,
                       ),
                     ),

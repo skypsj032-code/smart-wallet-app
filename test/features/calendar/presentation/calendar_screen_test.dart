@@ -93,8 +93,8 @@ void main() {
     expect(find.byKey(const Key('calendar-filter-income')), findsOneWidget);
     expect(find.byKey(const Key('calendar-filter-expense')), findsOneWidget);
     expect(find.text('\uC804\uCCB4'), findsOneWidget);
-    expect(find.text('\uC218\uC785'), findsOneWidget);
-    expect(find.text('\uC9C0\uCD9C'), findsOneWidget);
+    expect(find.text('\uC218\uC785'), findsWidgets);
+    expect(find.text('\uC9C0\uCD9C'), findsWidgets);
   });
 
   testWidgets('selected-day list follows filter and search state',
@@ -145,6 +145,26 @@ void main() {
     expect(find.text('Star Cafe'), findsOneWidget);
     expect(find.text('May salary'), findsNothing);
     expect(find.text('Night Market'), findsNothing);
+  });
+
+  testWidgets('month view shows income and expense summary above the grid',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    expect(
+      find.byKey(const Key('calendar-month-summary-expense')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('calendar-month-summary-income')),
+      findsOneWidget,
+    );
+    expect(find.text('26,000원'), findsOneWidget);
+    expect(find.text('3,200,000원'), findsOneWidget);
   });
 
   testWidgets('tapping a day updates the lower list on the same screen',
