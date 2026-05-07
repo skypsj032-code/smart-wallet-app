@@ -263,6 +263,71 @@ void main() {
   });
 
   testWidgets(
+      'selected-day detail stays mounted across month changes and keeps sort controls',
+      (WidgetTester tester) async {
+    final crossMonthTransactions = [
+      ...transactions,
+      _transaction(
+        localId: 'tx-expense-june-lunch',
+        type: 'expense',
+        amount: 8800,
+        occurredAt: DateTime(2026, 6, 5, 13),
+        merchantName: 'June Lunch',
+        categoryId: 'expense-food',
+      ),
+    ];
+
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: crossMonthTransactions,
+    );
+
+    await _tapCalendarDay(tester, '2026-05-05');
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-selected-day-card')),
+      240,
+    );
+
+    expect(find.byKey(const Key('calendar-selected-day-card')), findsOneWidget);
+    expect(
+      find.byKey(const Key('calendar-transaction-sort-toggle')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('\uC624\uB798\uB41C\uC21C'));
+    await tester.pumpAndSettle();
+
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-next-period')),
+      -240,
+    );
+    await tester.tap(find.byKey(const Key('calendar-next-period')));
+    await tester.pumpAndSettle();
+
+    await _scrollUntilFinderVisible(
+      tester,
+      find.byKey(const Key('calendar-selected-day-card')),
+      240,
+    );
+
+    expect(find.text('6\uC6D4 5\uC77C'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-selected-day-card')), findsOneWidget);
+    expect(
+      find.byKey(const Key('calendar-transaction-sort-toggle')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('calendar-selected-summary-expense')),
+      findsOneWidget,
+    );
+    expect(find.text('8,800\uC6D0'), findsWidgets);
+    expect(find.text('June Lunch'), findsOneWidget);
+  });
+
+  testWidgets(
       'selected day transactions default to newest first and can be reversed',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(

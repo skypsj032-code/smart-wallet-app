@@ -52,6 +52,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             CalendarViewMode.month => selectedDate,
             CalendarViewMode.year => null,
           };
+          final showSelectedDayDetail =
+              !isMonthPickerOpen && effectiveSelectedDate != null;
           final effectiveSelectedDay = effectiveSelectedDate == null
               ? null
               : _summaryForDate(snapshot.days, effectiveSelectedDate);
@@ -169,16 +171,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (viewMode != CalendarViewMode.year && effectiveSelectedDate != null)
+              if (showSelectedDayDetail)
                 AppSection(
-                  title: viewMode == CalendarViewMode.day
-                      ? '기록'
-                      : _selectedDateLabel(effectiveSelectedDate),
+                  title: _selectedDateLabel(effectiveSelectedDate),
                   child: _CalendarSelectedDayCard(
+                    key: const Key('calendar-selected-day-card'),
                     selectedDate: effectiveSelectedDate,
-                    selectedDay: viewMode == CalendarViewMode.day
-                        ? null
-                        : effectiveSelectedDay,
+                    selectedDay: effectiveSelectedDay,
                     transactionsAsync: selectedTransactionsAsync,
                     sortOrder: transactionSortOrder,
                     onChangeSortOrder: (sortOrder) {
@@ -235,10 +234,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final displayedMonth = ref.read(displayedCalendarMonthProvider);
     final nextMonth =
         DateTime(displayedMonth.year, displayedMonth.month + direction, 1);
+    final nextSelectedDate = _selectedDateForMonth(nextMonth);
 
     ref.read(displayedCalendarMonthProvider.notifier).state = nextMonth;
-    ref.read(visibleCalendarDateProvider.notifier).state = nextMonth;
-    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(visibleCalendarDateProvider.notifier).state =
+        nextSelectedDate ?? nextMonth;
+    ref.read(selectedCalendarDateProvider.notifier).state = nextSelectedDate;
     ref.read(calendarMonthPickerOpenProvider.notifier).state = false;
     _scrollToTop();
   }
@@ -255,15 +256,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void _selectDisplayedMonth(int month) {
     final displayedMonth = ref.read(displayedCalendarMonthProvider);
     final nextMonth = DateTime(displayedMonth.year, month, 1);
+    final nextSelectedDate = _selectedDateForMonth(nextMonth);
 
     ref.read(displayedCalendarMonthProvider.notifier).state = nextMonth;
-    ref.read(visibleCalendarDateProvider.notifier).state = nextMonth;
-    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(visibleCalendarDateProvider.notifier).state =
+        nextSelectedDate ?? nextMonth;
+    ref.read(selectedCalendarDateProvider.notifier).state = nextSelectedDate;
     ref.read(calendarMonthPickerOpenProvider.notifier).state = false;
     _scrollToTop();
   }
 
   void _selectDate(DateTime date) {
+    ref.read(visibleCalendarDateProvider.notifier).state = date;
     ref.read(selectedCalendarDateProvider.notifier).state = date;
     setState(() {
       _explorerExpanded = false;
@@ -277,6 +281,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       }
       _scrollController.jumpTo(0);
     });
+  }
+
+  DateTime? _selectedDateForMonth(DateTime month) {
+    final selectedDate = ref.read(selectedCalendarDateProvider);
+    if (selectedDate == null) {
+      return null;
+    }
+
+    final lastDayOfMonth = DateTime(month.year, month.month + 1, 0).day;
+    final selectedDay = selectedDate.day > lastDayOfMonth
+        ? lastDayOfMonth
+        : selectedDate.day;
+
+    return DateTime(month.year, month.month, selectedDay);
   }
 
   List<_CalendarCellData> _buildMonthCells(CalendarSnapshot snapshot) {
@@ -926,6 +944,7 @@ class _YearCalendarView extends StatelessWidget {
 
 class _CalendarSelectedDayCard extends StatelessWidget {
   const _CalendarSelectedDayCard({
+    super.key,
     required this.selectedDate,
     required this.selectedDay,
     required this.transactionsAsync,
@@ -972,6 +991,7 @@ class _CalendarSelectedDayCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: SegmentedButton<CalendarTransactionSortOrder>(
+                    key: const Key('calendar-transaction-sort-toggle'),
                     segments: const [
                       ButtonSegment<CalendarTransactionSortOrder>(
                         value: CalendarTransactionSortOrder.newestFirst,
