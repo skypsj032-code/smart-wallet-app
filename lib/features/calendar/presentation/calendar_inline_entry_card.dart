@@ -144,6 +144,9 @@ class _CalendarInlineEntryCardState extends ConsumerState<CalendarInlineEntryCar
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
+            key: ValueKey(
+              'calendar-inline-account-${form.type.name}-${form.accountId ?? 'none'}',
+            ),
             initialValue:
                 _normalizeSelectedValue(form.accountId, accounts.map((e) => e.id)),
             decoration: const InputDecoration(labelText: '계좌'),
@@ -158,6 +161,9 @@ class _CalendarInlineEntryCardState extends ConsumerState<CalendarInlineEntryCar
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
+            key: ValueKey(
+              'calendar-inline-category-${form.type.name}-${form.categoryId ?? 'none'}',
+            ),
             initialValue: _normalizeSelectedValue(
               form.categoryId,
               categories.map((e) => e.id),
