@@ -167,6 +167,38 @@ void main() {
     expect(find.text('3,200,000원'), findsOneWidget);
   });
 
+  testWidgets('month grid follows the displayed month provider state',
+      (WidgetTester tester) async {
+    final juneTransactions = [
+      _transaction(
+        localId: 'tx-expense-june-rent',
+        type: 'expense',
+        amount: 910000,
+        occurredAt: DateTime(2026, 6, 3, 9),
+        merchantName: 'June Rent',
+        categoryId: 'expense-food',
+      ),
+      _transaction(
+        localId: 'tx-income-june-bonus',
+        type: 'income',
+        amount: 250000,
+        occurredAt: DateTime(2026, 6, 18, 18),
+        memo: 'June bonus',
+      ),
+    ];
+
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: juneTransactions,
+      displayedMonth: DateTime(2026, 6, 1),
+    );
+
+    expect(find.byKey(const Key('calendar-day-2026-06-03')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-2026-06-18')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-2026-05-05')), findsNothing);
+  });
+
   testWidgets('tapping a day updates the lower list on the same screen',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
@@ -391,18 +423,22 @@ Future<void> _pumpCalendarScreen(
   WidgetTester tester, {
   required CalendarSnapshot snapshot,
   required List<Transaction> transactions,
+  DateTime? displayedMonth,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
+        displayedCalendarMonthProvider.overrideWith(
+          (ref) => displayedMonth ?? DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1),
+        ),
         visibleCalendarDateProvider.overrideWith((ref) => snapshot.anchorDate),
         calendarSnapshotProvider.overrideWith((ref) {
-          final mode = ref.watch(calendarViewModeProvider);
+          final month = ref.watch(displayedCalendarMonthProvider);
           final anchorDate = ref.watch(visibleCalendarDateProvider);
           return Stream.value(
             _buildSnapshot(
-              mode: mode,
+              displayedMonth: month,
               anchorDate: anchorDate,
               transactions: transactions,
             ),
@@ -464,12 +500,12 @@ Future<void> _pumpCalendarScreen(
 }
 
 CalendarSnapshot _buildSnapshot({
-  required CalendarViewMode mode,
+  required DateTime displayedMonth,
   required DateTime anchorDate,
   required List<Transaction> transactions,
 }) {
-  final periodStart = _periodStartForTest(anchorDate, mode);
-  final periodEnd = _periodEndForTest(periodStart, mode);
+  final periodStart = _normalizeMonthForTest(displayedMonth);
+  final periodEnd = DateTime(periodStart.year, periodStart.month + 1, 1);
   final grouped = <DateTime, CalendarDaySummary>{};
   var totalIncome = 0;
   var totalExpense = 0;
@@ -517,7 +553,7 @@ CalendarSnapshot _buildSnapshot({
   final days = grouped.values.toList()..sort((a, b) => a.date.compareTo(b.date));
 
   return CalendarSnapshot(
-    mode: mode,
+    mode: CalendarViewMode.month,
     anchorDate: anchorDate,
     periodStart: periodStart,
     periodEnd: periodEnd,
@@ -527,31 +563,8 @@ CalendarSnapshot _buildSnapshot({
   );
 }
 
-DateTime _periodStartForTest(DateTime anchorDate, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.week:
-      final normalized = DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-      return normalized.subtract(Duration(days: normalized.weekday - 1));
-    case CalendarViewMode.day:
-      return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-    case CalendarViewMode.month:
-      return DateTime(anchorDate.year, anchorDate.month, 1);
-    case CalendarViewMode.year:
-      return DateTime(anchorDate.year, 1, 1);
-  }
-}
-
-DateTime _periodEndForTest(DateTime periodStart, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.week:
-      return periodStart.add(const Duration(days: 7));
-    case CalendarViewMode.day:
-      return periodStart.add(const Duration(days: 1));
-    case CalendarViewMode.month:
-      return DateTime(periodStart.year, periodStart.month + 1, 1);
-    case CalendarViewMode.year:
-      return DateTime(periodStart.year + 1, 1, 1);
-  }
+DateTime _normalizeMonthForTest(DateTime value) {
+  return DateTime(value.year, value.month, 1);
 }
 
 Future<void> _tapCalendarDay(

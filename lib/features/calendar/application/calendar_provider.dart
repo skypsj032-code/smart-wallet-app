@@ -101,6 +101,12 @@ class CalendarHomeMonthPreview {
 final calendarViewModeProvider =
     StateProvider<CalendarViewMode>((ref) => CalendarViewMode.month);
 
+final displayedCalendarMonthProvider = StateProvider<DateTime>((ref) {
+  return _normalizeMonth(DateTime.now());
+});
+
+final calendarMonthPickerOpenProvider = StateProvider<bool>((ref) => false);
+
 final calendarTypeFilterProvider =
     StateProvider<CalendarTransactionFilter>((ref) {
   return CalendarTransactionFilter.all;
@@ -134,13 +140,13 @@ final visibleCalendarDateProvider = StateProvider<DateTime>((ref) {
 });
 
 final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
-  final mode = ref.watch(calendarViewModeProvider);
+  final displayedMonth = ref.watch(displayedCalendarMonthProvider);
   final anchorDate = ref.watch(visibleCalendarDateProvider);
   final filter = ref.watch(calendarTypeFilterProvider);
   final query = ref.watch(calendarSearchQueryProvider);
   final database = ref.watch(appDatabaseProvider);
-  final periodStart = _periodStart(anchorDate, mode);
-  final periodEnd = _periodEnd(periodStart, mode);
+  final periodStart = _normalizeMonth(displayedMonth);
+  final periodEnd = DateTime(periodStart.year, periodStart.month + 1, 1);
 
   final transactions = (database.select(database.transactions)
         ..where((t) =>
@@ -209,7 +215,7 @@ final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
       ..sort((a, b) => a.date.compareTo(b.date));
 
     return CalendarSnapshot(
-      mode: mode,
+      mode: CalendarViewMode.month,
       anchorDate: anchorDate,
       periodStart: periodStart,
       periodEnd: periodEnd,
@@ -406,34 +412,6 @@ void refreshCalendarData(WidgetRef ref) {
   ref.invalidate(selectedCalendarTransactionsProvider);
 }
 
-DateTime _periodStart(DateTime anchorDate, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.week:
-      final normalized =
-          DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-      return normalized.subtract(Duration(days: normalized.weekday - 1));
-    case CalendarViewMode.day:
-      return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-    case CalendarViewMode.month:
-      return DateTime(anchorDate.year, anchorDate.month, 1);
-    case CalendarViewMode.year:
-      return DateTime(anchorDate.year, 1, 1);
-  }
-}
-
-DateTime _periodEnd(DateTime periodStart, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.week:
-      return periodStart.add(const Duration(days: 7));
-    case CalendarViewMode.day:
-      return periodStart.add(const Duration(days: 1));
-    case CalendarViewMode.month:
-      return DateTime(periodStart.year, periodStart.month + 1, 1);
-    case CalendarViewMode.year:
-      return DateTime(periodStart.year + 1, 1, 1);
-  }
-}
-
 bool _isSameDate(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
 }
@@ -476,6 +454,10 @@ bool _matchesSearchQuery(
 
 DateTime _normalizeDate(DateTime value) {
   return DateTime(value.year, value.month, value.day);
+}
+
+DateTime _normalizeMonth(DateTime value) {
+  return DateTime(value.year, value.month, 1);
 }
 
 extension _CombineLatestExtension<A> on Stream<A> {
