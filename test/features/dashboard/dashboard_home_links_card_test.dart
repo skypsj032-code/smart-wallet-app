@@ -5,7 +5,7 @@ import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_home_
 import 'package:smart_wallet_app/features/statistics/application/statistics_provider.dart';
 
 void main() {
-  testWidgets('DashboardHomeLinksCard keeps previews folded by default',
+  testWidgets('DashboardHomeLinksCard shows previews without folding',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -28,15 +28,15 @@ void main() {
 
     await tester.pump();
 
-    expect(find.byKey(const Key('dashboard-calendar-fold')), findsOneWidget);
-    expect(find.byKey(const Key('dashboard-statistics-fold')), findsOneWidget);
-    expect(find.byKey(const Key('dashboard-open-calendar')), findsNothing);
-    expect(find.byKey(const Key('dashboard-open-statistics')), findsNothing);
-    expect(find.byKey(const Key('dashboard-calendar-preview-grid')), findsNothing);
-    expect(find.byKey(const Key('dashboard-statistics-preview-list')), findsNothing);
+    expect(find.byKey(const Key('dashboard-calendar-fold')), findsNothing);
+    expect(find.byKey(const Key('dashboard-statistics-fold')), findsNothing);
+    expect(find.byKey(const Key('dashboard-open-calendar')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-open-statistics')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-calendar-preview-grid')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-statistics-preview-list')), findsOneWidget);
   });
 
-  testWidgets('DashboardHomeLinksCard shows mini calendar and mini stats when opened',
+  testWidgets('DashboardHomeLinksCard shows mini calendar and mini stats immediately',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -58,9 +58,6 @@ void main() {
     );
 
     await tester.pump();
-
-    await tester.tap(find.byKey(const Key('dashboard-calendar-fold')));
-    await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('dashboard-open-calendar')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-calendar-preview-grid')), findsOneWidget);
@@ -68,10 +65,6 @@ void main() {
     expect(find.byKey(const Key('dashboard-calendar-count')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-calendar-income')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-calendar-expense')), findsOneWidget);
-
-    await tester.ensureVisible(find.byKey(const Key('dashboard-statistics-fold')));
-    await tester.tap(find.byKey(const Key('dashboard-statistics-fold')));
-    await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('dashboard-open-statistics')), findsOneWidget);
     expect(find.byKey(const Key('dashboard-statistics-preview-list')), findsOneWidget);

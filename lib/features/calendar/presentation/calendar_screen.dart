@@ -8,7 +8,9 @@ import '../../../core/database/app_database.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
+import '../application/calendar_inline_entry_controller.dart';
 import '../application/calendar_provider.dart';
+import 'calendar_inline_entry_card.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -36,11 +38,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       title: '달력',
       body: snapshotAsync.when(
         data: (snapshot) {
-          final monthCells = viewMode == CalendarViewMode.month
-              ? _buildMonthCells(snapshot)
-              : const <_CalendarCellData>[];
+          final effectiveSelectedDate =
+              viewMode == CalendarViewMode.day ? snapshot.anchorDate : selectedDate;
+          final effectiveSelectedDay = viewMode == CalendarViewMode.day
+              ? _summaryForDate(snapshot.days, snapshot.anchorDate)
+              : selectedDay;
           final weekCells = viewMode == CalendarViewMode.week
               ? _buildWeekCells(snapshot)
+              : const <_CalendarCellData>[];
+          final monthCells = viewMode == CalendarViewMode.month
+              ? _buildMonthCells(snapshot)
               : const <_CalendarCellData>[];
 
           return ListView(
@@ -88,6 +95,46 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    _ViewModeChip(
+                      key: const Key('calendar-view-week'),
+                      label: '주간',
+                      selected: viewMode == CalendarViewMode.week,
+                      onSelected: () =>
+                          _changeViewMode(CalendarViewMode.week, snapshot.anchorDate),
+                    ),
+                    _ViewModeChip(
+                      key: const Key('calendar-view-day'),
+                      label: '일별',
+                      selected: viewMode == CalendarViewMode.day,
+                      onSelected: () =>
+                          _changeViewMode(CalendarViewMode.day, snapshot.anchorDate),
+                    ),
+                    _ViewModeChip(
+                      key: const Key('calendar-view-month'),
+                      label: '월별',
+                      selected: viewMode == CalendarViewMode.month,
+                      onSelected: () => _changeViewMode(
+                        CalendarViewMode.month,
+                        snapshot.anchorDate,
+                      ),
+                    ),
+                    _ViewModeChip(
+                      key: const Key('calendar-view-year'),
+                      label: '연별',
+                      selected: viewMode == CalendarViewMode.year,
+                      onSelected: () =>
+                          _changeViewMode(CalendarViewMode.year, snapshot.anchorDate),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: _periodTitle(viewMode),
                 action: _CalendarPeriodSwitcher(
@@ -116,6 +163,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           selectedDate: selectedDate,
                           onSelectDate: _selectDate,
                         ),
+                      CalendarViewMode.day => _DayCalendarView(
+                          date: snapshot.anchorDate,
+                          summary: effectiveSelectedDay,
+                        ),
                       CalendarViewMode.month => _MonthCalendarView(
                           cells: monthCells,
                           selectedDate: selectedDate,
@@ -142,12 +193,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (viewMode != CalendarViewMode.year && selectedDate != null)
+              if (viewMode != CalendarViewMode.year && effectiveSelectedDate != null)
                 AppSection(
-                  title: _selectedDateLabel(selectedDate),
+                  title: _selectedDateLabel(effectiveSelectedDate),
                   child: _CalendarSelectedDayCard(
-                    selectedDate: selectedDate,
-                    selectedDay: selectedDay,
+                    selectedDate: effectiveSelectedDate,
+                    selectedDay: effectiveSelectedDay,
                     transactionsAsync: selectedTransactionsAsync,
                     onEditTransaction: (transaction) => _openQuickEntry(
                       context,
@@ -198,9 +249,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     CalendarViewMode mode,
     DateTime anchorDate,
   ) {
+    final selected = ref.read(selectedCalendarDateProvider);
+    final nextAnchor =
+        mode == CalendarViewMode.day ? (selected ?? anchorDate) : anchorDate;
+
     ref.read(calendarViewModeProvider.notifier).state = mode;
-    ref.read(visibleCalendarDateProvider.notifier).state = anchorDate;
-    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
+    ref.read(selectedCalendarDateProvider.notifier).state =
+        mode == CalendarViewMode.day ? nextAnchor : selected;
   }
 
   void _movePeriod(
@@ -210,6 +266,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   ) {
     final nextAnchor = switch (mode) {
       CalendarViewMode.week => anchorDate.add(Duration(days: 7 * direction)),
+      CalendarViewMode.day => anchorDate.add(Duration(days: direction)),
       CalendarViewMode.month =>
         DateTime(anchorDate.year, anchorDate.month + direction, 1),
       CalendarViewMode.year =>
@@ -217,11 +274,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     };
 
     ref.read(visibleCalendarDateProvider.notifier).state = nextAnchor;
-    ref.read(selectedCalendarDateProvider.notifier).state = null;
+    ref.read(selectedCalendarDateProvider.notifier).state =
+        mode == CalendarViewMode.day ? nextAnchor : null;
   }
 
   void _selectDate(DateTime date) {
     ref.read(selectedCalendarDateProvider.notifier).state = date;
+    ref.read(calendarInlineEntryControllerProvider.notifier).reset();
     setState(() {
       _explorerExpanded = false;
     });
@@ -279,6 +338,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     switch (mode) {
       case CalendarViewMode.week:
         return '주간 달력';
+      case CalendarViewMode.day:
+        return '일별 보기';
       case CalendarViewMode.month:
         return '월간 달력';
       case CalendarViewMode.year:
@@ -291,6 +352,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       case CalendarViewMode.week:
         final endDate = snapshot.periodEnd.subtract(const Duration(days: 1));
         return '${snapshot.periodStart.month}.${snapshot.periodStart.day} - ${endDate.month}.${endDate.day}';
+      case CalendarViewMode.day:
+        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}.${snapshot.periodStart.day.toString().padLeft(2, '0')}';
       case CalendarViewMode.month:
         return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}';
       case CalendarViewMode.year:
@@ -300,6 +363,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   String _selectedDateLabel(DateTime date) {
     return '${date.month}월 ${date.day}일';
+  }
+
+  CalendarDaySummary? _summaryForDate(
+    List<CalendarDaySummary> days,
+    DateTime date,
+  ) {
+    for (final day in days) {
+      if (isSameDate(day.date, date)) {
+        return day;
+      }
+    }
+    return null;
   }
 }
 
@@ -394,16 +469,25 @@ class _CalendarExplorerPanel extends ConsumerWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 _ViewModeChip(
+                  key: const Key('calendar-explorer-view-week'),
                   label: '주간',
                   selected: viewMode == CalendarViewMode.week,
                   onSelected: () => onChangeViewMode(CalendarViewMode.week),
                 ),
                 _ViewModeChip(
+                  key: const Key('calendar-explorer-view-day'),
+                  label: '일별',
+                  selected: viewMode == CalendarViewMode.day,
+                  onSelected: () => onChangeViewMode(CalendarViewMode.day),
+                ),
+                _ViewModeChip(
+                  key: const Key('calendar-explorer-view-month'),
                   label: '월간',
                   selected: viewMode == CalendarViewMode.month,
                   onSelected: () => onChangeViewMode(CalendarViewMode.month),
                 ),
                 _ViewModeChip(
+                  key: const Key('calendar-explorer-view-year'),
                   label: '연간',
                   selected: viewMode == CalendarViewMode.year,
                   onSelected: () => onChangeViewMode(CalendarViewMode.year),
@@ -479,6 +563,8 @@ class _CalendarExplorerPanel extends ConsumerWidget {
       case CalendarViewMode.week:
         final endDate = snapshot.periodEnd.subtract(const Duration(days: 1));
         return '${snapshot.periodStart.month}.${snapshot.periodStart.day} - ${endDate.month}.${endDate.day}';
+      case CalendarViewMode.day:
+        return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}.${snapshot.periodStart.day.toString().padLeft(2, '0')}';
       case CalendarViewMode.month:
         return '${snapshot.periodStart.year}.${snapshot.periodStart.month.toString().padLeft(2, '0')}';
       case CalendarViewMode.year:
@@ -489,6 +575,7 @@ class _CalendarExplorerPanel extends ConsumerWidget {
 
 class _ViewModeChip extends StatelessWidget {
   const _ViewModeChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onSelected,
@@ -505,6 +592,70 @@ class _ViewModeChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onSelected(),
       showCheckmark: false,
+    );
+  }
+}
+
+class _DayCalendarView extends StatelessWidget {
+  const _DayCalendarView({
+    required this.date,
+    required this.summary,
+  });
+
+  final DateTime date;
+  final CalendarDaySummary? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${date.month}월 ${date.day}일',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${CalendarScreen.weekdayLabels[date.weekday - 1]}요일',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _SummaryTile(
+                label: '수입',
+                value: formatCurrency(summary?.income ?? 0),
+                color: AppColors.income,
+              ),
+              _SummaryTile(
+                label: '지출',
+                value: formatCurrency(summary?.expense ?? 0),
+                color: AppColors.expense,
+              ),
+              _SummaryTile(
+                label: '거래',
+                value: '${summary?.transactionCount ?? 0}건',
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -790,15 +941,28 @@ class _CalendarSelectedDayCard extends StatelessWidget {
             }
 
             if (transactions.isEmpty) {
-              return const _CalendarEmptyMessage(
-                title: '이 날의 거래가 없어요',
-                body: '',
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (selectedDate != null) ...[
+                    CalendarInlineEntryCard(selectedDate: selectedDate!),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  const _CalendarEmptyMessage(
+                    title: '이 날의 거래가 없어요',
+                    body: '',
+                  ),
+                ],
               );
             }
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (selectedDate != null) ...[
+                  CalendarInlineEntryCard(selectedDate: selectedDate!),
+                  const SizedBox(height: AppSpacing.md),
+                ],
                 if (selectedDay != null) ...[
                   Wrap(
                     spacing: AppSpacing.sm,

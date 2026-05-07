@@ -28,8 +28,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('dashboard-calendar-fold')));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('dashboard-open-calendar')));
     await tester.tap(find.byKey(const Key('dashboard-open-calendar')));
     await tester.pumpAndSettle();
@@ -52,8 +50,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('dashboard-statistics-fold')));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(
       find.byKey(const Key('dashboard-open-statistics')),
     );

@@ -11,18 +11,29 @@ void configureSqliteForTests() {
 }
 
 DynamicLibrary _openBundledSqlite() {
-  final current = Directory.current.path;
-  final candidates = [
-    '$current\\build\\windows\\x64\\plugins\\sqlite3_flutter_libs\\Debug\\sqlite3.dll',
-    '$current\\build\\windows\\x64\\plugins\\sqlite3_flutter_libs\\Release\\sqlite3.dll',
-    '$current\\build\\windows\\x64\\runner\\Debug\\sqlite3.dll',
-    '$current\\build\\windows\\x64\\runner\\Release\\sqlite3.dll',
-  ];
+  var directory = Directory.current;
+  final visited = <String>{};
 
-  for (final path in candidates) {
-    if (File(path).existsSync()) {
-      return DynamicLibrary.open(path);
+  while (visited.add(directory.path)) {
+    final base = directory.path;
+    final candidates = [
+      '$base\\build\\windows\\x64\\plugins\\sqlite3_flutter_libs\\Debug\\sqlite3.dll',
+      '$base\\build\\windows\\x64\\plugins\\sqlite3_flutter_libs\\Release\\sqlite3.dll',
+      '$base\\build\\windows\\x64\\runner\\Debug\\sqlite3.dll',
+      '$base\\build\\windows\\x64\\runner\\Release\\sqlite3.dll',
+    ];
+
+    for (final path in candidates) {
+      if (File(path).existsSync()) {
+        return DynamicLibrary.open(path);
+      }
     }
+
+    if (directory.parent.path == directory.path) {
+      break;
+    }
+
+    directory = directory.parent;
   }
 
   return DynamicLibrary.open('sqlite3.dll');

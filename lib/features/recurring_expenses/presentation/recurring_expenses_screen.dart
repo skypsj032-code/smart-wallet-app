@@ -200,7 +200,13 @@ class _RecurringExpenseEditorDialogState
         ref.watch(budgetCategoryOptionsProvider).valueOrNull ?? const [];
     _accountId ??= accounts.isEmpty ? null : accounts.first.localId;
 
-    return AlertDialog(
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: AlertDialog(
       title: Text(widget.existing == null ? '고정 지출 추가' : '고정 지출 수정'),
       content: SingleChildScrollView(
         child: Column(
@@ -269,6 +275,7 @@ class _RecurringExpenseEditorDialogState
           child: const Text('저장'),
         ),
       ],
+      ),
     );
   }
 

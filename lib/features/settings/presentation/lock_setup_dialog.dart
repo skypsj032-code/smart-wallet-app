@@ -23,7 +23,16 @@ class LockSetupDialog extends ConsumerStatefulWidget {
   }) {
     return showDialog<bool>(
       context: context,
-      builder: (context) => LockSetupDialog(isChangingPin: isChangingPin),
+      builder: (dialogContext) => AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: LockSetupDialog(isChangingPin: isChangingPin),
+        ),
+      ),
     );
   }
 

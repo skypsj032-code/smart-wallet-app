@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_radius.dart';
 import '../../core/constants/app_spacing.dart';
+import 'keyboard_aware_body.dart';
 
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
@@ -37,18 +38,20 @@ class AppScaffold extends StatelessWidget {
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet,
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              0,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: KeyboardAwareBody(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                0,
               ),
-              child: body,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: body,
+              ),
             ),
           ),
         ),
