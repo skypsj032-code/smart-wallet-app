@@ -19,27 +19,27 @@ class RecurringExpensesScreen extends ConsumerWidget {
     final recurringAsync = ref.watch(activeRecurringExpensesProvider);
 
     return AppScaffold(
-      title: '고정 지출',
+      title: '정기 거래',
       body: recurringAsync.when(
         data: (items) {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               const AppSectionIntro(
-                title: '매달 반복되는 지출',
+                title: '반복되는 수입과 지출을 미리 준비해요',
               ),
               const SizedBox(height: AppSpacing.md),
               FilledButton.icon(
                 onPressed: () => _showEditor(context, ref),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('고정 지출 추가'),
+                label: const Text('정기 거래 추가'),
               ),
               const SizedBox(height: AppSpacing.md),
               if (items.isEmpty)
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Text('아직 등록된 고정 지출이 없습니다.'),
+                    child: Text('아직 등록된 정기 거래가 없습니다.'),
                   ),
                 )
               else
@@ -54,7 +54,7 @@ class RecurringExpensesScreen extends ConsumerWidget {
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text('고정 지출을 불러오지 못했습니다.\n$error'),
+            child: Text('정기 거래를 불러오지 못했습니다.\n$error'),
           ),
         ),
       ),
@@ -79,19 +79,25 @@ class RecurringExpensesScreen extends ConsumerWidget {
 
     final service = ref.read(recurringExpenseServiceProvider);
     if (existing == null) {
-      await service.createFixedMonthly(
+      await service.createRecurringTransaction(
         name: result.name,
+        type: result.type,
         amount: result.amount,
+        cadence: result.cadence,
         dayOfMonth: result.dayOfMonth,
+        weekday: result.weekday,
         accountId: result.accountId,
         categoryId: result.categoryId,
       );
     } else {
-      await service.updateFixedMonthly(
+      await service.updateRecurringTransaction(
         localId: existing.localId,
         name: result.name,
+        type: result.type,
         amount: result.amount,
+        cadence: result.cadence,
         dayOfMonth: result.dayOfMonth,
+        weekday: result.weekday,
         accountId: result.accountId,
         categoryId: result.categoryId,
       );
@@ -101,7 +107,11 @@ class RecurringExpensesScreen extends ConsumerWidget {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(existing == null ? '고정 지출을 추가했습니다.' : '고정 지출을 수정했습니다.')),
+      SnackBar(
+        content: Text(
+          existing == null ? '정기 거래를 추가했습니다.' : '정기 거래를 수정했습니다.',
+        ),
+      ),
     );
   }
 }
@@ -116,25 +126,12 @@ class _RecurringExpenseTile extends ConsumerWidget {
     return Card(
       child: ListTile(
         title: Text(item.name),
-        subtitle: Text('매월 ${item.dayOfMonth}일 · ${formatCurrency(item.amount)}'),
+        subtitle: Text(
+          '${_typeLabel(item.type)} · ${_scheduleLabel(item)} · ${formatCurrency(item.amount)}',
+        ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) async {
-            if (value == 'create') {
-              final created = await ref
-                  .read(recurringExpenseServiceProvider)
-                  .materializeForMonth(
-                    recurringId: item.localId,
-                    month: DateTime.now(),
-                  );
-              if (!context.mounted) {
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(created ? '이번 달 거래로 기록했습니다.' : '이미 이번 달 거래로 기록했습니다.'),
-                ),
-              );
-            } else if (value == 'edit') {
+            if (value == 'edit') {
               await const RecurringExpensesScreen()
                   ._showEditor(context, ref, existing: item);
             } else if (value == 'delete') {
@@ -144,13 +141,23 @@ class _RecurringExpenseTile extends ConsumerWidget {
             }
           },
           itemBuilder: (context) => const [
-            PopupMenuItem(value: 'create', child: Text('이번 달 거래로 기록')),
             PopupMenuItem(value: 'edit', child: Text('수정')),
             PopupMenuItem(value: 'delete', child: Text('비활성화')),
           ],
         ),
       ),
     );
+  }
+
+  String _scheduleLabel(RecurringExpense item) {
+    if (item.cadence == 'weekly') {
+      return '매주 ${_weekdayLabel(item.weekday ?? DateTime.monday)}';
+    }
+    return '매달 ${item.dayOfMonth ?? 1}일';
+  }
+
+  String _typeLabel(String type) {
+    return type == 'income' ? '수입' : '지출';
   }
 }
 
@@ -169,6 +176,9 @@ class _RecurringExpenseEditorDialogState
   late final TextEditingController _nameController;
   late final TextEditingController _amountController;
   late final TextEditingController _dayController;
+  late String _type;
+  late String _cadence;
+  int _weekday = DateTime.monday;
   String? _accountId;
   String? _categoryId;
 
@@ -179,8 +189,12 @@ class _RecurringExpenseEditorDialogState
     _nameController = TextEditingController(text: existing?.name ?? '');
     _amountController =
         TextEditingController(text: existing?.amount.toString() ?? '');
-    _dayController =
-        TextEditingController(text: existing?.dayOfMonth.toString() ?? '1');
+    _dayController = TextEditingController(
+      text: (existing?.dayOfMonth ?? 1).toString(),
+    );
+    _type = existing?.type ?? 'expense';
+    _cadence = existing?.cadence ?? 'monthly';
+    _weekday = existing?.weekday ?? DateTime.monday;
     _accountId = existing?.accountId;
     _categoryId = existing?.categoryId;
   }
@@ -207,74 +221,119 @@ class _RecurringExpenseEditorDialogState
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: AlertDialog(
-      title: Text(widget.existing == null ? '고정 지출 추가' : '고정 지출 수정'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: '이름'),
-              textInputAction: TextInputAction.next,
-            ),
-            TextField(
-              controller: _amountController,
-              decoration: const InputDecoration(labelText: '금액'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              textInputAction: TextInputAction.next,
-            ),
-            TextField(
-              controller: _dayController,
-              decoration: const InputDecoration(labelText: '매월 날짜'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(2),
-              ],
-              textInputAction: TextInputAction.next,
-            ),
-            DropdownButtonFormField<String>(
-              initialValue: _accountId,
-              decoration: const InputDecoration(labelText: '계좌'),
-              items: [
-                for (final account in accounts)
-                  DropdownMenuItem(
-                    value: account.localId,
-                    child: Text(account.name),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _accountId = value),
-            ),
-            DropdownButtonFormField<String?>(
-              initialValue: _categoryId,
-              decoration: const InputDecoration(labelText: '카테고리'),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('선택 안 함'),
+        title: Text(widget.existing == null ? '정기 거래 추가' : '정기 거래 수정'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'expense', label: Text('지출')),
+                  ButtonSegment(value: 'income', label: Text('수입')),
+                ],
+                selected: {_type},
+                onSelectionChanged: (selection) {
+                  setState(() => _type = selection.first);
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: '이름'),
+                textInputAction: TextInputAction.next,
+              ),
+              TextField(
+                controller: _amountController,
+                decoration: const InputDecoration(labelText: '금액'),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'monthly', label: Text('매달')),
+                  ButtonSegment(value: 'weekly', label: Text('매주')),
+                ],
+                selected: {_cadence},
+                onSelectionChanged: (selection) {
+                  setState(() => _cadence = selection.first);
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (_cadence == 'monthly')
+                TextField(
+                  controller: _dayController,
+                  decoration: const InputDecoration(labelText: '매달 날짜'),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  textInputAction: TextInputAction.next,
+                )
+              else
+                DropdownButtonFormField<int>(
+                  initialValue: _weekday,
+                  decoration: const InputDecoration(labelText: '요일'),
+                  items: [
+                    for (var value = DateTime.monday;
+                        value <= DateTime.sunday;
+                        value++)
+                      DropdownMenuItem(
+                        value: value,
+                        child: Text(_weekdayLabel(value)),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() => _weekday = value);
+                  },
                 ),
-                for (final category in categories)
-                  DropdownMenuItem<String?>(
-                    value: category.id,
-                    child: Text(category.name),
+              DropdownButtonFormField<String>(
+                initialValue: _accountId,
+                decoration: const InputDecoration(labelText: '계좌'),
+                items: [
+                  for (final account in accounts)
+                    DropdownMenuItem(
+                      value: account.localId,
+                      child: Text(account.name),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _accountId = value),
+              ),
+              DropdownButtonFormField<String?>(
+                initialValue: _categoryId,
+                decoration: const InputDecoration(labelText: '카테고리'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('선택 안 함'),
                   ),
-              ],
-              onChanged: (value) => setState(() => _categoryId = value),
-            ),
-          ],
+                  for (final category in categories)
+                    DropdownMenuItem<String?>(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _categoryId = value),
+              ),
+            ],
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('저장'),
-        ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: _submit,
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }
@@ -283,14 +342,14 @@ class _RecurringExpenseEditorDialogState
     final amount = int.tryParse(_amountController.text.trim()) ?? 0;
     final day = int.tryParse(_dayController.text.trim()) ?? 0;
     final accountId = _accountId;
+    final isMonthly = _cadence == 'monthly';
 
     if (_nameController.text.trim().isEmpty ||
         amount <= 0 ||
-        day < 1 ||
-        day > 31 ||
-        accountId == null) {
+        accountId == null ||
+        (isMonthly && (day < 1 || day > 31))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름, 금액, 날짜, 계좌를 확인해 주세요.')),
+        const SnackBar(content: Text('이름, 금액, 주기, 계좌를 확인해 주세요.')),
       );
       return;
     }
@@ -298,8 +357,11 @@ class _RecurringExpenseEditorDialogState
     Navigator.of(context).pop(
       _RecurringExpenseEditorResult(
         name: _nameController.text.trim(),
+        type: _type,
         amount: amount,
-        dayOfMonth: day,
+        cadence: _cadence,
+        dayOfMonth: isMonthly ? day : null,
+        weekday: isMonthly ? null : _weekday,
         accountId: accountId,
         categoryId: _categoryId,
       ),
@@ -310,15 +372,42 @@ class _RecurringExpenseEditorDialogState
 class _RecurringExpenseEditorResult {
   const _RecurringExpenseEditorResult({
     required this.name,
+    required this.type,
     required this.amount,
+    required this.cadence,
     required this.dayOfMonth,
+    required this.weekday,
     required this.accountId,
     required this.categoryId,
   });
 
   final String name;
+  final String type;
   final int amount;
-  final int dayOfMonth;
+  final String cadence;
+  final int? dayOfMonth;
+  final int? weekday;
   final String accountId;
   final String? categoryId;
+}
+
+String _weekdayLabel(int weekday) {
+  switch (weekday) {
+    case DateTime.monday:
+      return '월요일';
+    case DateTime.tuesday:
+      return '화요일';
+    case DateTime.wednesday:
+      return '수요일';
+    case DateTime.thursday:
+      return '목요일';
+    case DateTime.friday:
+      return '금요일';
+    case DateTime.saturday:
+      return '토요일';
+    case DateTime.sunday:
+      return '일요일';
+    default:
+      return '요일';
+  }
 }

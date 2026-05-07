@@ -6,6 +6,7 @@ import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
+import 'package:smart_wallet_app/features/dashboard/application/recurring_transaction_suggestion_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_summary_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/wealth_hero_motion.dart';
 import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_screen.dart';
@@ -79,6 +80,9 @@ class _DashboardTestApp extends StatelessWidget {
         ),
         activeRecurringExpensesProvider.overrideWith(
           (ref) => Stream.value(const <RecurringExpense>[]),
+        ),
+        recurringTransactionSuggestionProvider.overrideWith(
+          (ref) => Future.value(null),
         ),
         calendarHomeSummaryProvider.overrideWith(
           (ref) => Stream.value(
@@ -167,7 +171,6 @@ DashboardSummary _fakeDashboardSummary() {
     totalBudget: 1000000,
     netCashflow: 2940000,
     recentTransactions: <Transaction>[],
-    repeatSuggestions: <Transaction>[],
     narrative: DashboardNarrativeSnapshot(
       topExpenseCategoryLabel: '식비',
       topExpenseCategoryShare: 0.42,

@@ -267,13 +267,20 @@ class BackupService {
               RecurringExpensesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
+                type: raw['type'] as String? ?? 'expense',
                 amount: raw['amount'] as int,
-                dayOfMonth: raw['dayOfMonth'] as int,
+                cadence: raw['cadence'] as String? ?? 'monthly',
+                dayOfMonth: Value(raw['dayOfMonth'] as int?),
+                weekday: Value(raw['weekday'] as int?),
                 accountId: raw['accountId'] as String,
                 categoryId: Value(raw['categoryId'] as String?),
                 isActive: Value((raw['isActive'] as bool?) ?? true),
-                lastCreatedMonthKey:
-                    Value(raw['lastCreatedMonthKey'] as String?),
+                lastSuggestedCycleKey:
+                    Value(raw['lastSuggestedCycleKey'] as String?),
+                lastCompletedCycleKey:
+                    Value(raw['lastCompletedCycleKey'] as String?),
+                lastDismissedCycleKey:
+                    Value(raw['lastDismissedCycleKey'] as String?),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
               ),
@@ -435,12 +442,17 @@ class BackupService {
   Map<String, dynamic> _recurringExpenseToJson(RecurringExpense item) => {
         'localId': item.localId,
         'name': item.name,
+        'type': item.type,
         'amount': item.amount,
+        'cadence': item.cadence,
         'dayOfMonth': item.dayOfMonth,
+        'weekday': item.weekday,
         'accountId': item.accountId,
         'categoryId': item.categoryId,
         'isActive': item.isActive,
-        'lastCreatedMonthKey': item.lastCreatedMonthKey,
+        'lastSuggestedCycleKey': item.lastSuggestedCycleKey,
+        'lastCompletedCycleKey': item.lastCompletedCycleKey,
+        'lastDismissedCycleKey': item.lastDismissedCycleKey,
         'createdAt': item.createdAt.toIso8601String(),
         'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
       };
