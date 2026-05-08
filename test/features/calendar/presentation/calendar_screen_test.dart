@@ -12,7 +12,6 @@ import 'package:smart_wallet_app/features/transactions/application/quick_entry_o
 
 void main() {
   final may5 = DateTime(2026, 5, 5);
-  final may6 = DateTime(2026, 5, 6);
 
   final snapshot = CalendarSnapshot(
     anchorDate: may5,
@@ -27,7 +26,7 @@ void main() {
         matchCount: 3,
       ),
       CalendarDaySummary(
-        date: may6,
+        date: DateTime(2026, 5, 6),
         income: 0,
         expense: 12000,
         transactionCount: 1,
@@ -72,7 +71,7 @@ void main() {
     ),
   ];
 
-  testWidgets('keeps explorer controls hidden until the handle opens them',
+  testWidgets('calendar detail renders a flat reference layout shell',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -80,25 +79,26 @@ void main() {
       transactions: transactions,
     );
 
-    expect(find.byKey(const Key('calendar-explorer-handle')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-reference-page')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-reference-tabs')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-month-surface')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-detail-section')), findsOneWidget);
+  });
+
+  testWidgets('legacy explorer chrome is no longer rendered',
+      (WidgetTester tester) async {
+    await _pumpCalendarScreen(
+      tester,
+      snapshot: snapshot,
+      transactions: transactions,
+    );
+
+    expect(find.byKey(const Key('calendar-explorer-handle')), findsNothing);
+    expect(find.byKey(const Key('calendar-explorer-panel')), findsNothing);
     expect(find.byKey(const Key('calendar-search-field')), findsNothing);
-    expect(find.byKey(const Key('calendar-filter-all')), findsNothing);
-    expect(find.byKey(const Key('calendar-filter-income')), findsNothing);
-    expect(find.byKey(const Key('calendar-filter-expense')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('calendar-explorer-handle')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('calendar-search-field')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-filter-all')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-filter-income')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-filter-expense')), findsOneWidget);
-    expect(find.text('\uC804\uCCB4'), findsOneWidget);
-    expect(find.text('\uC218\uC785'), findsWidgets);
-    expect(find.text('\uC9C0\uCD9C'), findsWidgets);
   });
 
-  testWidgets('selected-day list follows filter and search state',
+  testWidgets('period flow summary renders before a date is selected',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -106,101 +106,26 @@ void main() {
       transactions: transactions,
     );
 
-    await _tapCalendarDay(tester, '2026-05-05');
-    await _scrollUntilTextVisible(tester, 'Star Cafe');
+    final detailSection = find.byKey(const Key('calendar-day-detail-section'));
 
-    expect(find.text('Star Cafe'), findsOneWidget);
-    expect(find.text('May salary'), findsOneWidget);
-    expect(find.text('Night Market'), findsOneWidget);
-
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-explorer-handle')),
-      -240,
-    );
-    await tester.tap(find.byKey(const Key('calendar-explorer-handle')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('calendar-filter-income')));
-    await tester.pumpAndSettle();
-    await _scrollUntilTextVisible(tester, 'May salary');
-
-    expect(find.text('May salary'), findsOneWidget);
-    expect(find.text('Star Cafe'), findsNothing);
-    expect(find.text('Night Market'), findsNothing);
-
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-filter-all')),
-      -240,
-    );
-    await tester.tap(find.byKey(const Key('calendar-filter-all')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('calendar-search-field')),
-      'star',
-    );
-    await tester.pumpAndSettle();
-    await _scrollUntilTextVisible(tester, 'Star Cafe');
-
-    expect(find.text('Star Cafe'), findsOneWidget);
-    expect(find.text('May salary'), findsNothing);
-    expect(find.text('Night Market'), findsNothing);
-  });
-
-  testWidgets('month view keeps a compact summary block above a dominant grid',
-      (WidgetTester tester) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(340, 737);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await _pumpCalendarScreen(
-      tester,
-      snapshot: snapshot,
-      transactions: transactions,
-    );
-
-    final summaryBlock = find.byKey(const Key('calendar-month-summary-block'));
-    final gridShell = find.byKey(const Key('calendar-month-grid-shell'));
-
-    expect(summaryBlock, findsOneWidget);
-    expect(gridShell, findsOneWidget);
+    expect(find.text('기간 흐름'), findsOneWidget);
     expect(
-      find.byKey(const Key('calendar-month-summary-expense')),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const Key('calendar-month-summary-income')),
-      findsNothing,
-    );
-    expect(
-      find.descendant(of: summaryBlock, matching: find.text('지출')),
+      find.descendant(of: detailSection, matching: find.text('총수입')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summaryBlock, matching: find.text('수입')),
+      find.descendant(of: detailSection, matching: find.text('총지출')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summaryBlock, matching: find.text('26,000\uC6D0')),
+      find.descendant(of: detailSection, matching: find.text('3,200,000원')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: summaryBlock,
-        matching: find.text('3,200,000\uC6D0'),
-      ),
+      find.descendant(of: detailSection, matching: find.text('26,000원')),
       findsOneWidget,
     );
-
-    final summaryRect = tester.getRect(summaryBlock);
-    final gridRect = tester.getRect(gridShell);
-
-    expect(summaryRect.bottom, lessThan(gridRect.top));
-    expect(gridRect.height, greaterThan(summaryRect.height * 3));
+    expect(find.text('기간 흐름을 아직 준비하지 못했어요'), findsNothing);
   });
 
   testWidgets('month grid follows the displayed month provider state',
@@ -247,14 +172,10 @@ void main() {
     await _scrollUntilTextVisible(tester, 'Star Cafe');
 
     expect(find.byType(CalendarScreen), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-detail-section')), findsOneWidget);
     expect(find.text('Star Cafe'), findsOneWidget);
     expect(find.text('Bakery'), findsNothing);
 
-    await _scrollUntilFinderVisible(
-      tester,
-      find.byKey(const Key('calendar-day-2026-05-06')),
-      -240,
-    );
     await _tapCalendarDay(tester, '2026-05-06');
     await _scrollUntilTextVisible(tester, 'Bakery');
 
@@ -287,35 +208,35 @@ void main() {
     await _tapCalendarDay(tester, '2026-05-05');
     await _scrollUntilFinderVisible(
       tester,
-      find.byKey(const Key('calendar-selected-day-card')),
+      find.byKey(const Key('calendar-day-detail-section')),
       240,
     );
 
-    expect(find.byKey(const Key('calendar-selected-day-card')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-detail-section')), findsOneWidget);
     expect(
       find.byKey(const Key('calendar-transaction-sort-toggle')),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('\uC624\uB798\uB41C\uC21C'));
+    await tester.tap(find.text('오래된순'));
     await tester.pumpAndSettle();
 
     await _scrollUntilFinderVisible(
       tester,
-      find.byKey(const Key('calendar-next-period')),
+      find.byKey(const Key('calendar-next-month')),
       -240,
     );
-    await tester.tap(find.byKey(const Key('calendar-next-period')));
+    await tester.tap(find.byKey(const Key('calendar-next-month')));
     await tester.pumpAndSettle();
 
     await _scrollUntilFinderVisible(
       tester,
-      find.byKey(const Key('calendar-selected-day-card')),
+      find.byKey(const Key('calendar-day-detail-section')),
       240,
     );
 
-    expect(find.text('6\uC6D4 5\uC77C'), findsOneWidget);
-    expect(find.byKey(const Key('calendar-selected-day-card')), findsOneWidget);
+    expect(find.text('6월 5일'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-day-detail-section')), findsOneWidget);
     expect(
       find.byKey(const Key('calendar-transaction-sort-toggle')),
       findsOneWidget,
@@ -324,7 +245,7 @@ void main() {
       find.byKey(const Key('calendar-selected-summary-expense')),
       findsOneWidget,
     );
-    expect(find.text('8,800\uC6D0'), findsWidgets);
+    expect(find.text('8,800원'), findsWidgets);
     expect(find.text('June Lunch'), findsOneWidget);
   });
 
@@ -347,7 +268,7 @@ void main() {
     expect(marketTop, lessThan(salaryTop));
     expect(salaryTop, lessThan(cafeTop));
 
-    await tester.tap(find.text('\uC624\uB798\uB41C\uC21C'));
+    await tester.tap(find.text('오래된순'));
     await tester.pumpAndSettle();
     await _scrollUntilTextVisible(tester, 'Star Cafe');
 
@@ -359,7 +280,7 @@ void main() {
     expect(salaryTop, lessThan(marketTop));
   });
 
-  testWidgets('calendar header uses a month label instead of mode chips',
+  testWidgets('calendar header uses a month title and reference tabs',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -367,18 +288,11 @@ void main() {
       transactions: transactions,
     );
 
-    expect(find.byKey(const Key('calendar-month-label')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-month-title')), findsOneWidget);
     expect(find.text('2026.05'), findsOneWidget);
-    expect(find.byKey(const Key('calendar-previous-period')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-next-period')), findsOneWidget);
-    expect(find.byKey(const Key('calendar-view-week')), findsNothing);
-    expect(find.byKey(const Key('calendar-view-day')), findsNothing);
-    expect(find.byKey(const Key('calendar-view-month')), findsNothing);
-    expect(find.byKey(const Key('calendar-view-year')), findsNothing);
-    expect(find.text('\uC8FC\uAC04'), findsNothing);
-    expect(find.text('\uC77C\uBCC4'), findsNothing);
-    expect(find.text('\uC6D4\uBCC4'), findsNothing);
-    expect(find.text('\uC5F0\uBCC4'), findsNothing);
+    expect(find.byKey(const Key('calendar-previous-month')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-next-month')), findsOneWidget);
+    expect(find.byKey(const Key('calendar-reference-tabs')), findsOneWidget);
   });
 
   testWidgets('month header arrows move the displayed month label',
@@ -391,16 +305,16 @@ void main() {
 
     expect(find.text('2026.05'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('calendar-next-period')));
+    await tester.tap(find.byKey(const Key('calendar-next-month')));
     await tester.pumpAndSettle();
     expect(find.text('2026.06'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('calendar-previous-period')));
+    await tester.tap(find.byKey(const Key('calendar-previous-month')));
     await tester.pumpAndSettle();
     expect(find.text('2026.05'), findsOneWidget);
   });
 
-  testWidgets('tapping the month label opens the inline picker in place',
+  testWidgets('tapping the month title opens the inline picker in place',
       (WidgetTester tester) async {
     await _pumpCalendarScreen(
       tester,
@@ -411,7 +325,7 @@ void main() {
     expect(find.byKey(const Key('calendar-month-grid')), findsOneWidget);
     expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.tap(find.byKey(const Key('calendar-month-title')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
@@ -431,7 +345,7 @@ void main() {
     expect(find.text('home'), findsNothing);
     expect(find.byKey(const Key('calendar-inline-month-picker')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.tap(find.byKey(const Key('calendar-month-title')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
@@ -460,7 +374,7 @@ void main() {
       transactions: transactions,
     );
 
-    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.tap(find.byKey(const Key('calendar-month-title')));
     await tester.pumpAndSettle();
 
     expect(find.text('11월'), findsOneWidget);
@@ -491,10 +405,10 @@ void main() {
 
     await _scrollUntilFinderVisible(
       tester,
-      find.byKey(const Key('calendar-next-period')),
+      find.byKey(const Key('calendar-next-month')),
       -240,
     );
-    await tester.tap(find.byKey(const Key('calendar-next-period')));
+    await tester.tap(find.byKey(const Key('calendar-next-month')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 260));
 
@@ -559,27 +473,10 @@ void main() {
       transactions: transactions,
     );
 
-    await tester.tap(find.byKey(const Key('calendar-month-label')));
+    await tester.tap(find.byKey(const Key('calendar-month-title')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('calendar-inline-month-picker')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('month header controls do not crash the calendar screen',
-      (WidgetTester tester) async {
-    await _pumpCalendarScreen(
-      tester,
-      snapshot: snapshot,
-      transactions: transactions,
-    );
-
-    await tester.tap(find.byKey(const Key('calendar-next-period')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('calendar-previous-period')));
-    await tester.pumpAndSettle();
-
     expect(tester.takeException(), isNull);
   });
 }
@@ -592,72 +489,11 @@ Future<void> _pumpCalendarScreen(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        calendarTodayProvider.overrideWith((ref) => DateTime(2026, 5, 5)),
-        displayedCalendarMonthProvider.overrideWith(
-          (ref) => displayedMonth ??
-              DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1),
-        ),
-        visibleCalendarDateProvider.overrideWith((ref) => snapshot.anchorDate),
-        calendarSnapshotProvider.overrideWith((ref) {
-          final month = ref.watch(displayedCalendarMonthProvider);
-          final anchorDate = ref.watch(visibleCalendarDateProvider);
-          return Stream.value(
-            _buildSnapshot(
-              displayedMonth: month,
-              anchorDate: anchorDate,
-              transactions: transactions,
-            ),
-          );
-        }),
-        quickEntryAccountsProvider.overrideWith(
-          (ref) => Stream.value(
-            const [
-              QuickEntryAccountOption(
-                id: 'cash-wallet',
-                name: '\uD604\uAE08',
-              ),
-            ],
-          ),
-        ),
-        quickEntryCategoriesProvider('expense').overrideWith(
-          (ref) => Stream.value(
-            const [
-              QuickEntryCategoryOption(
-                id: 'expense-food',
-                name: '\uC2DD\uBE44',
-                type: 'expense',
-              ),
-            ],
-          ),
-        ),
-        quickEntryCategoriesProvider('income').overrideWith(
-          (ref) => Stream.value(
-            const [
-              QuickEntryCategoryOption(
-                id: 'income-salary',
-                name: '\uAE09\uC5EC',
-                type: 'income',
-              ),
-            ],
-          ),
-        ),
-        selectedCalendarTransactionsProvider.overrideWith((ref) {
-          final selectedDate = ref.watch(selectedCalendarDateProvider);
-          final filter = ref.watch(calendarTypeFilterProvider);
-          final query = ref.watch(calendarSearchQueryProvider);
-          final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
-          return Stream.value(
-            _filterTransactions(
-              transactions,
-              selectedDate: selectedDate,
-              filter: filter,
-              query: query,
-              sortOrder: sortOrder,
-            ),
-          );
-        }),
-      ],
+      overrides: _calendarTestOverrides(
+        snapshot: snapshot,
+        transactions: transactions,
+        displayedMonth: displayedMonth,
+      ),
       child: const MaterialApp(
         home: CalendarScreen(),
       ),
@@ -741,7 +577,7 @@ List<Override> _calendarTestOverrides({
         const [
           QuickEntryAccountOption(
             id: 'cash-wallet',
-            name: '\uD604\uAE08',
+            name: '현금',
           ),
         ],
       ),
@@ -751,7 +587,7 @@ List<Override> _calendarTestOverrides({
         const [
           QuickEntryCategoryOption(
             id: 'expense-food',
-            name: '\uC2DD\uBE44',
+            name: '식비',
             type: 'expense',
           ),
         ],
@@ -762,7 +598,7 @@ List<Override> _calendarTestOverrides({
         const [
           QuickEntryCategoryOption(
             id: 'income-salary',
-            name: '\uAE09\uC5EC',
+            name: '급여',
             type: 'income',
           ),
         ],
@@ -770,15 +606,11 @@ List<Override> _calendarTestOverrides({
     ),
     selectedCalendarTransactionsProvider.overrideWith((ref) {
       final selectedDate = ref.watch(selectedCalendarDateProvider);
-      final filter = ref.watch(calendarTypeFilterProvider);
-      final query = ref.watch(calendarSearchQueryProvider);
       final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
       return Stream.value(
         _filterTransactions(
           transactions,
           selectedDate: selectedDate,
-          filter: filter,
-          query: query,
           sortOrder: sortOrder,
         ),
       );
@@ -791,7 +623,7 @@ CalendarSnapshot _buildSnapshot({
   required DateTime anchorDate,
   required List<Transaction> transactions,
 }) {
-  final periodStart = _normalizeMonthForTest(displayedMonth);
+  final periodStart = DateTime(displayedMonth.year, displayedMonth.month, 1);
   final periodEnd = DateTime(periodStart.year, periodStart.month + 1, 1);
   final grouped = <DateTime, CalendarDaySummary>{};
   var totalIncome = 0;
@@ -849,10 +681,6 @@ CalendarSnapshot _buildSnapshot({
   );
 }
 
-DateTime _normalizeMonthForTest(DateTime value) {
-  return DateTime(value.year, value.month, 1);
-}
-
 Future<void> _tapCalendarDay(
   WidgetTester tester,
   String dayKey,
@@ -888,43 +716,14 @@ Future<void> _scrollUntilFinderVisible(
 List<Transaction> _filterTransactions(
   List<Transaction> transactions, {
   required DateTime? selectedDate,
-  required CalendarTransactionFilter filter,
-  required String query,
   required CalendarTransactionSortOrder sortOrder,
 }) {
   if (selectedDate == null) {
     return const <Transaction>[];
   }
 
-  final normalizedQuery = query.trim().toLowerCase();
-
   return transactions.where((transaction) {
-    if (!_isSameDate(transaction.occurredAt, selectedDate)) {
-      return false;
-    }
-
-    final matchesType = switch (filter) {
-      CalendarTransactionFilter.all => true,
-      CalendarTransactionFilter.income => transaction.type == 'income',
-      CalendarTransactionFilter.expense => transaction.type == 'expense',
-    };
-    if (!matchesType) {
-      return false;
-    }
-
-    if (normalizedQuery.isEmpty) {
-      return true;
-    }
-
-    final haystacks = <String>[
-      transaction.memo ?? '',
-      transaction.merchantName ?? '',
-      if (transaction.categoryId == 'expense-food') 'food',
-    ];
-
-    return haystacks.any(
-      (value) => value.toLowerCase().contains(normalizedQuery),
-    );
+    return _isSameDate(transaction.occurredAt, selectedDate);
   }).toList()
     ..sort((a, b) => switch (sortOrder) {
           CalendarTransactionSortOrder.newestFirst =>
