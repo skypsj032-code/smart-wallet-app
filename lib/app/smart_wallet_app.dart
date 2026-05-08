@@ -129,7 +129,9 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       builder: (context, child) => MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 1.3,
+        // 시스템 폰트 확대로 인한 레이아웃 파괴 방지 (GlassCard, 대시보드 등)
+        minScaleFactor: 1.0,
+        maxScaleFactor: 1.2,
         child: AppFrame(
           child: child ?? const SizedBox.shrink(),
         ),

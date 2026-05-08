@@ -163,11 +163,21 @@ class _AppShellState extends ConsumerState<AppShell>
                 child: NotificationTransactionBanner(),
               ),
               // 멀티태스킹/앱 스위처 금융정보 노출 방지
+              // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
               if (_obscured)
                 Positioned.fill(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: const ColoredBox(color: Colors.transparent),
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Center(
+                      child: Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 48,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.2),
+                      ),
+                    ),
                   ),
                 ),
             ],

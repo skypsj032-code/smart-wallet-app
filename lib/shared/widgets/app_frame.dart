@@ -18,12 +18,13 @@ class AppFrame extends StatefulWidget {
 }
 
 class _AppFrameState extends State<AppFrame>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
@@ -31,7 +32,20 @@ class _AppFrameState extends State<AppFrame>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 앱이 백그라운드/비활성 → 애니메이션 즉시 정지 (배터리 및 GPU 절약)
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      if (_controller.isAnimating) _controller.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      if (!_controller.isAnimating) _controller.repeat();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
