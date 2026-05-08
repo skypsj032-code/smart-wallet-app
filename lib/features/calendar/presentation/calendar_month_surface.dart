@@ -42,9 +42,9 @@ class CalendarMonthSurface extends StatelessWidget {
       key: const Key('calendar-month-surface'),
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
         AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
+        AppSpacing.lg,
         AppSpacing.lg,
       ),
       child: Column(
@@ -166,27 +166,11 @@ class _MonthCalendarContent extends StatelessWidget {
           monthIncome: monthIncome,
           monthExpense: monthExpense,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         Container(
           key: const Key('calendar-month-grid-shell'),
           width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.18),
-              ),
-              bottom: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.12),
-              ),
-            ),
-          ),
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: _MonthCalendarView(
             cells: cells,
             selectedDate: selectedDate,
@@ -209,7 +193,7 @@ class _MonthSummaryBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+    final labelStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         );
@@ -220,9 +204,11 @@ class _MonthSummaryBlock extends StatelessWidget {
     return Container(
       key: const Key('calendar-month-summary-block'),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+      padding: const EdgeInsets.only(
+        left: AppSpacing.xs,
+        right: AppSpacing.xs,
+        top: AppSpacing.sm,
+        bottom: AppSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +254,7 @@ class _MonthSummaryEntry extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 28,
+          width: 30,
           child: Text(label, style: labelStyle),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -298,20 +284,22 @@ class _MonthCalendarView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final weekdayStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        );
+
     return Column(
       key: const Key('calendar-month-grid'),
       children: [
         Row(
           children: [
-            for (final label in const ['월', '화', '수', '목', '금', '토', '일'])
+            for (final label in const ['일', '월', '화', '수', '목', '금', '토'])
               Expanded(
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Text(label, style: weekdayStyle),
                   ),
                 ),
               ),
@@ -323,9 +311,9 @@ class _MonthCalendarView extends StatelessWidget {
           itemCount: cells.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            mainAxisSpacing: AppSpacing.xs,
+            mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.xs,
-            childAspectRatio: 0.74,
+            childAspectRatio: 0.84,
           ),
           itemBuilder: (context, index) {
             final cell = cells[index];
@@ -367,66 +355,71 @@ class _CalendarDayCell extends StatelessWidget {
     final cellKey = cell.date == null
         ? null
         : Key('calendar-day-${_dateKey(cell.date!)}');
+    final scheme = Theme.of(context).colorScheme;
 
-    return Material(
-      key: cellKey,
-      color: isSelected
-          ? Theme.of(context).colorScheme.primaryContainer
-          : Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.15),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 72;
+        final bubbleSize = compact ? 18.0 : 38.0;
+        final amountLineHeight = compact ? 7.0 : 14.0;
+        final amountFontSize = compact ? 5.5 : 8.0;
+        final gap = compact ? 0.0 : AppSpacing.xs;
+
+        return Material(
+          key: cellKey,
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 2,
+                vertical: compact ? 0 : 2,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: bubbleSize,
+                    height: bubbleSize,
+                    alignment: Alignment.center,
+                    decoration: isSelected
+                        ? BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
+                          )
+                        : null,
+                    child: Text(
+                      '${cell.date!.day}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            height: 1,
+                            fontSize: compact ? 10 : 16,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                isSelected ? scheme.primary : scheme.onSurface,
+                          ),
+                    ),
+                  ),
+                  SizedBox(height: gap),
+                  _CalendarAmountLine(
+                    text: hasExpense ? '-${_rawAmount(summary!.expense)}' : '',
+                    color: AppColors.expense,
+                    height: amountLineHeight,
+                    fontSize: amountFontSize,
+                  ),
+                  SizedBox(height: compact ? 0 : 2),
+                  _CalendarAmountLine(
+                    text: hasIncome ? '+${_rawAmount(summary!.income)}' : '',
+                    color: AppColors.income,
+                    height: amountLineHeight,
+                    fontSize: amountFontSize,
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${cell.date!.day}',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontSize: 11,
-                      height: 1,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: _CalendarAmountLine(
-                        text: hasIncome ? '+${_rawAmount(summary!.income)}' : '',
-                        color: AppColors.income,
-                      ),
-                    ),
-                    Expanded(
-                      child: _CalendarAmountLine(
-                        text:
-                            hasExpense ? '-${_rawAmount(summary!.expense)}' : '',
-                        color: AppColors.expense,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -451,6 +444,7 @@ class _InlineMonthPicker extends StatelessWidget {
         const spacing = AppSpacing.sm;
         final cellWidth = ((constraints.maxWidth - (spacing * 2)) / 3)
             .clamp(0.0, constraints.maxWidth);
+        final scheme = Theme.of(context).colorScheme;
 
         return Column(
           key: const Key('calendar-inline-month-picker'),
@@ -460,7 +454,7 @@ class _InlineMonthPicker extends StatelessWidget {
               children: [
                 Text(
                   '${displayedMonth.year}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -493,9 +487,14 @@ class _InlineMonthPicker extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                         vertical: AppSpacing.md,
                       ),
-                      backgroundColor: isSelected
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : null,
+                      side: BorderSide(
+                        color: scheme.outline.withValues(alpha: 0.2),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      backgroundColor:
+                          isSelected ? scheme.primaryContainer : null,
                     ),
                     child: Text('$month월'),
                   ),
@@ -513,31 +512,36 @@ class _CalendarAmountLine extends StatelessWidget {
   const _CalendarAmountLine({
     required this.text,
     required this.color,
+    required this.height,
+    required this.fontSize,
   });
 
   final String text;
   final Color color;
+  final double height;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     if (text.isEmpty) {
-      return const SizedBox.expand();
+      return SizedBox(height: height);
     }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Text(
-          text,
-          maxLines: 1,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontSize: 7,
-                height: 1,
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            text,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: fontSize,
+                  height: 1,
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
         ),
       ),
     );

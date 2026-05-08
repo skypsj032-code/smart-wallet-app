@@ -58,6 +58,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   CalendarReferenceTabs(
+                    activeTab: CalendarReferenceTab.calendar,
                     onOpenTimeline: () => context.go('/timeline'),
                     onOpenStatistics: () => context.go('/statistics'),
                   ),
@@ -214,7 +215,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         DateTime(snapshot.periodStart.year, snapshot.periodStart.month, 1);
     final lastDay =
         DateTime(snapshot.periodStart.year, snapshot.periodStart.month + 1, 0);
-    final leadingEmptyCount = firstDay.weekday - 1;
+    final leadingEmptyCount = firstDay.weekday % 7;
     final summaryByDay = {
       for (final day in snapshot.days) day.date.day: day,
     };

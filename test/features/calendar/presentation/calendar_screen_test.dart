@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
+import 'package:smart_wallet_app/features/calendar/presentation/calendar_reference_tabs.dart';
 import 'package:smart_wallet_app/features/calendar/presentation/calendar_screen.dart';
 import 'package:smart_wallet_app/features/root/presentation/app_shell.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
@@ -96,6 +97,34 @@ void main() {
     expect(find.byKey(const Key('calendar-explorer-handle')), findsNothing);
     expect(find.byKey(const Key('calendar-explorer-panel')), findsNothing);
     expect(find.byKey(const Key('calendar-search-field')), findsNothing);
+  });
+
+  testWidgets('reference tabs trigger the sibling callbacks',
+      (WidgetTester tester) async {
+    var openedTimeline = false;
+    var openedStatistics = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CalendarReferenceTabs(
+            activeTab: CalendarReferenceTab.calendar,
+            onOpenTimeline: () => openedTimeline = true,
+            onOpenStatistics: () => openedStatistics = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('calendar-tab-active-indicator')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('calendar-tab-transactions')));
+    await tester.pump();
+    expect(openedTimeline, isTrue);
+
+    await tester.tap(find.byKey(const Key('calendar-tab-statistics')));
+    await tester.pump();
+    expect(openedStatistics, isTrue);
   });
 
   testWidgets('period flow summary renders before a date is selected',
