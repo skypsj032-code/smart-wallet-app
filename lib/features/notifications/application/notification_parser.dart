@@ -16,6 +16,7 @@ class ParsedNotificationTransaction {
     required this.rawText,
     required this.detectedAt,
     this.cardName,
+    this.suggestedCategoryKeyword,
   });
 
   /// 금액 (원 단위 정수)
@@ -38,6 +39,9 @@ class ParsedNotificationTransaction {
 
   /// 카드/은행 이름 (예: "신한카드", "카카오뱅크")
   final String? cardName;
+
+  /// 추측 카테고리 이름 키워드 (예: "카페", "식비") — null이면 미확정
+  final String? suggestedCategoryKeyword;
 }
 
 /// 알림 Map을 받아 [ParsedNotificationTransaction]으로 변환.
@@ -61,7 +65,7 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
 
   // ── 거래 유형 판단 ─────────────────────────────────────────────
   final isIncome = _containsAny(combined, ['입금', '수신', '급여', '환급', '이자']);
-  final isExpense = _containsAny(combined, ['승인', '사용', '결제', '출금', '이체', '출']);
+  final isExpense = _containsAny(combined, ['승인', '사용', '결제', '출금', '이체']);
   if (!isIncome && !isExpense) return null;
   final type = isIncome ? 'income' : 'expense';
 
@@ -71,6 +75,8 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
   // ── 가맹점/메모 ───────────────────────────────────────────────
   final merchant = _extractMerchant(combined, amountStr);
 
+  final suggestedCategoryKeyword = _guessCategoryKeyword(merchant, combined);
+
   return ParsedNotificationTransaction(
     amount: amount,
     type: type,
@@ -79,6 +85,7 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
     rawText: text,
     detectedAt: detectedAt,
     cardName: cardName,
+    suggestedCategoryKeyword: suggestedCategoryKeyword,
   );
 }
 
@@ -108,35 +115,26 @@ String? _extractCardName(String title) {
   return null;
 }
 
-/// 가맹점명 추출
-/// 금액과 거래 유형 키워드를 제거하고 남은 텍스트에서 첫 의미있는 단어
-String _extractMerchant(String combined, String amountDigits) {
-  // 제거할 패턴들
-  var cleaned = combined
-      .replaceAll(RegExp(r'\[.+?\]'), '')           // 대괄호 카드명
-      .replaceAll(RegExp(r'[\d,]+원'), '')           // 금액
-      .replaceAll(RegExp(r'\d{1,2}/\d{1,2}'), '')   // 날짜 5/7
-      .replaceAll(RegExp(r'\d{2}:\d{2}'), '')        // 시간 14:32
-      .replaceAll(RegExp(r'승인|사용|결제|출금|입금|이체|수신|급여'), '')
-      .replaceAll(RegExp(r'[^\w\s가-힣]'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+/// 상호명·원문을 바탕으로 카테고리 키워드를 추측한다.
+/// 반환값은 DB의 카테고리 이름과 부분 매칭에 쓰인다.
+String? _guessCategoryKeyword(String merchant, String combined) {
+  final text = '$merchant $combined'.toLowerCase();
 
-  // 남은 단어 중 2글자 이상인 것을 가맹점으로
-  final words = cleaned.split(' ').where((w) => w.length >= 2).toList();
-  if (words.isEmpty) return '';
-
-  // 카드/은행 이름과 숫자 단어 제외
-  const skipWords = {
-    '신한카드', 'KB국민카드', '삼성카드', '현대카드', '롯데카드',
-    '하나카드', '우리카드', 'NH카드', 'BC카드', '카카오뱅크',
-    '카카오페이', '토스', '네이버페이', '신한은행', 'KB국민은행',
-    '현금', 'ATM', '자동이체',
-  };
-
-  final merchant = words.firstWhere(
-    (w) => !skipWords.contains(w) && !RegExp(r'^\d+$').hasMatch(w),
-    orElse: () => words.first,
-  );
-  return merchant;
-}
+  // 카페/음료
+  if (_containsAny(text, ['스타벅스', '커피', '카페', '이디야', '빽다방', '할리스', '투썸', '엔제리너스', '폴바셋', '커피빈'])) {
+    return '카페';
+  }
+  // 교통
+  if (_containsAny(text, ['택시', '주유', '주차', '버스', '지하철', '기차', '티머니', 'kt m모빌리티', '카카오택시', 'uber'])) {
+    return '교통';
+  }
+  // 편의점 → 식비
+  if (_containsAny(text, ['gs25', 'cu ', 'cu\t', '세븐일레븐', '미니스톱', '이마트24'])) {
+    return '식비';
+  }
+  // 식비 (배달·외식)
+  if (_containsAny(text, ['맥도날드', '버거킹', 'kfc', '롯데리아', '배달의민족', '요기요', '쿠팡이츠', '피자', '치킨', '떡볶이', '분식', '식당', '레스토랑'])) {
+    return '식비';
+  }
+  // 마트·슈퍼 → 식비
+  i
