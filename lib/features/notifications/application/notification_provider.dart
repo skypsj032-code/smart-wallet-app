@@ -45,6 +45,12 @@ final notificationPermissionGrantedProvider = FutureProvider<bool>((ref) async {
   return NotificationChannel.isPermissionGranted();
 });
 
+/// 배터리 최적화 예외 적용 여부
+final notificationBatteryOptimizationIgnoredProvider =
+    FutureProvider<bool>((ref) async {
+  return NotificationChannel.isBatteryOptimizationIgnored();
+});
+
 /// 마지막으로 처리한 알림의 (금액, 타임스탬프) — 중복 방지용
 final _lastNotificationKey = StateProvider<String?>((ref) => null);
 

@@ -1,9 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Doze Mode 강제 킬 방지: 배터리 최적화 예외 요청 권한 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <application
         android:label="smart_wallet_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

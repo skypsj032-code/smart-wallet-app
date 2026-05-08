@@ -969,6 +969,7 @@ class _NotificationListenerCardState
       onResume: () {
         // 앱 포그라운드 복귀 시 권한 상태 재확인
         ref.invalidate(notificationPermissionGrantedProvider);
+        ref.invalidate(notificationBatteryOptimizationIgnoredProvider);
       },
     );
   }
@@ -981,9 +982,45 @@ class _NotificationListenerCardState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // iOS: 애플 정책상 3rd Party 알림 읽기 불가 → 안내 카드로 대체
+    if (Platform.isIOS) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.notifications_off_outlined, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '자동 결제 감지',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'iOS에서는 애플 정책으로 인해 카드/은행 알림 자동 파싱을 지원하지 않습니다. '
+                '빠른 입력 또는 영수증 OCR로 거래를 직접 기록해 주세요.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final enabled = ref.watch(notificationListenerEnabledProvider);
     final permissionAsync = ref.watch(notificationPermissionGrantedProvider);
-    final theme = Theme.of(context);
+    final batteryOptimizationAsync =
+        ref.watch(notificationBatteryOptimizationIgnoredProvider);
 
     return Card(
       child: Padding(
@@ -1012,21 +1049,11 @@ class _NotificationListenerCardState
             permissionAsync.when(
               data: (granted) {
                 if (granted) {
-                  return Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle_outline_rounded,
-                        size: 14,
-                        color: AppColors.income,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '알림 접근 권한이 허용되어 있습니다.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.income,
-                        ),
-                      ),
-                    ],
+                  return _StatusLine(
+                    icon: Icons.check_circle_outline_rounded,
+                    color: AppColors.income,
+                    message: '알림 접근 권한이 허용되어 있습니다.',
+                    textStyle: theme.textTheme.bodySmall,
                   );
                 }
                 return Column(
@@ -1053,6 +1080,50 @@ class _NotificationListenerCardState
                       onPressed: () => NotificationChannel.openPermissionSettings(),
                       icon: const Icon(Icons.open_in_new_rounded, size: 16),
                       label: const Text('권한 설정 열기'),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            batteryOptimizationAsync.when(
+              data: (ignored) {
+                if (ignored) {
+                  return _StatusLine(
+                    icon: Icons.battery_saver_outlined,
+                    color: AppColors.income,
+                    message: '배터리 최적화 예외가 적용되어 백그라운드 감지가 안정적입니다.',
+                    textStyle: theme.textTheme.bodySmall,
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StatusLine(
+                      icon: Icons.battery_alert_outlined,
+                      color: AppColors.warning,
+                      message: '배터리 최적화가 켜져 있으면 며칠 뒤 자동 기록이 중단될 수 있어요.',
+                      textStyle: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '삼성/샤오미 등 일부 기기에서는 Smart Wallet을 절전 예외로 등록해야 알림 감지가 계속 유지됩니다.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed:
+                          NotificationChannel.openBatteryOptimizationSettings,
+                      icon: const Icon(
+                        Icons.battery_charging_full_rounded,
+                        size: 16,
+                      ),
+                      label: const Text('배터리 최적화 예외 설정'),
                     ),
                   ],
                 );
@@ -1089,6 +1160,37 @@ class _NotificationListenerCardState
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
+    required this.icon,
+    required this.color,
+    required this.message,
+    required this.textStyle,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String message;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            message,
+            style: textStyle?.copyWith(color: color),
+          ),
+        ),
+      ],
     );
   }
 }

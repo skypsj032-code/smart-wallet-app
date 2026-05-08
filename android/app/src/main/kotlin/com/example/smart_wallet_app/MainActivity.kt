@@ -1,5 +1,11 @@
 package com.example.smart_wallet_app
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -41,6 +47,13 @@ class MainActivity : FlutterActivity() {
                     openNotificationListenerSettings()
                     result.success(null)
                 }
+                "isBatteryOptimizationIgnored" -> {
+                    result.success(isIgnoringBatteryOptimizations())
+                }
+                "openBatteryOptimizationSettings" -> {
+                    openBatteryOptimizationSettings()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -57,8 +70,38 @@ class MainActivity : FlutterActivity() {
 
     private fun openNotificationListenerSettings() {
         startActivity(
-            android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
+    }
+
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true
+        }
+
+        val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return false
+        return powerManager.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    private fun openBatteryOptimizationSettings() {
+        val packageUri = Uri.parse("package:$packageName")
+        val requestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            .setData(packageUri)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        try {
+            startActivity(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    requestIntent
+                } else {
+                    fallbackIntent
+                },
+            )
+        } catch (_: ActivityNotFoundException) {
+            startActivity(fallbackIntent)
+        }
     }
 }
