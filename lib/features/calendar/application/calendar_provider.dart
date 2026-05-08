@@ -6,16 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 
-enum CalendarViewMode {
-  day,
-  month,
-  year,
-}
-
 enum CalendarTransactionFilter {
   all,
   income,
   expense,
+}
+
+enum CalendarTransactionSortOrder {
+  newestFirst,
+  oldestFirst,
 }
 
 class CalendarDaySummary {
@@ -34,23 +33,8 @@ class CalendarDaySummary {
   final int matchCount;
 }
 
-class CalendarMonthSummary {
-  const CalendarMonthSummary({
-    required this.monthStart,
-    required this.income,
-    required this.expense,
-  });
-
-  final DateTime monthStart;
-  final int income;
-  final int expense;
-
-  int get net => income - expense;
-}
-
 class CalendarSnapshot {
   const CalendarSnapshot({
-    required this.mode,
     required this.anchorDate,
     required this.periodStart,
     required this.periodEnd,
@@ -59,7 +43,6 @@ class CalendarSnapshot {
     required this.totalExpense,
   });
 
-  final CalendarViewMode mode;
   final DateTime anchorDate;
   final DateTime periodStart;
   final DateTime periodEnd;
@@ -92,8 +75,11 @@ class CalendarHomeMonthPreview {
   final List<CalendarDaySummary> days;
 }
 
-final calendarViewModeProvider =
-    StateProvider<CalendarViewMode>((ref) => CalendarViewMode.month);
+final displayedCalendarMonthProvider = StateProvider<DateTime>((ref) {
+  return _normalizeMonth(DateTime.now());
+});
+
+final calendarMonthPickerOpenProvider = StateProvider<bool>((ref) => false);
 
 final calendarTypeFilterProvider =
     StateProvider<CalendarTransactionFilter>((ref) {
@@ -101,6 +87,11 @@ final calendarTypeFilterProvider =
 });
 
 final calendarSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final calendarTransactionSortOrderProvider =
+    StateProvider<CalendarTransactionSortOrder>(
+  (ref) => CalendarTransactionSortOrder.newestFirst,
+);
 
 final _calendarTodayTickProvider = StreamProvider<DateTime>((ref) async* {
   while (true) {
@@ -123,13 +114,13 @@ final visibleCalendarDateProvider = StateProvider<DateTime>((ref) {
 });
 
 final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
-  final mode = ref.watch(calendarViewModeProvider);
+  final displayedMonth = ref.watch(displayedCalendarMonthProvider);
   final anchorDate = ref.watch(visibleCalendarDateProvider);
   final filter = ref.watch(calendarTypeFilterProvider);
   final query = ref.watch(calendarSearchQueryProvider);
   final database = ref.watch(appDatabaseProvider);
-  final periodStart = _periodStart(anchorDate, mode);
-  final periodEnd = _periodEnd(periodStart, mode);
+  final periodStart = _normalizeMonth(displayedMonth);
+  final periodEnd = DateTime(periodStart.year, periodStart.month + 1, 1);
 
   final transactions = (database.select(database.transactions)
         ..where((t) =>
@@ -198,7 +189,6 @@ final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
       ..sort((a, b) => a.date.compareTo(b.date));
 
     return CalendarSnapshot(
-      mode: mode,
       anchorDate: anchorDate,
       periodStart: periodStart,
       periodEnd: periodEnd,
@@ -207,36 +197,6 @@ final calendarSnapshotProvider = StreamProvider<CalendarSnapshot>((ref) {
       totalExpense: totalExpense,
     );
   });
-});
-
-final calendarMonthSummariesProvider =
-    Provider<List<CalendarMonthSummary>>((ref) {
-  final snapshot = ref.watch(calendarSnapshotProvider).valueOrNull;
-  if (snapshot == null || snapshot.mode != CalendarViewMode.year) {
-    return const <CalendarMonthSummary>[];
-  }
-
-  final monthMap = <int, CalendarMonthSummary>{};
-  for (var month = 1; month <= 12; month++) {
-    monthMap[month] = CalendarMonthSummary(
-      monthStart: DateTime(snapshot.periodStart.year, month, 1),
-      income: 0,
-      expense: 0,
-    );
-  }
-
-  for (final day in snapshot.days) {
-    final month = day.date.month;
-    final current = monthMap[month]!;
-    monthMap[month] = CalendarMonthSummary(
-      monthStart: current.monthStart,
-      income: current.income + day.income,
-      expense: current.expense + day.expense,
-    );
-  }
-
-  return monthMap.values.toList()
-    ..sort((a, b) => a.monthStart.compareTo(b.monthStart));
 });
 
 final selectedCalendarDateProvider = StateProvider<DateTime?>((ref) => null);
@@ -263,6 +223,7 @@ final selectedCalendarTransactionsProvider =
   final selected = ref.watch(selectedCalendarDateProvider);
   final filter = ref.watch(calendarTypeFilterProvider);
   final query = ref.watch(calendarSearchQueryProvider);
+  final sortOrder = ref.watch(calendarTransactionSortOrderProvider);
   if (selected == null) {
     return Stream.value(const <Transaction>[]);
   }
@@ -277,8 +238,13 @@ final selectedCalendarTransactionsProvider =
             t.occurredAt.isBiggerOrEqualValue(dayStart) &
             t.occurredAt.isSmallerThanValue(nextDay))
         ..orderBy([
-          (t) => OrderingTerm.desc(t.occurredAt),
-          (t) => OrderingTerm.desc(t.createdAt),
+          if (sortOrder == CalendarTransactionSortOrder.newestFirst) ...[
+            (t) => OrderingTerm.desc(t.occurredAt),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ] else ...[
+            (t) => OrderingTerm.asc(t.occurredAt),
+            (t) => OrderingTerm.asc(t.createdAt),
+          ],
         ]))
       .watch();
   final categories = database.select(database.categories).watch();
@@ -366,11 +332,9 @@ final calendarHomeMonthPreviewProvider =
 
       grouped[key] = CalendarDaySummary(
         date: key,
-        income:
-            row.type == 'income' ? current.income + row.amount : current.income,
-        expense: row.type == 'expense'
-            ? current.expense + row.amount
-            : current.expense,
+        income: row.type == 'income' ? current.income + row.amount : current.income,
+        expense:
+            row.type == 'expense' ? current.expense + row.amount : current.expense,
         transactionCount: current.transactionCount + 1,
         matchCount: current.matchCount + 1,
       );
@@ -389,28 +353,6 @@ final calendarHomeMonthPreviewProvider =
 void refreshCalendarData(WidgetRef ref) {
   ref.invalidate(calendarSnapshotProvider);
   ref.invalidate(selectedCalendarTransactionsProvider);
-}
-
-DateTime _periodStart(DateTime anchorDate, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.day:
-      return DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
-    case CalendarViewMode.month:
-      return DateTime(anchorDate.year, anchorDate.month, 1);
-    case CalendarViewMode.year:
-      return DateTime(anchorDate.year, 1, 1);
-  }
-}
-
-DateTime _periodEnd(DateTime periodStart, CalendarViewMode mode) {
-  switch (mode) {
-    case CalendarViewMode.day:
-      return periodStart.add(const Duration(days: 1));
-    case CalendarViewMode.month:
-      return DateTime(periodStart.year, periodStart.month + 1, 1);
-    case CalendarViewMode.year:
-      return DateTime(periodStart.year + 1, 1, 1);
-  }
 }
 
 bool _isSameDate(DateTime a, DateTime b) {
@@ -455,6 +397,10 @@ bool _matchesSearchQuery(
 
 DateTime _normalizeDate(DateTime value) {
   return DateTime(value.year, value.month, value.day);
+}
+
+DateTime _normalizeMonth(DateTime value) {
+  return DateTime(value.year, value.month, 1);
 }
 
 extension _CombineLatestExtension<A> on Stream<A> {

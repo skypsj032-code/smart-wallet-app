@@ -14,6 +14,9 @@ class AppScaffold extends StatelessWidget {
     this.hideGlobalQuickPanel = false,
     this.hideAppBar = false,
     this.actions,
+    this.contentPadding,
+    this.backgroundColor,
+    this.appBarBackgroundColor,
   });
 
   final String title;
@@ -23,34 +26,43 @@ class AppScaffold extends StatelessWidget {
   final bool hideGlobalQuickPanel;
   final bool hideAppBar;
   final List<Widget>? actions;
+  final EdgeInsetsGeometry? contentPadding;
+  final Color? backgroundColor;
+  final Color? appBarBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return AppScaffoldScope(
       hideGlobalQuickPanel: hideGlobalQuickPanel,
       child: Scaffold(
+        backgroundColor: backgroundColor,
         appBar: hideAppBar
             ? null
             : AppBar(
                 title: Text(title),
                 actions: actions,
+                backgroundColor: appBarBackgroundColor,
               ),
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet,
         body: SafeArea(
           child: KeyboardAwareBody(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                0,
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+            child: ColoredBox(
+              color: backgroundColor ?? Colors.transparent,
+              child: Padding(
+                padding: contentPadding ??
+                    const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      0,
+                    ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: body,
                 ),
-                child: body,
               ),
             ),
           ),
@@ -78,4 +90,3 @@ class AppScaffoldScope extends InheritedWidget {
     return hideGlobalQuickPanel != oldWidget.hideGlobalQuickPanel;
   }
 }
-
