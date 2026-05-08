@@ -41,6 +41,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   return tx.type == _selectedType;
                 }).toList();
 
+          // 필터된 항목의 수입/지출 합계
+          int totalIncome = 0;
+          int totalExpense = 0;
+          for (final tx in filteredItems) {
+            if (tx.type == 'income') totalIncome += (tx.amount as int);
+            if (tx.type == 'expense') totalExpense += (tx.amount as int);
+          }
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
@@ -53,6 +61,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 totalCount: items.length,
                 visibleCount: filteredItems.length,
                 selectedType: _selectedType,
+                totalIncome: totalIncome,
+                totalExpense: totalExpense,
               ),
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
@@ -144,14 +154,22 @@ class _TimelineSummaryCard extends StatelessWidget {
     required this.totalCount,
     required this.visibleCount,
     required this.selectedType,
+    required this.totalIncome,
+    required this.totalExpense,
   });
 
   final int totalCount;
   final int visibleCount;
   final String? selectedType;
+  final int totalIncome;
+  final int totalExpense;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final net = totalIncome - totalExpense;
+    final netColor = net >= 0 ? AppColors.income : AppColors.expense;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -163,24 +181,55 @@ class _TimelineSummaryCard extends StatelessWidget {
               dotColor: AppColors.primary,
             ),
             const SizedBox(height: AppSpacing.md),
-            const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 Expanded(
                   child: AppMetricStrip(
-                    label: '전체',
-                    value: '$totalCount건',
+                    label: '수입',
+                    value: '+${formatCurrency(totalIncome)}',
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppMetricStrip(
-                    label: '현재 보기',
-                    value: '$visibleCount건',
-                    emphasize: true,
+                    label: '지출',
+                    value: '-${formatCurrency(totalExpense)}',
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '순수익',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${net >= 0 ? '+' : ''}${formatCurrency(net)}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: netColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              selectedType == null
+                  ? '전체 ${totalCount}건'
+                  : '${visibleCount}건 표시 중 (전체 ${totalCount}건)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -316,39 +365,41 @@ class _TimelineList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 날짜별 그룹화 (순서 유지)
     final groupedItems = <String, List<dynamic>>{};
     for (final tx in items) {
       final key = _dateKey(tx.occurredAt);
       groupedItems.putIfAbsent(key, () => []).add(tx);
     }
-
     final dateKeys = groupedItems.keys.toList();
 
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: dateKeys.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, groupIndex) {
-          final key = dateKeys[groupIndex];
-          final transactions = groupedItems[key]!;
+    return Column(
+      children: List.generate(dateKeys.length, (groupIndex) {
+        final key = dateKeys[groupIndex];
+        final transactions = groupedItems[key]!;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
+        // 일간 소계 계산 (이체 제외)
+        int dayIncome = 0;
+        int dayExpense = 0;
+        for (final tx in transactions) {
+          if (tx.type == 'income') dayIncome += (tx.amount as int);
+          if (tx.type == 'expense') dayExpense += (tx.amount as int);
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: groupIndex < dateKeys.length - 1 ? AppSpacing.sm : 0),
+          child: Card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _sectionDateLabel(transactions.first.occurredAt),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                // 날짜 헤더 + 일간 소계
+                _DayGroupHeader(
+                  date: transactions.first.occurredAt as DateTime,
+                  dayIncome: dayIncome,
+                  dayExpense: dayExpense,
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1),
+                // 거래 목록
                 ...List.generate(transactions.length, (index) {
                   final tx = transactions[index];
                   return Column(
@@ -365,8 +416,65 @@ class _TimelineList extends StatelessWidget {
                 }),
               ],
             ),
-          );
-        },
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _DayGroupHeader extends StatelessWidget {
+  const _DayGroupHeader({
+    required this.date,
+    required this.dayIncome,
+    required this.dayExpense,
+  });
+
+  final DateTime date;
+  final int dayIncome;
+  final int dayExpense;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 10,
+      ),
+      child: Row(
+        children: [
+          // 날짜 레이블
+          Text(
+            _sectionDateLabel(date),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const Spacer(),
+          // 수입 소계
+          if (dayIncome > 0) ...[
+            Text(
+              '+${formatCurrency(dayIncome)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.income,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          // 지출 소계
+          if (dayExpense > 0) ...[
+            if (dayIncome > 0) const SizedBox(width: 8),
+            Text(
+              '-${formatCurrency(dayExpense)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.expense,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -425,130 +533,4 @@ class _TimelineTile extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatAmount(transaction.type, transaction.amount),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: accentColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _timeLabel(transaction.occurredAt),
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: '더보기',
-              onSelected: (value) {
-                if (value == 'edit') {
-                  onEdit();
-                } else if (value == 'delete') {
-                  onDelete();
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem<String>(
-                  value: 'edit',
-                  child: Text('수정'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Text('숨기기'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _typeLabel(String type) {
-  switch (type) {
-    case 'expense':
-      return '지출';
-    case 'income':
-      return '수입';
-    case 'transfer':
-    case 'transfer_reserved':
-      return '이체';
-    default:
-      return type;
-  }
-}
-
-String _primaryLabel(dynamic tx) {
-  if ((tx.merchantName as String?)?.trim().isNotEmpty ?? false) {
-    return tx.merchantName as String;
-  }
-  if ((tx.memo as String?)?.trim().isNotEmpty ?? false) {
-    return tx.memo as String;
-  }
-  return _typeLabel(tx.type as String);
-}
-
-String _secondaryLabel(dynamic tx) {
-  final type = _typeLabel(tx.type as String);
-  final memo = (tx.memo as String?)?.trim() ?? '';
-  final merchant = (tx.merchantName as String?)?.trim() ?? '';
-
-  if (memo.isNotEmpty && memo != merchant) {
-    return '$type · $memo';
-  }
-  return type;
-}
-
-String _formatAmount(String type, int amount) {
-  final formatted = formatCurrency(amount);
-  switch (type) {
-    case 'expense':
-      return '-$formatted';
-    case 'income':
-      return '+$formatted';
-    default:
-      return formatted;
-  }
-}
-
-String _timeLabel(DateTime dateTime) {
-  final hour = dateTime.hour.toString().padLeft(2, '0');
-  final minute = dateTime.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
-}
-
-String _dateKey(DateTime dateTime) {
-  final month = dateTime.month.toString().padLeft(2, '0');
-  final day = dateTime.day.toString().padLeft(2, '0');
-  return '${dateTime.year}-$month-$day';
-}
-
-String _sectionDateLabel(DateTime dateTime) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final target = DateTime(dateTime.year, dateTime.month, dateTime.day);
-  final difference = today.difference(target).inDays;
-
-  if (difference == 0) {
-    return '오늘';
-  }
-  if (difference == 1) {
-    return '어제';
-  }
-
-  final month = dateTime.month.toString().padLeft(2, '0');
-  final day = dateTime.day.toString().padLeft(2, '0');
-  return '${dateTime.year}년 $month월 $day일';
-}
+            Expan
