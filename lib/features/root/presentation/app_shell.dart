@@ -6,8 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../budgets/application/budget_alert_provider.dart';
+import '../../notifications/presentation/notification_transaction_banner.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -22,52 +25,69 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
   static const _exitGracePeriod = Duration(seconds: 2);
 
   late final TextEditingController _amountController;
   late final ScrollController _primaryScrollController;
   DateTime? _lastBackPressedAt;
+  bool _obscured = false; // 멀티태스킹/스위처 노출 방지
 
   @override
   void initState() {
     super.initState();
     _amountController = TextEditingController();
     _primaryScrollController = ScrollController();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _amountController.dispose();
     _primaryScrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final shouldObscure = state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused;
+    if (shouldObscure != _obscured) {
+      setState(() => _obscured = shouldObscure);
+    }
+  }
+
   int _locationToIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/timeline')) {
-      return 1;
-    }
-    if (location.startsWith('/tools') ||
-        location.startsWith('/calendar') ||
-        location.startsWith('/statistics') ||
-        location.startsWith('/search') ||
-        location.startsWith('/accounts') ||
-        location.startsWith('/budgets') ||
-        location.startsWith('/ocr') ||
-        location.startsWith('/recurring-expenses')) {
-      return 2;
-    }
-    if (location.startsWith('/settings')) {
-      return 3;
-    }
-    return 0;
+    return routeTabIndex(location);
   }
 
   @override
   Widget build(BuildContext context) {
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
+
+    // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
+    ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
+      if (event == null || !context.mounted) return;
+      final (icon, label) = switch (event.level) {
+        BudgetAlertLevel.half => ('⚠️', '${event.label} 예산 50% 소진됐어요.'),
+        BudgetAlertLevel.warning => ('🔶', '${event.label} 예산 80% 소진됐어요.'),
+        BudgetAlertLevel.exceeded => ('🚨', '${event.label} 예산을 초과했어요!'),
+      };
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('$icon $label'),
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    });
     final location = GoRouterState.of(context).uri.toString();
     final hideGlobalQuickPanel =
         location.startsWith('/quick-entry') || location.startsWith('/lock');
@@ -91,49 +111,69 @@ class _AppShellState extends ConsumerState<AppShell> {
           }
         },
         child: Scaffold(
-          body: ClipRect(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              reverseDuration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              transitionBuilder: (child, animation) {
-                final curved = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                );
+          body: Stack(
+            children: [
+              ClipRect(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  reverseDuration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  layoutBuilder: (currentChild, previousChildren) {
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    );
+                  },
+                  transitionBuilder: (child, animation) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    );
 
-                return ColoredBox(
-                  color: theme.scaffoldBackgroundColor,
-                  child: FadeTransition(
-                    opacity: curved,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.025, 0),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: child,
-                    ),
+                    return ColoredBox(
+                      color: theme.scaffoldBackgroundColor,
+                      child: FadeTransition(
+                        opacity: curved,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.025, 0),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(location),
+                    child: widget.child,
                   ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(location),
-                child: widget.child,
+                ),
               ),
-            ),
+              // 알림 감지 배너 — 화면 최상단에 오버레이
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: NotificationTransactionBanner(),
+              ),
+              // 멀티태스킹/앱 스위처 금융정보 노출 방지
+              if (_obscured)
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: const ColoredBox(color: Colors.transparent),
+                  ),
+                ),
+            ],
           ),
-          bottomNavigationBar: Listener(
+          bottomNavigationBar: RepaintBoundary(
+            child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerSignal: _forwardPointerScroll,
             child: ClipRect(
@@ -263,6 +303,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                                         color: theme.colorScheme.onSurface,
                                       ),
                                       keyboardType: TextInputType.number,
+                                      maxLength: 12,
+                                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
                                       ],
@@ -348,7 +390,8 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
             ),
           ),
-        ),
+          ),
+        ), // RepaintBoundary
       ),
     );
   }
@@ -391,7 +434,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     notifier.reset();
     notifier.setType(form.type);
     notifier.setAmount(form.amount);
-    context.go('/quick-entry');
+    // push: 현재 화면 위에 하단 슬라이드로 진입 (화면 이탈 없음)
+    context.push('/quick-entry');
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
@@ -411,26 +455,4 @@ class _AppShellState extends ConsumerState<AppShell> {
     final now = DateTime.now();
     final lastBackPressedAt = _lastBackPressedAt;
     final shouldExit = lastBackPressedAt != null &&
-        now.difference(lastBackPressedAt) <= _exitGracePeriod;
-
-    if (shouldExit) {
-      return true;
-    }
-
-    _lastBackPressedAt = now;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
-          duration: _exitGracePeriod,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    return false;
-  }
-
-  bool _isHomeLocation(String location) {
-    return location == '/' || location.startsWith('/?');
-  }
-}
+        now.difference(l

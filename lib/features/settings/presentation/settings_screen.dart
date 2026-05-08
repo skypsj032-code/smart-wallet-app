@@ -25,6 +25,12 @@ import 'csv_export_options_dialog.dart';
 import 'csv_import_dialog.dart';
 import 'lock_setup_dialog.dart';
 
+/// 최근 30일간 감지된 알림 건수
+final _recentNotificationCountProvider = FutureProvider.autoDispose<int>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.countRecentNotificationHistories(dayRange: 30);
+});
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -163,7 +169,11 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.history_rounded,
                 color: AppColors.primary,
                 title: '알림 수신 이력',
-                subtitle: '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                subtitle: ref.watch(_recentNotificationCountProvider).when(
+                      data: (count) => '지난 30일간 감지된 알림 $count건',
+                      loading: () => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                      error: (_, __) => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                    ),
                 onTap: () => context.go('/notification-history'),
               ),
             ],
@@ -369,7 +379,7 @@ class SettingsScreen extends ConsumerWidget {
       final fileInfo = File(result.files.single.path!);
       final jsonStr = await fileInfo.readAsString();
       final backupService = ref.read(backupServiceProvider);
-      final preview = backupService.inspectJsonBackup(jsonStr);
+      final preview = await backupService.inspectJsonBackup(jsonStr);
 
       if (!context.mounted) {
         return;
@@ -1049,23 +1059,4 @@ class _NotificationListenerCardState
       builder: (dialogContext) => AlertDialog(
         title: const Text('알림 접근 권한 필요'),
         content: const Text(
-          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 필요해요.\n\n'
-          '설정 → 앱 → 알림 접근에서 Smart Wallet을 허용해 주세요.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              NotificationChannel.openPermissionSettings();
-            },
-            child: const Text('설정 열기'),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 

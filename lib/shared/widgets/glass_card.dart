@@ -23,26 +23,29 @@ class GlassCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final br = borderRadius ?? BorderRadius.circular(AppRadius.xl);
 
-    return ClipRRect(
-      borderRadius: br,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.07)
-                : Colors.white.withValues(alpha: 0.86),
-            borderRadius: br,
-            border: Border.all(
+    // RepaintBoundary: BackdropFilter가 scroll tick마다 재계산되지 않도록 격리
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: br,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.10)
-                  : const Color(0xFFBFA978).withValues(alpha: 0.46),
-              width: 0.8,
+                  ? Colors.white.withValues(alpha: 0.07)
+                  : Colors.white.withValues(alpha: 0.86),
+              borderRadius: br,
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : const Color(0xFFBFA978).withValues(alpha: 0.46),
+                width: 0.8,
+              ),
             ),
+            child: padding != null
+                ? Padding(padding: padding!, child: child)
+                : child,
           ),
-          child: padding != null
-              ? Padding(padding: padding!, child: child)
-              : child,
         ),
       ),
     );

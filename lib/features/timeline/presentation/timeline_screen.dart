@@ -22,30 +22,21 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  String? _selectedType;
-
   @override
   Widget build(BuildContext context) {
     final timelineAsync = ref.watch(timelineTransactionsProvider);
+    final selectedType = ref.watch(timelineSelectedTypeProvider);
 
     return AppScaffold(
       title: '내역',
       body: timelineAsync.when(
-        data: (items) {
-          final filteredItems = _selectedType == null
-              ? items
-              : items.where((tx) {
-                  if (_selectedType == 'transfer') {
-                    return tx.type == 'transfer' ||
-                        tx.type == 'transfer_reserved';
-                  }
-                  return tx.type == _selectedType;
-                }).toList();
+        data: (snapshot) {
+          final items = snapshot.items;
 
           // 필터된 항목의 수입/지출 합계
           int totalIncome = 0;
           int totalExpense = 0;
-          for (final tx in filteredItems) {
+          for (final tx in items) {
             if (tx.type == 'income') totalIncome += tx.amount;
             if (tx.type == 'expense') totalExpense += tx.amount;
           }
@@ -59,36 +50,36 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             children: [
               _TimelineSummaryCard(
-                totalCount: items.length,
-                visibleCount: filteredItems.length,
-                selectedType: _selectedType,
+                totalCount: snapshot.totalCount,
+                visibleCount: items.length,
+                selectedType: selectedType,
                 totalIncome: totalIncome,
                 totalExpense: totalExpense,
               ),
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
                 title: '필터',
-                trailing: filteredItems.isEmpty
+                trailing: items.isEmpty
                     ? null
                     : AppStatusChip(
-                        label: '${filteredItems.length}건',
+                        label: '${items.length}건',
                         dotColor: AppColors.primary,
                       ),
               ),
               const SizedBox(height: AppSpacing.sm),
               _TypeFilterBar(
-                selectedType: _selectedType,
-                onSelected: (type) => setState(() => _selectedType = type),
+                selectedType: selectedType,
+                onSelected: (type) => selectTimelineType(ref, type),
               ),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
                 title: '최근 내역',
               ),
               const SizedBox(height: AppSpacing.sm),
-              filteredItems.isEmpty
-                  ? _TimelineEmptyState(selectedType: _selectedType)
+              items.isEmpty
+                  ? _TimelineEmptyState(selectedType: selectedType)
                   : _TimelineList(
-                      items: filteredItems,
+                      items: items,
                       onEdit: (tx) {
                         ref
                             .read(quickEntryFormProvider.notifier)
@@ -97,6 +88,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       },
                       onDelete: (tx) => _deleteTransaction(context, tx),
                     ),
+              if (snapshot.hasMore) ...[
+                const SizedBox(height: AppSpacing.md),
+                _TimelineLoadMoreButton(
+                  loadedCount: items.length,
+                  totalCount: snapshot.totalCount,
+                  onPressed: () => loadMoreTimelineItems(ref),
+                ),
+              ],
             ],
           );
         },
@@ -136,17 +135,26 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       return;
     }
 
-    await ref
-        .read(transactionRepositoryProvider)
-        .softDeleteTransaction(tx.localId);
+    final repo = ref.read(transactionRepositoryProvider);
+    await repo.softDeleteTransaction(tx.localId);
 
     if (!context.mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('거래를 타임라인에서 숨겼습니다.')),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('거래를 숨겼습니다.'),
+          action: SnackBarAction(
+            label: '되돌리기',
+            onPressed: () => repo.undoDeleteTransaction(tx.localId),
+          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 }
 
@@ -388,7 +396,8 @@ class _TimelineList extends StatelessWidget {
         }
 
         return Padding(
-          padding: EdgeInsets.only(bottom: groupIndex < dateKeys.length - 1 ? AppSpacing.sm : 0),
+          padding: EdgeInsets.only(
+              bottom: groupIndex < dateKeys.length - 1 ? AppSpacing.sm : 0),
           child: Card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,6 +430,45 @@ class _TimelineList extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+}
+
+class _TimelineLoadMoreButton extends StatelessWidget {
+  const _TimelineLoadMoreButton({
+    required this.loadedCount,
+    required this.totalCount,
+    required this.onPressed,
+  });
+
+  final int loadedCount;
+  final int totalCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          children: [
+            Text(
+              '$loadedCount / $totalCount',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton(
+              key: const Key('timeline-load-more-button'),
+              onPressed: onPressed,
+              child: const Text('더 보기'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -715,16 +763,4 @@ String _sectionDateLabel(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final target = DateTime(dateTime.year, dateTime.month, dateTime.day);
-  final difference = today.difference(target).inDays;
-
-  if (difference == 0) {
-    return '오늘';
-  }
-  if (difference == 1) {
-    return '어제';
-  }
-
-  final month = dateTime.month.toString().padLeft(2, '0');
-  final day = dateTime.day.toString().padLeft(2, '0');
-  return '${dateTime.year}년 $month월 $day일';
-}
+  final difference = today.

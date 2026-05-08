@@ -16,7 +16,8 @@ class OcrCaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<OcrCaptureScreen> createState() => _OcrCaptureScreenState();
 }
 
-class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
+class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
+    with WidgetsBindingObserver {
   CameraController? _controller;
   bool _initializing = true;
   String? _cameraError;
@@ -24,6 +25,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (isOcrPlatformSupported) {
       _setupCamera();
       return;
@@ -34,8 +36,22 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      controller.pausePreview();
+    } else if (state == AppLifecycleState.resumed) {
+      controller.resumePreview();
+    }
   }
 
   Future<void> _setupCamera() async {

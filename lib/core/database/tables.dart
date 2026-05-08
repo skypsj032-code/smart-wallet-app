@@ -1,5 +1,13 @@
 import 'package:drift/drift.dart';
 
+@TableIndex.sql('''
+  CREATE INDEX transactions_timeline_idx
+  ON transactions (deleted_at, occurred_at DESC, created_at DESC);
+''')
+@TableIndex.sql('''
+  CREATE INDEX transactions_category_timeline_idx
+  ON transactions (deleted_at, category_id, occurred_at DESC);
+''')
 class Transactions extends Table {
   TextColumn get localId => text()();
   TextColumn get type => text()();
@@ -42,9 +50,12 @@ class Budgets extends Table {
   TextColumn get monthKey => text()();
   TextColumn get categoryId => text().nullable()();
   IntColumn get amountLimit => integer()();
-  BoolColumn get alert50Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert80Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert100Enabled => boolean().withDefault(const Constant(true))();
+  BoolColumn get alert50Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert80Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert100Enabled =>
+      boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get lastModifiedAt => dateTime()();
 
@@ -95,8 +106,10 @@ class AppSettings extends Table {
   TextColumn get themeMode => text().withDefault(const Constant('system'))();
   IntColumn get defaultCategorySeedVersion =>
       integer().withDefault(const Constant(0))();
-  BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
-  BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get appLockEnabled =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get biometricEnabled =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get exportIncludeDeleted =>
       boolean().withDefault(const Constant(false))();
   TextColumn get pinCode => text().nullable()();

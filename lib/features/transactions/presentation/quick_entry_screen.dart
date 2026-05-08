@@ -23,21 +23,43 @@ class QuickEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<QuickEntryScreen> createState() => _QuickEntryScreenState();
 }
 
-class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
-  late final TextEditingController _amountController;
-  late final TextEditingController _memoController;
+class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
+    with RestorationMixin {
+  final _amountController = RestorableTextEditingController();
+  final _memoController = RestorableTextEditingController();
+  late final FocusNode _amountFocusNode;
+  late final FocusNode _memoFocusNode;
+
+  /// OS 프로세스 킬 후 복원 중일 때 true.
+  /// 첫 build()에서 Riverpod→컨트롤러 동기화를 건너뛰고
+  /// 대신 컨트롤러→Riverpod 방향으로 복원한다.
+  bool _isRestoring = false;
+
+  @override
+  String? get restorationId => 'quick_entry_screen';
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    registerForRestoration(_amountController, 'amount');
+    registerForRestoration(_memoController, 'memo');
+    if (initialRestore) {
+      _isRestoring = true;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController();
-    _memoController = TextEditingController();
+    _amountFocusNode = FocusNode();
+    _memoFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _amountController.dispose();
     _memoController.dispose();
+    _amountFocusNode.dispose();
+    _memoFocusNode.dispose();
     super.dispose();
   }
 
@@ -52,8 +74,22 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       quickEntryCategoriesProvider(_categoryTypeFor(form.type)),
     );
 
-    _syncController(_amountController, form.amount);
-    _syncController(_memoController, form.memo);
+    if (_isRestoring) {
+      // 복원 첫 프레임: 컨트롤러에 저장된 값 → Riverpod으로 역방향 동기화.
+      // _syncController를 건너뛰어 복원된 텍스트가 빈 Riverpod 값에 덮이는 것을 방지.
+      _isRestoring = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final notifier = ref.read(quickEntryFormProvider.notifier);
+        final restoredAmount = _amountController.value.text;
+        final restoredMemo = _memoController.value.text;
+        if (restoredAmount.isNotEmpty) notifier.setAmount(restoredAmount);
+        if (restoredMemo.isNotEmpty) notifier.setMemo(restoredMemo);
+      });
+    } else {
+      _syncController(_amountController.value, form.amount);
+      _syncController(_memoController.value, form.memo);
+    }
 
     accountsAsync.whenData((accounts) {
       if (accounts.isEmpty) {
@@ -169,8 +205,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           _AmountPanel(
-            controller: _amountController,
-            memoController: _memoController,
+            controller: _amountController.value,
+            memoController: _memoController.value,
+            amountFocusNode: _amountFocusNode,
+            memoFocusNode: _memoFocusNode,
             form: form,
             occurredAt: occurredAt,
             selectedAccountName: selectedAccountName,
@@ -1048,10 +1086,14 @@ class _AmountPanel extends StatelessWidget {
     required this.selectedCategoryName,
     required this.onAmountChanged,
     required this.onMemoChanged,
+    this.amountFocusNode,
+    this.memoFocusNode,
   });
 
   final TextEditingController controller;
   final TextEditingController memoController;
+  final FocusNode? amountFocusNode;
+  final FocusNode? memoFocusNode;
   final QuickEntryFormState form;
   final DateTime occurredAt;
   final String? selectedAccountName;
@@ -1089,7 +1131,10 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: controller,
+              focusNode: amountFocusNode,
               onChanged: onAmountChanged,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => memoFocusNode?.requestFocus(),
               textAlign: TextAlign.center,
               style: theme.textTheme.headlineLarge?.copyWith(
                 fontSize: 46,
@@ -1117,6 +1162,8 @@ class _AmountPanel extends StatelessWidget {
                 ),
               ),
               keyboardType: TextInputType.number,
+              maxLength: 12,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
             Container(
@@ -1135,9 +1182,11 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: memoController,
+              focusNode: memoFocusNode,
               onChanged: onMemoChanged,
               maxLines: 2,
               minLines: 1,
+              textInputAction: TextInputAction.done,
               decoration: const InputDecoration(
                 labelText: '메모',
                 hintText: '예: 점심, 병원, 급여, 카드값 정리',
@@ -1439,86 +1488,4 @@ class _ValidationCard extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              messages.join(' '),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.expense,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineErrorText extends StatelessWidget {
-  const _InlineErrorText({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      message,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.expense,
-          ),
-    );
-  }
-}
-
-class _InlineWarningCard extends StatelessWidget {
-  const _InlineWarningCard({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.actionLabel,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String actionLabel;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(message),
-          const SizedBox(height: AppSpacing.md),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton(
-              onPressed: onPressed,
-              child: Text(actionLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+              messages.join(' 

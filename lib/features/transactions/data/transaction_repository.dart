@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../application/quick_entry_form_provider.dart';
+import 'transaction_repository_interface.dart';
 
-class TransactionRepository {
+class TransactionRepository implements ITransactionRepository {
   TransactionRepository(this._database);
 
   final AppDatabase _database;
@@ -154,6 +155,18 @@ class TransactionRepository {
     );
   }
 
+  Future<void> undoDeleteTransaction(String localId) async {
+    final now = DateTime.now();
+    await (_database.update(_database.transactions)
+          ..where((tbl) => tbl.localId.equals(localId)))
+        .write(
+          TransactionsCompanion(
+            deletedAt: const Value(null),
+            lastModifiedAt: Value(now),
+          ),
+        );
+  }
+
   Future<void> softDeleteTransaction(String localId) async {
     final existing = await (_database.select(_database.transactions)
           ..where((tbl) => tbl.localId.equals(localId)))
@@ -176,20 +189,4 @@ class TransactionRepository {
         );
   }
 
-  String _mapType(TransactionEntryType type) {
-    switch (type) {
-      case TransactionEntryType.expense:
-        return 'expense';
-      case TransactionEntryType.income:
-        return 'income';
-      case TransactionEntryType.transfer:
-        return 'transfer';
-    }
-  }
-}
-
-final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return TransactionRepository(database);
-});
-
+  String _mapType(TransactionEntryType type)

@@ -55,13 +55,33 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
   final combined = '$title $text';
 
   // ── 금액 추출 ──────────────────────────────────────────────────
-  // 패턴: 숫자(콤마 포함)원   예) 5,000원 / 50000원
-  final amountMatch = RegExp(r'([\d,]+)원').firstMatch(combined);
-  if (amountMatch == null) return null;
+  // 1순위: 한국 원화 (5,000원 / 50000원)
+  // 2순위: 외화 → 원화 환산 없이 그대로 정수로 저장
+  //   USD $12.50  → 12 (달러 부분만)
+  //   JPY ¥1,200  → 1200
+  //   EUR €9.99   → 9
+  // 파싱된 순수 숫자 문자열 (콤마 제거) — _extractMerchant에서 잔여 텍스트 정리에 사용
+  String parsedAmountDigits;
+  final int amount;
 
-  final amountStr = amountMatch.group(1)!.replaceAll(',', '');
-  final amount = int.tryParse(amountStr);
-  if (amount == null || amount <= 0) return null;
+  final amountMatch = RegExp(r'([\d,]+)원').firstMatch(combined);
+  if (amountMatch != null) {
+    parsedAmountDigits = amountMatch.group(1)!.replaceAll(',', '');
+    final parsed = int.tryParse(parsedAmountDigits);
+    if (parsed == null || parsed <= 0) return null;
+    amount = parsed;
+  } else {
+    // 외화 패턴: $12.50 / USD 12.50 / ¥1,200 / €9.99 / £15
+    final foreignMatch = RegExp(
+      r'(?:USD|EUR|JPY|GBP|CNY|AUD|CAD|CHF|\$|€|¥|£)\s*([\d,]+)',
+      caseSensitive: false,
+    ).firstMatch(combined);
+    if (foreignMatch == null) return null;
+    parsedAmountDigits = foreignMatch.group(1)!.replaceAll(',', '');
+    final parsed = int.tryParse(parsedAmountDigits);
+    if (parsed == null || parsed <= 0) return null;
+    amount = parsed;
+  }
 
   // ── 거래 유형 판단 ─────────────────────────────────────────────
   final isIncome = _containsAny(combined, ['입금', '수신', '급여', '환급', '이자']);
@@ -73,7 +93,7 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
   final cardName = _extractCardName(title);
 
   // ── 가맹점/메모 ───────────────────────────────────────────────
-  final merchant = _extractMerchant(combined, amountStr);
+  final merchant = _extractMerchant(combined, parsedAmountDigits);
 
   final suggestedCategoryKeyword = _guessCategoryKeyword(merchant, combined);
 
@@ -173,25 +193,4 @@ String _extractMerchant(String combined, String amountDigits) {
       .replaceAll(RegExp(r'승인|사용|결제|출금|입금|이체|수신|급여'), '')
       .replaceAll(RegExp(r'[^\w\s가-힣A-Za-z0-9]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
-  // 남은 단어 중 2글자 이상인 것을 가맹점으로
-  final words = cleaned.split(' ').where((w) => w.length >= 2).toList();
-  if (words.isEmpty) return '';
-
-  // 카드/은행 이름과 숫자 단어 제외
-  const skipWords = {
-    '신한카드', 'KB국민카드', '삼성카드', '현대카드', '롯데카드',
-    '하나카드', '우리카드', 'NH카드', 'BC카드',
-    '카카오뱅크', '카카오페이', '토스뱅크', '토스', '케이뱅크',
-    '네이버페이', 'SSG페이', '페이코',
-    '신한은행', 'KB국민은행', '우리은행', '하나은행', '농협', '기업은행', '우체국',
-    '현금', 'ATM', '자동이체',
-  };
-
-  final merchant = words.firstWhere(
-    (w) => !skipWords.contains(w) && !RegExp(r'^\d+$').hasMatch(w),
-    orElse: () => words.first,
-  );
-  return merchant;
-}
+      .tri

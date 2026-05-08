@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+import '../application/pin_security.dart';
 
 class LockSetupDialog extends ConsumerStatefulWidget {
   const LockSetupDialog({
@@ -56,11 +54,6 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
     super.dispose();
   }
 
-  String _hashPin(String pin) {
-    final bytes = utf8.encode(pin);
-    return sha256.convert(bytes).toString();
-  }
-
   Future<void> _savePin() async {
     if (_isSaving) {
       return;
@@ -94,7 +87,7 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
         await db.into(db.appSettings).insert(
               AppSettingsCompanion.insert(
                 appLockEnabled: const drift.Value(true),
-                pinCode: drift.Value(_hashPin(pin)),
+                pinCode: drift.Value(hashPin(pin)),
                 createdAt: now,
                 lastModifiedAt: now,
               ),
@@ -103,7 +96,7 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
         await db.update(db.appSettings).replace(
               settings.copyWith(
                 appLockEnabled: true,
-                pinCode: drift.Value(_hashPin(pin)),
+                pinCode: drift.Value(hashPin(pin)),
                 lastModifiedAt: now,
               ),
             );

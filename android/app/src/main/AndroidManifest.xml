@@ -26,6 +26,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 알림 리스너 서비스 — 카드/은행 알림을 읽어 거래 자동 입력 제안 -->
+        <service
+            android:name=".SmartWalletNotificationService"
+            android:label="Smart Wallet 알림 서비스"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

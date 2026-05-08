@@ -79,7 +79,7 @@ class OcrDraftState {
   }
 }
 
-class OcrCaptureController extends Notifier<OcrDraftState> {
+class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
   @override
   OcrDraftState build() => const OcrDraftState();
 
@@ -339,6 +339,5 @@ class OcrCaptureController extends Notifier<OcrDraftState> {
   }
 }
 
-final ocrCaptureProvider = NotifierProvider<OcrCaptureController, OcrDraftState>(
-  OcrCaptureController.new,
-);
+/// OCR 화면 종료 시 draft 상태 자동 해제 (DB에 이미 영속화되므로 안전).
+final o

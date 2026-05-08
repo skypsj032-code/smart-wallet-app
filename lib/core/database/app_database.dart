@@ -26,10 +26,13 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON;');
+        },
         onCreate: (Migrator m) async {
           await m.createAll();
         },
@@ -118,6 +121,16 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             await m.createTable(notificationHistories);
           }
+          if (from < 8) {
+            await customStatement('''
+              CREATE INDEX IF NOT EXISTS transactions_timeline_idx
+              ON transactions (deleted_at, occurred_at DESC, created_at DESC);
+            ''');
+            await customStatement('''
+              CREATE INDEX IF NOT EXISTS transactions_category_timeline_idx
+              ON transactions (deleted_at, category_id, occurred_at DESC);
+            ''');
+          }
         },
       );
 
@@ -144,7 +157,8 @@ class AppDatabase extends _$AppDatabase {
         (select(categories)..where((c) => c.isActive.equals(true))).watch();
 
     return monthlyBudgets.combineLatest(
-      monthlyExpenses.combineLatest(activeCategories, (txs, cats) => (txs, cats)),
+      monthlyExpenses.combineLatest(
+          activeCategories, (txs, cats) => (txs, cats)),
       (bgs, payload) {
         final txs = payload.$1;
         final cats = payload.$2;
@@ -201,7 +215,8 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Stream<List<NotificationHistory>> watchNotificationHistories({int limit = 100}) {
+  Stream<List<NotificationHistory>> watchNotificationHistories(
+      {int limit = 100}) {
     return (select(notificationHistories)
           ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)])
           ..limit(limit))
@@ -214,22 +229,60 @@ class AppDatabase extends _$AppDatabase {
         .get();
     if (all.length <= keepCount) return;
     final toDelete = all.sublist(keepCount).map((h) => h.id).toList();
-    await (delete(notificationHistories)
-          ..where((h) => h.id.isIn(toDelete)))
+    await (delete(notificationHistories)..where((h) => h.id.isIn(toDelete)))
         .go();
   }
 
+  /// 최근 [dayRange]일간 감지된 알림 건수를 반환한다.
+  Future<int> countRecentNotificationHistories({int dayRange = 30}) async {
+    final since = DateTime.now().subtract(Duration(days: dayRange));
+    final countExpr = notificationHistories.id.count();
+    final query = selectOnly(notificationHistories)
+      ..addColumns([countExpr])
+      ..where(notificationHistories.detectedAt.isBiggerThanValue(since));
+    final row = await query.getSingle();
+    return row.read(countExpr) ?? 0;
+  }
+
   // ── 타임라인 ────────────────────────────────────────────────────────────────
-  Stream<List<Transaction>> watchTimelineTransactions() {
+  Stream<int> watchTimelineTransactionCount({String? typeFilter}) {
+    final countExpression = transactions.localId.count();
+    final query = selectOnly(transactions)
+      ..addColumns([countExpression])
+      ..where(_timelineFilterExpression(transactions, typeFilter));
+
+    return query.watchSingle().map((row) => row.read(countExpression) ?? 0);
+  }
+
+  Stream<List<Transaction>> watchTimelineTransactions({
+    required int limit,
+    String? typeFilter,
+  }) {
     return (select(transactions)
-          ..where((t) => t.deletedAt.isNull())
+          ..where((table) => _timelineFilterExpression(table, typeFilter))
           ..orderBy([
             (t) => OrderingTerm.desc(t.occurredAt),
             (t) => OrderingTerm.desc(t.createdAt),
-          ]))
+          ])
+          ..limit(limit))
         .watch();
   }
 
+  Expression<bool> _timelineFilterExpression(
+    $TransactionsTable table,
+    String? typeFilter,
+  ) {
+    final activeRows = table.deletedAt.isNull();
+    if (typeFilter == null) {
+      return activeRows;
+    }
+    if (typeFilter == 'transfer') {
+      return activeRows &
+          (table.type.equals('transfer') |
+              table.type.equals('transfer_reserved'));
+    }
+    return activeRows & table.type.equals(typeFilter);
+  }
 }
 
 // ── StreamCombineLatest 유틸 ──────────────────────────────────────────────────
@@ -255,31 +308,4 @@ extension _CombineLatestExtension<A> on Stream<A> {
 
     subA = listen(
       (value) {
-        latestA = value;
-        hasA = true;
-        emitIfReady();
-      },
-      onError: controller.addError,
-      onDone: () async {
-        await subB.cancel();
-        await controller.close();
-      },
-    );
-
-    subB = other.listen(
-      (value) {
-        latestB = value;
-        hasB = true;
-        emitIfReady();
-      },
-      onError: controller.addError,
-    );
-
-    controller.onCancel = () async {
-      await subA.cancel();
-      await subB.cancel();
-    };
-
-    return controller.stream;
-  }
-}
+    

@@ -120,6 +120,11 @@ class BudgetScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSpacing.xs),
+                    // 카테고리 예산 비교 차트 (2개 이상일 때만 표시)
+                    if (categorizedItems.length >= 2) ...[
+                      _CategoryBudgetChartCard(items: categorizedItems),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                     if (categorizedItems.isEmpty)
                       Card(
                         child: Padding(
@@ -486,6 +491,121 @@ class _BudgetEditorResult {
 
   final String? categoryId;
   final int amountLimit;
+}
+
+/// 카테고리별 예산 사용량을 수평 막대 차트로 보여주는 요약 카드
+class _CategoryBudgetChartCard extends StatelessWidget {
+  const _CategoryBudgetChartCard({required this.items});
+
+  final List<BudgetSummaryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // 사용률 내림차순 정렬
+    final sorted = [...items]..sort((a, b) => b.progress.compareTo(a.progress));
+    // 최대 limitAmount 기준으로 막대 너비 비율 산정
+    final maxLimit = sorted.fold(1, (m, i) => i.limitAmount > m ? i.limitAmount : m);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '카테고리 비교',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ...sorted.map((item) {
+              final barColor = _progressColor(item.progress);
+              final spentRatio = (item.spentAmount / maxLimit).clamp(0.0, 1.0);
+              final limitRatio = (item.limitAmount / maxLimit).clamp(0.0, 1.0);
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${formatCurrency(item.spentAmount)} / ${formatCurrency(item.limitAmount)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          item.progress >= 1
+                              ? '초과!'
+                              : '${(item.progress * 100).round()}%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: barColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final totalWidth = constraints.maxWidth;
+                        return Stack(
+                          children: [
+                            // 예산 한도 배경
+                            Container(
+                              width: totalWidth * limitRatio,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(AppRadius.full),
+                              ),
+                            ),
+                            // 사용량 막대
+                            Container(
+                              width: totalWidth * spentRatio,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: barColor,
+                                borderRadius: BorderRadius.circular(AppRadius.full),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _progressColor(double progress) {
+    if (progress >= 1) return AppColors.expense;
+    if (progress >= 0.8) return AppColors.warning;
+    return AppColors.primary;
+  }
 }
 
 class _BudgetStatTile extends StatelessWidget {

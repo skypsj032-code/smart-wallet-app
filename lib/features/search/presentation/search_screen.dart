@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,6 +100,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _keywordController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -107,8 +110,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _keywordController.dispose();
     super.dispose();
+  }
+
+  void _onKeywordChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      ref
+          .read(searchFilterProvider.notifier)
+          .update((state) => state.copyWith(keyword: value.trim()));
+    });
   }
 
   @override
@@ -130,9 +144,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             isLoading: isLoading,
             resultsCount: results.length,
             summaryText: _buildFilterSummary(filter),
-            onKeywordChanged: (value) => ref
-                .read(searchFilterProvider.notifier)
-                .update((state) => state.copyWith(keyword: value.trim())),
+            onKeywordChanged: _onKeywordChanged,
             onClearKeyword: () {
               _keywordController.clear();
               ref

@@ -335,6 +335,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                       }
 
                       await ref.read(ocrCaptureProvider.notifier).retryFromCapturedImage();
+                      if (!context.mounted) return;
                       _hydrateFromDraft(ref.read(ocrCaptureProvider));
                     },
                   ),
@@ -407,6 +408,11 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                     quickEntry.setType(TransactionEntryType.expense);
                     quickEntry.setAmount(latestDraft.amount?.toString() ?? '');
                     quickEntry.setMemo(latestDraft.storeName ?? 'OCR 초안');
+                    // OCR이 추측한 카테고리 ID를 빠른 입력에 사전 선택
+                    final guessedId = latestDraft.categoryGuess;
+                    if (guessedId != null && guessedId.isNotEmpty) {
+                      quickEntry.setCategory(guessedId);
+                    }
                     context.go('/quick-entry');
                   },
             icon: const Icon(Icons.arrow_forward_outlined),
@@ -455,7 +461,9 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
     _replaceControllerText(_rawTextController, draft.rawText);
     _replaceControllerText(_storeNameController, draft.storeName ?? '');
     _replaceControllerText(_amountController, draft.amount?.toString() ?? '');
-    _replaceControllerText(_categoryController, draft.categoryGuess ?? '');
+    // 카테고리 ID를 한국어 레이블로 변환해서 표시
+    final categoryLabel = _categoryIdToLabel(draft.categoryGuess);
+    _replaceControllerText(_categoryController, categoryLabel);
     _lastHydratedKey = [
       draft.localId ?? '',
       draft.status.name,
@@ -525,6 +533,33 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
     );
 
     return confirmed ?? false;
+  }
+
+  /// 카테고리 ID(예: 'expense-food')를 한국어 표시 이름으로 변환한다.
+  String _categoryIdToLabel(String? categoryId) {
+    if (categoryId == null || categoryId.isEmpty) return '';
+    const labels = <String, String>{
+      'expense-food': '식비',
+      'expense-cafe-snack': '카페/간식',
+      'expense-groceries': '장보기',
+      'expense-transport': '교통',
+      'expense-housing-utilities': '주거/통신',
+      'expense-shopping': '쇼핑/패션',
+      'expense-household': '생활용품',
+      'expense-health': '의료/건강',
+      'expense-leisure': '취미/여가',
+      'expense-subscriptions': '구독/디지털',
+      'expense-gifts': '경조사/선물',
+      'expense-other': '기타 지출',
+      'income-salary': '급여',
+      'income-allowance': '용돈/지원',
+      'income-side-income': '부수입',
+      'income-resale': '중고판매',
+      'income-refund': '환급/캐시백',
+      'income-interest-dividend': '이자/배당',
+      'income-other': '기타 수입',
+    };
+    return labels[categoryId] ?? categoryId;
   }
 
   String _statusLabel(OcrFlowStatus status) {
@@ -781,9 +816,4 @@ class _InlineError extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.expense),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(message)),
-        ],
-      ),
-    );
-  }
-}
+          Expanded(chil

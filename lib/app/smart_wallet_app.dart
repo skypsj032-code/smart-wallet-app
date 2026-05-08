@@ -124,13 +124,9 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
     return MaterialApp.router(
       title: 'Smart Wallet',
       debugShowCheckedModeBanner: false,
+      restorationScopeId: 'smart_wallet_app',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      builder: (context, child) => AppFrame(
-        child: child ?? const SizedBox.shrink(),
-      ),
-      routerConfig: router,
-    );
-  }
-}
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.3,

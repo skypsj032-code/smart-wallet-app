@@ -4661,6 +4661,396 @@ class OcrDraftsCompanion extends UpdateCompanion<OcrDraft> {
   }
 }
 
+class $NotificationHistoriesTable extends NotificationHistories
+    with TableInfo<$NotificationHistoriesTable, NotificationHistory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationHistoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _packageNameMeta =
+      const VerificationMeta('packageName');
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+      'package_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _merchantMeta =
+      const VerificationMeta('merchant');
+  @override
+  late final GeneratedColumn<String> merchant = GeneratedColumn<String>(
+      'merchant', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _suggestedCategoryMeta =
+      const VerificationMeta('suggestedCategory');
+  @override
+  late final GeneratedColumn<String> suggestedCategory =
+      GeneratedColumn<String>('suggested_category', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _detectedAtMeta =
+      const VerificationMeta('detectedAt');
+  @override
+  late final GeneratedColumn<DateTime> detectedAt = GeneratedColumn<DateTime>(
+      'detected_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, packageName, amount, type, merchant, suggestedCategory, detectedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notification_histories';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<NotificationHistory> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+          _packageNameMeta,
+          packageName.isAcceptableOrUnknown(
+              data['package_name']!, _packageNameMeta));
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('merchant')) {
+      context.handle(_merchantMeta,
+          merchant.isAcceptableOrUnknown(data['merchant']!, _merchantMeta));
+    }
+    if (data.containsKey('suggested_category')) {
+      context.handle(
+          _suggestedCategoryMeta,
+          suggestedCategory.isAcceptableOrUnknown(
+              data['suggested_category']!, _suggestedCategoryMeta));
+    }
+    if (data.containsKey('detected_at')) {
+      context.handle(
+          _detectedAtMeta,
+          detectedAt.isAcceptableOrUnknown(
+              data['detected_at']!, _detectedAtMeta));
+    } else if (isInserting) {
+      context.missing(_detectedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NotificationHistory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NotificationHistory(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      packageName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}package_name'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      merchant: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}merchant']),
+      suggestedCategory: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}suggested_category']),
+      detectedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}detected_at'])!,
+    );
+  }
+
+  @override
+  $NotificationHistoriesTable createAlias(String alias) {
+    return $NotificationHistoriesTable(attachedDatabase, alias);
+  }
+}
+
+class NotificationHistory extends DataClass
+    implements Insertable<NotificationHistory> {
+  final int id;
+  final String packageName;
+  final int amount;
+  final String type;
+  final String? merchant;
+  final String? suggestedCategory;
+  final DateTime detectedAt;
+  const NotificationHistory(
+      {required this.id,
+      required this.packageName,
+      required this.amount,
+      required this.type,
+      this.merchant,
+      this.suggestedCategory,
+      required this.detectedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['package_name'] = Variable<String>(packageName);
+    map['amount'] = Variable<int>(amount);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || merchant != null) {
+      map['merchant'] = Variable<String>(merchant);
+    }
+    if (!nullToAbsent || suggestedCategory != null) {
+      map['suggested_category'] = Variable<String>(suggestedCategory);
+    }
+    map['detected_at'] = Variable<DateTime>(detectedAt);
+    return map;
+  }
+
+  NotificationHistoriesCompanion toCompanion(bool nullToAbsent) {
+    return NotificationHistoriesCompanion(
+      id: Value(id),
+      packageName: Value(packageName),
+      amount: Value(amount),
+      type: Value(type),
+      merchant: merchant == null && nullToAbsent
+          ? const Value.absent()
+          : Value(merchant),
+      suggestedCategory: suggestedCategory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedCategory),
+      detectedAt: Value(detectedAt),
+    );
+  }
+
+  factory NotificationHistory.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NotificationHistory(
+      id: serializer.fromJson<int>(json['id']),
+      packageName: serializer.fromJson<String>(json['packageName']),
+      amount: serializer.fromJson<int>(json['amount']),
+      type: serializer.fromJson<String>(json['type']),
+      merchant: serializer.fromJson<String?>(json['merchant']),
+      suggestedCategory:
+          serializer.fromJson<String?>(json['suggestedCategory']),
+      detectedAt: serializer.fromJson<DateTime>(json['detectedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'packageName': serializer.toJson<String>(packageName),
+      'amount': serializer.toJson<int>(amount),
+      'type': serializer.toJson<String>(type),
+      'merchant': serializer.toJson<String?>(merchant),
+      'suggestedCategory': serializer.toJson<String?>(suggestedCategory),
+      'detectedAt': serializer.toJson<DateTime>(detectedAt),
+    };
+  }
+
+  NotificationHistory copyWith(
+          {int? id,
+          String? packageName,
+          int? amount,
+          String? type,
+          Value<String?> merchant = const Value.absent(),
+          Value<String?> suggestedCategory = const Value.absent(),
+          DateTime? detectedAt}) =>
+      NotificationHistory(
+        id: id ?? this.id,
+        packageName: packageName ?? this.packageName,
+        amount: amount ?? this.amount,
+        type: type ?? this.type,
+        merchant: merchant.present ? merchant.value : this.merchant,
+        suggestedCategory: suggestedCategory.present
+            ? suggestedCategory.value
+            : this.suggestedCategory,
+        detectedAt: detectedAt ?? this.detectedAt,
+      );
+  NotificationHistory copyWithCompanion(NotificationHistoriesCompanion data) {
+    return NotificationHistory(
+      id: data.id.present ? data.id.value : this.id,
+      packageName:
+          data.packageName.present ? data.packageName.value : this.packageName,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      type: data.type.present ? data.type.value : this.type,
+      merchant: data.merchant.present ? data.merchant.value : this.merchant,
+      suggestedCategory: data.suggestedCategory.present
+          ? data.suggestedCategory.value
+          : this.suggestedCategory,
+      detectedAt:
+          data.detectedAt.present ? data.detectedAt.value : this.detectedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationHistory(')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('amount: $amount, ')
+          ..write('type: $type, ')
+          ..write('merchant: $merchant, ')
+          ..write('suggestedCategory: $suggestedCategory, ')
+          ..write('detectedAt: $detectedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, packageName, amount, type, merchant, suggestedCategory, detectedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NotificationHistory &&
+          other.id == this.id &&
+          other.packageName == this.packageName &&
+          other.amount == this.amount &&
+          other.type == this.type &&
+          other.merchant == this.merchant &&
+          other.suggestedCategory == this.suggestedCategory &&
+          other.detectedAt == this.detectedAt);
+}
+
+class NotificationHistoriesCompanion
+    extends UpdateCompanion<NotificationHistory> {
+  final Value<int> id;
+  final Value<String> packageName;
+  final Value<int> amount;
+  final Value<String> type;
+  final Value<String?> merchant;
+  final Value<String?> suggestedCategory;
+  final Value<DateTime> detectedAt;
+  const NotificationHistoriesCompanion({
+    this.id = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.type = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.suggestedCategory = const Value.absent(),
+    this.detectedAt = const Value.absent(),
+  });
+  NotificationHistoriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String packageName,
+    required int amount,
+    required String type,
+    this.merchant = const Value.absent(),
+    this.suggestedCategory = const Value.absent(),
+    required DateTime detectedAt,
+  })  : packageName = Value(packageName),
+        amount = Value(amount),
+        type = Value(type),
+        detectedAt = Value(detectedAt);
+  static Insertable<NotificationHistory> custom({
+    Expression<int>? id,
+    Expression<String>? packageName,
+    Expression<int>? amount,
+    Expression<String>? type,
+    Expression<String>? merchant,
+    Expression<String>? suggestedCategory,
+    Expression<DateTime>? detectedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (packageName != null) 'package_name': packageName,
+      if (amount != null) 'amount': amount,
+      if (type != null) 'type': type,
+      if (merchant != null) 'merchant': merchant,
+      if (suggestedCategory != null) 'suggested_category': suggestedCategory,
+      if (detectedAt != null) 'detected_at': detectedAt,
+    });
+  }
+
+  NotificationHistoriesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? packageName,
+      Value<int>? amount,
+      Value<String>? type,
+      Value<String?>? merchant,
+      Value<String?>? suggestedCategory,
+      Value<DateTime>? detectedAt}) {
+    return NotificationHistoriesCompanion(
+      id: id ?? this.id,
+      packageName: packageName ?? this.packageName,
+      amount: amount ?? this.amount,
+      type: type ?? this.type,
+      merchant: merchant ?? this.merchant,
+      suggestedCategory: suggestedCategory ?? this.suggestedCategory,
+      detectedAt: detectedAt ?? this.detectedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (merchant.present) {
+      map['merchant'] = Variable<String>(merchant.value);
+    }
+    if (suggestedCategory.present) {
+      map['suggested_category'] = Variable<String>(suggestedCategory.value);
+    }
+    if (detectedAt.present) {
+      map['detected_at'] = Variable<DateTime>(detectedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationHistoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('amount: $amount, ')
+          ..write('type: $type, ')
+          ..write('merchant: $merchant, ')
+          ..write('suggestedCategory: $suggestedCategory, ')
+          ..write('detectedAt: $detectedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4673,6 +5063,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $BackupMetadataTable backupMetadata = $BackupMetadataTable(this);
   late final $OcrDraftsTable ocrDrafts = $OcrDraftsTable(this);
+  late final $NotificationHistoriesTable notificationHistories =
+      $NotificationHistoriesTable(this);
+  late final Index transactionsTimelineIdx = Index('transactions_timeline_idx',
+      'CREATE INDEX transactions_timeline_idx ON transactions (deleted_at, occurred_at DESC, created_at DESC)');
+  late final Index transactionsCategoryTimelineIdx = Index(
+      'transactions_category_timeline_idx',
+      'CREATE INDEX transactions_category_timeline_idx ON transactions (deleted_at, category_id, occurred_at DESC)');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4685,7 +5082,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         accounts,
         appSettings,
         backupMetadata,
-        ocrDrafts
+        ocrDrafts,
+        notificationHistories,
+        transactionsTimelineIdx,
+        transactionsCategoryTimelineIdx
       ];
 }
 
@@ -6627,6 +7027,188 @@ typedef $$OcrDraftsTableProcessedTableManager = ProcessedTableManager<
     (OcrDraft, BaseReferences<_$AppDatabase, $OcrDraftsTable, OcrDraft>),
     OcrDraft,
     PrefetchHooks Function()>;
+typedef $$NotificationHistoriesTableCreateCompanionBuilder
+    = NotificationHistoriesCompanion Function({
+  Value<int> id,
+  required String packageName,
+  required int amount,
+  required String type,
+  Value<String?> merchant,
+  Value<String?> suggestedCategory,
+  required DateTime detectedAt,
+});
+typedef $$NotificationHistoriesTableUpdateCompanionBuilder
+    = NotificationHistoriesCompanion Function({
+  Value<int> id,
+  Value<String> packageName,
+  Value<int> amount,
+  Value<String> type,
+  Value<String?> merchant,
+  Value<String?> suggestedCategory,
+  Value<DateTime> detectedAt,
+});
+
+class $$NotificationHistoriesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $NotificationHistoriesTable> {
+  $$NotificationHistoriesTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get packageName => $state.composableBuilder(
+      column: $state.table.packageName,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get merchant => $state.composableBuilder(
+      column: $state.table.merchant,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get suggestedCategory => $state.composableBuilder(
+      column: $state.table.suggestedCategory,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get detectedAt => $state.composableBuilder(
+      column: $state.table.detectedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$NotificationHistoriesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $NotificationHistoriesTable> {
+  $$NotificationHistoriesTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get packageName => $state.composableBuilder(
+      column: $state.table.packageName,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get merchant => $state.composableBuilder(
+      column: $state.table.merchant,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get suggestedCategory => $state.composableBuilder(
+      column: $state.table.suggestedCategory,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get detectedAt => $state.composableBuilder(
+      column: $state.table.detectedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+class $$NotificationHistoriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $NotificationHistoriesTable,
+    NotificationHistory,
+    $$NotificationHistoriesTableFilterComposer,
+    $$NotificationHistoriesTableOrderingComposer,
+    $$NotificationHistoriesTableCreateCompanionBuilder,
+    $$NotificationHistoriesTableUpdateCompanionBuilder,
+    (
+      NotificationHistory,
+      BaseReferences<_$AppDatabase, $NotificationHistoriesTable,
+          NotificationHistory>
+    ),
+    NotificationHistory,
+    PrefetchHooks Function()> {
+  $$NotificationHistoriesTableTableManager(
+      _$AppDatabase db, $NotificationHistoriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer: $$NotificationHistoriesTableFilterComposer(
+              ComposerState(db, table)),
+          orderingComposer: $$NotificationHistoriesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> packageName = const Value.absent(),
+            Value<int> amount = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> suggestedCategory = const Value.absent(),
+            Value<DateTime> detectedAt = const Value.absent(),
+          }) =>
+              NotificationHistoriesCompanion(
+            id: id,
+            packageName: packageName,
+            amount: amount,
+            type: type,
+            merchant: merchant,
+            suggestedCategory: suggestedCategory,
+            detectedAt: detectedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String packageName,
+            required int amount,
+            required String type,
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> suggestedCategory = const Value.absent(),
+            required DateTime detectedAt,
+          }) =>
+              NotificationHistoriesCompanion.insert(
+            id: id,
+            packageName: packageName,
+            amount: amount,
+            type: type,
+            merchant: merchant,
+            suggestedCategory: suggestedCategory,
+            detectedAt: detectedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$NotificationHistoriesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $NotificationHistoriesTable,
+        NotificationHistory,
+        $$NotificationHistoriesTableFilterComposer,
+        $$NotificationHistoriesTableOrderingComposer,
+        $$NotificationHistoriesTableCreateCompanionBuilder,
+        $$NotificationHistoriesTableUpdateCompanionBuilder,
+        (
+          NotificationHistory,
+          BaseReferences<_$AppDatabase, $NotificationHistoriesTable,
+              NotificationHistory>
+        ),
+        NotificationHistory,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6647,4 +7229,6 @@ class $AppDatabaseManager {
       $$BackupMetadataTableTableManager(_db, _db.backupMetadata);
   $$OcrDraftsTableTableManager get ocrDrafts =>
       $$OcrDraftsTableTableManager(_db, _db.ocrDrafts);
+  $$NotificationHistoriesTableTableManager get notificationHistories =>
+      $$NotificationHistoriesTableTableManager(_db, _db.notificationHistories);
 }

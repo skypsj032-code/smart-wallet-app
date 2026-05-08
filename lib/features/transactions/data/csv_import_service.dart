@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,9 +128,9 @@ class CsvImportService {
     }
 
     final dataLines = mapping.hasHeader ? lines.skip(1).toList() : lines;
-    int imported = 0;
     int skipped = 0;
     final errors = <String>[];
+    final companions = <TransactionsCompanion>[];
 
     for (var i = 0; i < dataLines.length; i++) {
       final lineNum = i + (mapping.hasHeader ? 2 : 1);
@@ -145,12 +147,7 @@ class CsvImportService {
           skipped++;
           continue;
         }
-
-        await _database.into(_database.transactions).insert(
-          companion,
-          mode: InsertMode.insertOrIgnore,
-        );
-        imported++;
+        companions.add(companion);
       } catch (e) {
         errors.add('행 $lineNum: $e');
         if (errors.length >= 20) {
@@ -158,6 +155,20 @@ class CsvImportService {
           break;
         }
       }
+    }
+
+    // 배치 삽입 — insertOrIgnore로 중복 자동 건너뜀
+    int imported = 0;
+    if (companions.isNotEmpty) {
+      await _database.batch((batch) {
+        batch.insertAll(
+          _database.transactions,
+          companions,
+          mode: InsertMode.insertOrIgnore,
+        );
+      });
+      // insertOrIgnore는 실제 삽입 건수를 반환하지 않으므로 companions 수로 근사
+      imported = companions.length;
     }
 
     return CsvImportResult(imported: imported, skipped: skipped, errors: errors);
@@ -194,8 +205,13 @@ class CsvImportService {
     final rawType = safeGet(mapping.typeCol);
     final type = _normalizeType(rawType) ?? mapping.defaultType;
 
+    // SHA-256 기반 localId: 동일 내용 재 임포트 시 insertOrIgnore로 자동 건너뜀
+    final dedupeSource =
+        '${occurredAt.toIso8601String()}|$amount|$type|${safeGet(mapping.memoCol) ?? ''}|${safeGet(mapping.merchantCol) ?? ''}';
+    final localId =
+        'csv_${sha256.convert(utf8.encode(dedupeSource)).toString().substring(0, 16)}';
+
     final now = DateTime.now();
-    final localId = 'import_${now.microsecondsSinceEpoch}_$lineNum';
 
     return TransactionsCompanion.insert(
       localId: localId,
@@ -262,27 +278,3 @@ class CsvImportService {
 
     // yyyy-mm-dd / yyyymmdd
     final compact = RegExp(r'^(\d{4})[-./]?(\d{2})[-./]?(\d{2})').firstMatch(raw);
-    if (compact != null) {
-      return DateTime(
-        int.parse(compact.group(1)!),
-        int.parse(compact.group(2)!),
-        int.parse(compact.group(3)!),
-      );
-    }
-
-    return null;
-  }
-
-  String? _normalizeType(String? raw) {
-    if (raw == null) return null;
-    final lower = raw.toLowerCase().trim();
-    if (lower == 'expense' || lower == '지출' || lower == '-') return 'expense';
-    if (lower == 'income' || lower == '수입' || lower == '+') return 'income';
-    if (lower == 'transfer' || lower == '이체') return 'transfer';
-    return null;
-  }
-}
-
-final csvImportServiceProvider = Provider<CsvImportService>((ref) {
-  return CsvImportService(ref.watch(appDatabaseProvider));
-});

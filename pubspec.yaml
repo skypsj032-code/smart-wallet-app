@@ -24,6 +24,7 @@ dependencies:
   google_fonts: ^8.0.2
   file_picker: ^11.0.2
   crypto: ^3.0.3
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +33,7 @@ dev_dependencies:
   drift_dev: 2.20.3
   build_runner: 2.4.12
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 flutter:
   uses-material-design: true
@@ -45,4 +47,4 @@ flutter_launcher_icons:
     icon_path: "assets/icon/app_icon.png"
   image_path: "assets/icon/app_icon.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "as

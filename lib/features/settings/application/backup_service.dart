@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,8 +116,13 @@ class BackupService {
 
     final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
 
+    // JSON 직렬화는 CPU 집약적이므로 별도 Isolate에서 실행해 UI 프레임 드롭 방지.
+    final jsonString = await Isolate.run(
+      () => const JsonEncoder.withIndent('  ').convert(payload),
+    );
+
     return BackupPayload(
-      json: const JsonEncoder.withIndent('  ').convert(payload),
+      json: jsonString,
       summary: BackupSummary(
         transactionCount: transactionsData.length,
         categoryCount: categoriesData.length,
@@ -148,8 +154,8 @@ class BackupService {
     return RestoreSafetyBackup(payload: payload, file: file);
   }
 
-  BackupPreview inspectJsonBackup(String jsonText) {
-    final decoded = _decodeAndValidateBackup(jsonText);
+  Future<BackupPreview> inspectJsonBackup(String jsonText) async {
+    final decoded = await _decodeAndValidateBackup(jsonText);
     final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
 
     return BackupPreview(
@@ -169,7 +175,7 @@ class BackupService {
   }
 
   Future<BackupSummary> restoreJsonBackup(String jsonText) async {
-    final decoded = _decodeAndValidateBackup(jsonText);
+    final decoded = await _decodeAndValidateBackup(jsonText);
     final data = decoded['data'] as Map<String, dynamic>;
 
     final transactionsData = (data['transactions'] as List<dynamic>? ?? const []);
@@ -318,8 +324,9 @@ class BackupService {
     );
   }
 
-  Map<String, dynamic> _decodeAndValidateBackup(String jsonText) {
-    final decodedDynamic = jsonDecode(jsonText);
+  Future<Map<String, dynamic>> _decodeAndValidateBackup(String jsonText) async {
+    // JSON 디코딩은 대형 파일에서 CPU 집약적이므로 별도 Isolate에서 실행.
+    final decodedDynamic = await Isolate.run(() => jsonDecode(jsonText));
     if (decodedDynamic is! Map<String, dynamic>) {
       throw const BackupFormatException('Backup file top-level structure is invalid.');
     }
@@ -464,14 +471,4 @@ class BackupService {
         'themeMode': settings.themeMode,
         'defaultCategorySeedVersion': settings.defaultCategorySeedVersion,
         'appLockEnabled': settings.appLockEnabled,
-        'biometricEnabled': settings.biometricEnabled,
-        'exportIncludeDeleted': settings.exportIncludeDeleted,
-        'createdAt': settings.createdAt.toIso8601String(),
-        'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
-      };
-}
-
-final backupServiceProvider = Provider<BackupService>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return BackupService(database);
-});
+        'biometricEnabled': settings.biomet

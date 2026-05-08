@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,8 +10,10 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_mood.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/widgets/app_brand_mark.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../application/pin_security.dart';
 import '../application/settings_provider.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
@@ -155,12 +155,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
   }
 
-  String _hashPin(String pin) {
-    final bytes = utf8.encode(pin);
-    return sha256.convert(bytes).toString();
-  }
-
-  void _verify() {
+  Future<void> _verify() async {
     final settings = ref.read(appSettingsProvider).asData?.value;
     final pinCode = settings?.pinCode;
 
@@ -169,9 +164,17 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       return;
     }
 
-    if (pinCode == _hashPin(_input)) {
+    final verification = verifyStoredPin(_input, pinCode);
+    if (verification.isValid) {
       _cooldownTimer?.cancel();
       ref.read(sessionUnlockedProvider.notifier).state = true;
+      if (verification.needsUpgrade) {
+        await migrateLegacyPinHash(
+          database: ref.read(appDatabaseProvider),
+          pin: _input,
+          previousHash: pinCode,
+        );
+      }
       return;
     }
 
@@ -295,7 +298,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                           label: 'SAFE WALLET',
                           dotColor: mood.lockedAccent,
                         ),
-                        SizedBox(height: isCompactHeight ? AppSpacing.xs : AppSpacing.sm),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
                         Container(
                           width: isCompactHeight ? 56 : 72,
                           height: isCompactHeight ? 56 : 72,
@@ -313,7 +319,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(height: isCompactHeight ? AppSpacing.xs : AppSpacing.sm),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
                         Text(
                           '지갑 열기',
                           style: theme.textTheme.titleLarge?.copyWith(
@@ -331,7 +340,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: isCompactHeight ? AppSpacing.sm : AppSpacing.md),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.sm
+                                : AppSpacing.md),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(4, (index) {
@@ -369,7 +381,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         ),
                         if (_failedAttempts > 0)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                            padding:
+                                const EdgeInsets.only(bottom: AppSpacing.xs),
                             child: Text(
                               '이번 세션의 실패 횟수: $_failedAttempts회',
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -378,7 +391,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                               ),
                             ),
                           ),
-                        SizedBox(height: isCompactHeight ? AppSpacing.xs : AppSpacing.sm),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
                         LayoutBuilder(
                           builder: (context, constraints) {
                             // 키패드 너비: 가용 너비 기준으로 최대 260px로 제한
@@ -388,7 +404,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                             );
                             const gap = 10.0;
                             const cols = 3;
-                            final btnWidth = (keypadWidth - gap * (cols - 1)) / cols;
+                            final btnWidth =
+                                (keypadWidth - gap * (cols - 1)) / cols;
                             final btnHeight = btnWidth * 0.75;
 
                             return SizedBox(
@@ -423,14 +440,16 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                                   // 백스페이스 (오른쪽 하단 고정)
                                   InkWell(
                                     onTap: _isCoolingDown ? null : _onDelete,
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.lg),
                                     child: Center(
                                       child: Icon(
                                         Icons.backspace_outlined,
                                         size: 22,
                                         color: _isCoolingDown
                                             ? theme.disabledColor
-                                            : theme.colorScheme.onSurfaceVariant,
+                                            : theme
+                                                .colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ),
