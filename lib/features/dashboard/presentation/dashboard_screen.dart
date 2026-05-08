@@ -25,6 +25,19 @@ import 'dashboard_narrative_card.dart';
 import 'recurring_transaction_suggestion_card.dart';
 import 'upcoming_recurring_transactions_card.dart';
 
+String dashboardTodayLoopActionSemanticLabel({
+  required bool hasTodayEntry,
+}) {
+  if (hasTodayEntry) {
+    return 'Open quick entry. Today already has recorded transactions, so you can add one more entry.';
+  }
+  return 'Open quick entry. No transaction has been recorded today, so you can start the first entry now.';
+}
+
+String dashboardTimelineActionSemanticLabel() {
+  return 'Open timeline. Review the recent transaction history for today.';
+}
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -523,13 +536,23 @@ class _TodayLoopCard extends StatelessWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              FilledButton(
-                onPressed: onQuickEntry,
-                child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
+              Semantics(
+                button: true,
+                label: dashboardTodayLoopActionSemanticLabel(
+                  hasTodayEntry: hasTodayEntry,
+                ),
+                child: FilledButton(
+                  onPressed: onQuickEntry,
+                  child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
+                ),
               ),
-              OutlinedButton(
-                onPressed: onOpenTimeline,
-                child: const Text('최근 내역 보기'),
+              Semantics(
+                button: true,
+                label: dashboardTimelineActionSemanticLabel(),
+                child: OutlinedButton(
+                  onPressed: onOpenTimeline,
+                  child: const Text('최근 내역 보기'),
+                ),
               ),
             ],
           ),
