@@ -33,7 +33,7 @@ class CalendarInlineEntryState {
 
 const _calendarInlineUnset = Object();
 
-class CalendarInlineEntryController extends Notifier<CalendarInlineEntryState> {
+class CalendarInlineEntryController extends AutoDisposeNotifier<CalendarInlineEntryState> {
   @override
   CalendarInlineEntryState build() {
     final date = _selectedDate();
@@ -170,8 +170,8 @@ class CalendarInlineEntryController extends Notifier<CalendarInlineEntryState> {
   }
 
   DateTime _selectedDate() {
-    final selected = ref.watch(selectedCalendarDateProvider);
-    final fallback = ref.watch(calendarTodayProvider);
+    final selected = ref.read(selectedCalendarDateProvider);
+    final fallback = ref.read(calendarTodayProvider);
     return selected ?? fallback;
   }
 
@@ -189,6 +189,6 @@ class CalendarInlineEntryController extends Notifier<CalendarInlineEntryState> {
 }
 
 final calendarInlineEntryControllerProvider =
-    NotifierProvider<CalendarInlineEntryController, CalendarInlineEntryState>(
+    NotifierProvider.autoDispose<CalendarInlineEntryController, CalendarInlineEntryState>(
   CalendarInlineEntryController.new,
 );

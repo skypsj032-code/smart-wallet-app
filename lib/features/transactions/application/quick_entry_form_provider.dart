@@ -93,7 +93,7 @@ class QuickEntryFormState {
   }
 }
 
-class QuickEntryFormController extends Notifier<QuickEntryFormState> {
+class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> {
   @override
   QuickEntryFormState build() {
     return const QuickEntryFormState();
@@ -201,6 +201,6 @@ final quickEntrySubmitStateProvider =
     StateProvider.autoDispose<bool>((ref) => false);
 
 final quickEntryFormProvider =
-    NotifierProvider<QuickEntryFormController, QuickEntryFormState>(
+    NotifierProvider.autoDispose<QuickEntryFormController, QuickEntryFormState>(
   QuickEntryFormController.new,
 );
