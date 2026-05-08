@@ -8,8 +8,10 @@ import 'package:smart_wallet_app/app/bootstrap/app_bootstrap_provider.dart';
 import 'package:smart_wallet_app/app/router/app_router.dart';
 import 'package:smart_wallet_app/app/smart_wallet_app.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
+import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/features/settings/application/settings_provider.dart';
 import 'package:smart_wallet_app/features/settings/presentation/lock_screen.dart';
+import 'package:smart_wallet_app/shared/widgets/brand_splash_screen.dart';
 
 void main() {
   setUpAll(() {
@@ -35,7 +37,7 @@ void main() {
 
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Smart Wallet'), findsNothing);
+    expect(find.byType(BrandSplashScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -56,7 +58,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('App bootstrap failed.'), findsOneWidget);
+    expect(find.textContaining('앱을 시작하는 중 문제가 발생했습니다.'), findsOneWidget);
     expect(find.textContaining('bootstrap failed for test'), findsOneWidget);
   });
 
@@ -75,8 +77,9 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: LockScreen(),
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const LockScreen(),
         ),
       ),
     );
@@ -85,7 +88,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Lock is not configured. Returning to the app...'),
+      find.text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
       findsOneWidget,
     );
     expect(container.read(sessionUnlockedProvider), isTrue);

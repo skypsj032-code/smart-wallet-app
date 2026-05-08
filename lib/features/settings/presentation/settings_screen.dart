@@ -22,6 +22,7 @@ import '../application/backup_service.dart';
 import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
 import 'csv_export_options_dialog.dart';
+import 'csv_import_dialog.dart';
 import 'lock_setup_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -97,6 +98,13 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'CSV 내보내기',
                 subtitle: '거래 내역을 표 형식으로 공유합니다.',
                 onTap: () => _exportCsv(context, ref),
+              ),
+              _SettingsActionTile(
+                icon: Icons.upload_file_outlined,
+                color: AppColors.primary,
+                title: 'CSV 가져오기',
+                subtitle: '다른 앱에서 내보낸 CSV를 불러옵니다.',
+                onTap: () => _importCsv(context),
               ),
             ],
           ),
@@ -284,6 +292,10 @@ class SettingsScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('앱 잠금을 해제했습니다.')),
     );
+  }
+
+  Future<void> _importCsv(BuildContext context) async {
+    await CsvImportDialog.show(context);
   }
 
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
