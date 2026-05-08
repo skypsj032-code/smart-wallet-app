@@ -8,6 +8,14 @@ import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../recurring_expenses/application/recurring_expense_service.dart';
 
+String dashboardRecurringManageSemanticLabel() {
+  return 'Open recurring expenses. Manage all scheduled recurring transactions.';
+}
+
+String dashboardRecurringPreviewSemanticLabel(RecurringExpense item) {
+  return 'Recurring transaction preview. ${item.name}. ${_scheduleLabel(item)}. Amount ${formatCurrency(item.amount)}. Opens recurring expenses.';
+}
+
 class UpcomingRecurringTransactionsCard extends StatelessWidget {
   const UpcomingRecurringTransactionsCard({
     super.key,
@@ -43,10 +51,14 @@ class UpcomingRecurringTransactionsCard extends StatelessWidget {
                   ),
                 ),
               ),
-              TextButton(
-                key: const Key('dashboard-recurring-manage'),
-                onPressed: () => context.push('/recurring-expenses'),
-                child: const Text('\uAD00\uB9AC'),
+              Semantics(
+                button: true,
+                label: dashboardRecurringManageSemanticLabel(),
+                child: TextButton(
+                  key: const Key('dashboard-recurring-manage'),
+                  onPressed: () => context.push('/recurring-expenses'),
+                  child: const Text('\uAD00\uB9AC'),
+                ),
               ),
             ],
           ),
@@ -75,59 +87,66 @@ class _UpcomingRecurringTransactionTile extends StatelessWidget {
     final theme = Theme.of(context);
     final onCard = theme.colorScheme.onSurface;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => context.push('/recurring-expenses'),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: onCard.withValues(alpha: 0.10),
-              child: const Icon(Icons.event_repeat_rounded),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    _scheduleLabel(item),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+    return Semantics(
+      button: true,
+      container: true,
+      excludeSemantics: true,
+      label: dashboardRecurringPreviewSemanticLabel(item),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => context.push('/recurring-expenses'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: onCard.withValues(alpha: 0.10),
+                child: const Icon(Icons.event_repeat_rounded),
               ),
-            ),
-            Text(
-              formatCurrency(item.amount),
-              style: theme.textTheme.titleSmall?.copyWith(
-                color:
-                    item.type == 'income' ? AppColors.income : AppColors.expense,
-                fontWeight: FontWeight.w800,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      _scheduleLabel(item),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              Text(
+                formatCurrency(item.amount),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: item.type == 'income'
+                      ? AppColors.income
+                      : AppColors.expense,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  String _scheduleLabel(RecurringExpense recurring) {
-    if (recurring.cadence == 'weekly') {
-      return '\uB9E4\uC8FC ${_weekdayLabel(recurring.weekday ?? DateTime.monday)}';
-    }
-
-    return '\uB9E4\uB2EC ${recurring.dayOfMonth ?? 1}\uC77C';
+String _scheduleLabel(RecurringExpense recurring) {
+  if (recurring.cadence == 'weekly') {
+    return '\uB9E4\uC8FC ${_weekdayLabel(recurring.weekday ?? DateTime.monday)}';
   }
+
+  return '\uB9E4\uB2EC ${recurring.dayOfMonth ?? 1}\uC77C';
 }
 
 String _weekdayLabel(int weekday) {
