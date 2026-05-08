@@ -403,7 +403,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     notifier.reset();
     notifier.setType(form.type);
     notifier.setAmount(form.amount);
-    context.go('/quick-entry');
+    // push: 현재 화면 위에 하단 슬라이드로 진입 (화면 이탈 없음)
+    context.push('/quick-entry');
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
@@ -434,6 +435,4 @@ class _AppShellState extends ConsumerState<AppShell> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
-          duration: _exitGracePeriod,
-          behavior: Sn
+          content: Text('뒤로가기를 한 번 더 누르�

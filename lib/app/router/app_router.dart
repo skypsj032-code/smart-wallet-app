@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -62,7 +62,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/quick-entry',
             name: 'quick-entry',
             pageBuilder: (context, state) =>
-                _buildShellPage(state: state, child: const QuickEntryScreen()),
+                _buildModalPage(state: state, child: const QuickEntryScreen()),
           ),
           GoRoute(
             path: '/calendar',

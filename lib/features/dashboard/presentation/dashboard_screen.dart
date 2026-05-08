@@ -73,6 +73,9 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              // 예산 현황 — 수입/지출 바로 다음에 노출
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: DashboardHomeLinksCard(
@@ -131,8 +134,6 @@ class DashboardScreen extends ConsumerWidget {
                   transactions: summary.recentTransactions,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-              SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
               const SliverToBoxAdapter(child: SizedBox(height: 148)),
             ],
           );
@@ -793,9 +794,4 @@ String _typeLabel(String type) {
       return '수입';
     case 'expense':
       return '지출';
-    case 'transfer':
-      return '이체';
-    default:
-      return type;
-  }
-}
+    case 
