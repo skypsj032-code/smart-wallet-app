@@ -1,15 +1,33 @@
 // ignore_for_file: depend_on_referenced_packages
 
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 
+String budgetSetupCategorySemanticLabel({required String? categoryName}) {
+  final target = categoryName ?? 'all categories';
+  return 'Budget category selector. Current selection: $target.';
+}
+
+String budgetSetupAmountSemanticLabel() {
+  return 'Budget amount input. Enter the monthly budget amount in won.';
+}
+
+String budgetSetupSaveSemanticLabel() {
+  return 'Save budget. Create or update the monthly budget for the selected category.';
+}
+
 class BudgetSetupDialog extends ConsumerStatefulWidget {
-  const BudgetSetupDialog({super.key});
+  const BudgetSetupDialog({
+    super.key,
+    this.initialCategories,
+  });
+
+  final List<Category>? initialCategories;
 
   static Future<void> show(BuildContext context) {
     return showDialog<void>(
@@ -41,14 +59,31 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
   @override
   void initState() {
     super.initState();
+    final initialCategories = widget.initialCategories;
+    if (initialCategories != null) {
+      _categories = initialCategories;
+      _isLoading = false;
+      return;
+    }
     _loadCategories();
   }
 
   Future<void> _loadCategories() async {
     final db = ref.read(appDatabaseProvider);
-    final cats = await (db.select(db.categories)..where((c) => c.isActive.equals(true) & c.type.equals('expense'))).get();
+    final categories = await (db.select(db.categories)
+          ..where(
+            (category) =>
+                category.isActive.equals(true) &
+                category.type.equals('expense'),
+          ))
+        .get();
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
-      _categories = cats;
+      _categories = categories;
       _isLoading = false;
     });
   }
@@ -62,7 +97,7 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
   Future<void> _saveBudget() async {
     final amountText = _amountController.value.text.replaceAll(',', '');
     final amount = int.tryParse(amountText);
-    
+
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('올바른 금액을 입력하세요.')),
@@ -72,46 +107,59 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
 
     final db = ref.read(appDatabaseProvider);
     final now = DateTime.now();
-    final monthKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final monthKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
 
-    // Check if budget already exists for this category/month
     final existingQuery = db.select(db.budgets)
-      ..where((b) => b.monthKey.equals(monthKey));
-    
+      ..where((budget) => budget.monthKey.equals(monthKey));
+
     if (_selectedCategoryId == null) {
-      existingQuery.where((b) => b.categoryId.isNull());
+      existingQuery.where((budget) => budget.categoryId.isNull());
     } else {
-      existingQuery.where((b) => b.categoryId.equals(_selectedCategoryId!));
+      existingQuery.where(
+        (budget) => budget.categoryId.equals(_selectedCategoryId!),
+      );
     }
-    
+
     final existing = await existingQuery.getSingleOrNull();
 
     if (existing != null) {
-      // Update
       await db.update(db.budgets).replace(
-        existing.copyWith(
-          amountLimit: amount,
-          lastModifiedAt: DateTime.now(),
-        ),
-      );
+            existing.copyWith(
+              amountLimit: amount,
+              lastModifiedAt: now,
+            ),
+          );
     } else {
-      // Insert
       const uuid = Uuid();
       await db.into(db.budgets).insert(
-        BudgetsCompanion.insert(
-          localId: uuid.v4(),
-          monthKey: monthKey,
-          categoryId: drift.Value(_selectedCategoryId),
-          amountLimit: amount,
-          createdAt: DateTime.now(),
-          lastModifiedAt: DateTime.now(),
-        ),
-      );
+            BudgetsCompanion.insert(
+              localId: uuid.v4(),
+              monthKey: monthKey,
+              categoryId: drift.Value(_selectedCategoryId),
+              amountLimit: amount,
+              createdAt: now,
+              lastModifiedAt: now,
+            ),
+          );
     }
 
     if (mounted) {
       Navigator.of(context).pop();
     }
+  }
+
+  String? _selectedCategoryName() {
+    if (_selectedCategoryId == null) {
+      return null;
+    }
+
+    for (final category in _categories) {
+      if (category.localId == _selectedCategoryId) {
+        return category.name;
+      }
+    }
+    return null;
   }
 
   @override
@@ -138,35 +186,48 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedCategoryId,
-                decoration: const InputDecoration(labelText: '대상 카테고리'),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('전체 예산'),
-                  ),
-                  ..._categories.map(
-                    (c) => DropdownMenuItem(
-                      value: c.localId,
-                      child: Text(c.name),
+              Semantics(
+                container: true,
+                excludeSemantics: true,
+                label: budgetSetupCategorySemanticLabel(
+                  categoryName: _selectedCategoryName(),
+                ),
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _selectedCategoryId,
+                  decoration: const InputDecoration(labelText: '대상 카테고리'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('전체 예산'),
                     ),
-                  ),
-                ],
-                onChanged: (val) {
-                  setState(() {
-                    _selectedCategoryId = val;
-                  });
-                },
+                    ..._categories.map(
+                      (category) => DropdownMenuItem(
+                        value: category.localId,
+                        child: Text(category.name),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCategoryId = value;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _amountController.value,
-                decoration: const InputDecoration(
-                  labelText: '예산 금액',
-                  suffixText: '원',
+              Semantics(
+                textField: true,
+                container: true,
+                excludeSemantics: true,
+                label: budgetSetupAmountSemanticLabel(),
+                child: TextField(
+                  controller: _amountController.value,
+                  decoration: const InputDecoration(
+                    labelText: '예산 금액',
+                    suffixText: '원',
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-                keyboardType: TextInputType.number,
               ),
             ],
           ),
@@ -175,9 +236,15 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('취소'),
             ),
-            FilledButton(
-              onPressed: _saveBudget,
-              child: const Text('저장'),
+            Semantics(
+              button: true,
+              container: true,
+              excludeSemantics: true,
+              label: budgetSetupSaveSemanticLabel(),
+              child: FilledButton(
+                onPressed: _saveBudget,
+                child: const Text('저장'),
+              ),
             ),
           ],
         ),
