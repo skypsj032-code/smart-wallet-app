@@ -6,7 +6,6 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/calendar_provider.dart';
 
@@ -39,9 +38,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ref.watch(selectedCalendarTransactionsProvider);
     final transactionSortOrder =
         ref.watch(calendarTransactionSortOrderProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     final screen = AppScaffold(
       title: '달력',
+      backgroundColor: scheme.surface,
+      appBarBackgroundColor: scheme.surface,
+      contentPadding: EdgeInsets.zero,
       body: snapshotAsync.when(
         data: (snapshot) {
           final showSelectedDayDetail = !isMonthPickerOpen && selectedDate != null;
@@ -103,57 +106,66 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: isMonthPickerOpen
-                        ? _InlineMonthPicker(
-                            displayedMonth: displayedMonth,
-                            onPreviousYear: () => _movePickerYear(-1),
-                            onNextYear: () => _movePickerYear(1),
-                            onSelectMonth: (month) =>
-                                _selectDisplayedMonth(month),
-                          )
-                        : _MonthCalendarContent(
-                            snapshot: snapshot,
-                            cells: monthCells,
-                            selectedDate: selectedDate,
-                            onSelectDate: _selectDate,
-                          ),
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: isMonthPickerOpen
+                      ? _InlineMonthPicker(
+                          displayedMonth: displayedMonth,
+                          onPreviousYear: () => _movePickerYear(-1),
+                          onNextYear: () => _movePickerYear(1),
+                          onSelectMonth: (month) => _selectDisplayedMonth(month),
+                        )
+                      : _MonthCalendarContent(
+                          snapshot: snapshot,
+                          cells: monthCells,
+                          selectedDate: selectedDate,
+                          onSelectDate: _selectDate,
+                        ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               if (showSelectedDayDetail)
-                AppSection(
-                  title: _selectedDateLabel(selectedDate),
-                  child: _CalendarSelectedDayCard(
-                    key: const Key('calendar-selected-day-card'),
-                    selectedDate: selectedDate,
-                    selectedDay: effectiveSelectedDay,
-                    transactionsAsync: selectedTransactionsAsync,
-                    sortOrder: transactionSortOrder,
-                    onChangeSortOrder: (sortOrder) {
-                      ref
-                          .read(calendarTransactionSortOrderProvider.notifier)
-                          .state = sortOrder;
-                    },
-                    onEditTransaction: (transaction) => _openQuickEntry(
-                      context,
-                      transaction: transaction,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    0,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                  ),
+                  child: _CalendarDetailSection(
+                    title: _selectedDateLabel(selectedDate),
+                    child: _CalendarSelectedDayCard(
+                      key: const Key('calendar-selected-day-card'),
+                      selectedDate: selectedDate,
+                      selectedDay: effectiveSelectedDay,
+                      transactionsAsync: selectedTransactionsAsync,
+                      sortOrder: transactionSortOrder,
+                      onChangeSortOrder: (sortOrder) {
+                        ref
+                            .read(calendarTransactionSortOrderProvider.notifier)
+                            .state = sortOrder;
+                      },
+                      onEditTransaction: (transaction) => _openQuickEntry(
+                        context,
+                        transaction: transaction,
+                      ),
                     ),
                   ),
                 )
               else
-                AppSection(
-                  title: '기간 흐름',
-                  child: _CalendarYearSummaryCard(
-                    snapshot: snapshot,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    0,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                  ),
+                  child: _CalendarDetailSection(
+                    title: '기간 흐름',
+                    child: _CalendarYearSummaryCard(
+                      snapshot: snapshot,
+                    ),
                   ),
                 ),
             ],
@@ -539,11 +551,14 @@ class _MonthCalendarContent extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest
-                .withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(20),
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.18),
+              ),
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
+              ),
+            ),
           ),
           child: _MonthCalendarView(
             cells: cells,
@@ -724,96 +739,127 @@ class _CalendarSelectedDayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: transactionsAsync.when(
-          data: (transactions) {
-            if (selectedDate == null) {
-              return const _CalendarEmptyMessage(
-                title: '날짜를 선택하세요',
-                body: '',
-              );
-            }
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: transactionsAsync.when(
+        data: (transactions) {
+          if (selectedDate == null) {
+            return const _CalendarEmptyMessage(
+              title: '날짜를 선택하세요',
+              body: '',
+            );
+          }
 
-            if (transactions.isEmpty) {
-              return const _CalendarEmptyMessage(
-                title: '이 날의 거래가 없어요',
-                body: '',
-              );
-            }
+          if (transactions.isEmpty) {
+            return const _CalendarEmptyMessage(
+              title: '이 날의 거래가 없어요',
+              body: '',
+            );
+          }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SegmentedButton<CalendarTransactionSortOrder>(
-                    key: const Key('calendar-transaction-sort-toggle'),
-                    segments: const [
-                      ButtonSegment<CalendarTransactionSortOrder>(
-                        value: CalendarTransactionSortOrder.newestFirst,
-                        icon: Icon(Icons.south_rounded),
-                        label: Text('최신순'),
-                      ),
-                      ButtonSegment<CalendarTransactionSortOrder>(
-                        value: CalendarTransactionSortOrder.oldestFirst,
-                        icon: Icon(Icons.north_rounded),
-                        label: Text('오래된순'),
-                      ),
-                    ],
-                    selected: {sortOrder},
-                    onSelectionChanged: (selection) =>
-                        onChangeSortOrder(selection.first),
-                  ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: SegmentedButton<CalendarTransactionSortOrder>(
+                  key: const Key('calendar-transaction-sort-toggle'),
+                  segments: const [
+                    ButtonSegment<CalendarTransactionSortOrder>(
+                      value: CalendarTransactionSortOrder.newestFirst,
+                      icon: Icon(Icons.south_rounded),
+                      label: Text('최신순'),
+                    ),
+                    ButtonSegment<CalendarTransactionSortOrder>(
+                      value: CalendarTransactionSortOrder.oldestFirst,
+                      icon: Icon(Icons.north_rounded),
+                      label: Text('오래된순'),
+                    ),
+                  ],
+                  selected: {sortOrder},
+                  onSelectionChanged: (selection) =>
+                      onChangeSortOrder(selection.first),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (selectedDay != null) ...[
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    _CompactSummaryChip(
+                      key: const Key('calendar-selected-summary-income'),
+                      label: '수입',
+                      value: formatCurrency(selectedDay!.income),
+                      color: AppColors.income,
+                    ),
+                    _CompactSummaryChip(
+                      key: const Key('calendar-selected-summary-expense'),
+                      label: '지출',
+                      value: formatCurrency(selectedDay!.expense),
+                      color: AppColors.expense,
+                    ),
+                    _CompactSummaryChip(
+                      key: const Key('calendar-selected-summary-count'),
+                      label: '거래',
+                      value: '${selectedDay!.transactionCount}건',
+                      color: AppColors.primary,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                if (selectedDay != null) ...[
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      _CompactSummaryChip(
-                        key: const Key('calendar-selected-summary-income'),
-                        label: '수입',
-                        value: formatCurrency(selectedDay!.income),
-                        color: AppColors.income,
-                      ),
-                      _CompactSummaryChip(
-                        key: const Key('calendar-selected-summary-expense'),
-                        label: '지출',
-                        value: formatCurrency(selectedDay!.expense),
-                        color: AppColors.expense,
-                      ),
-                      _CompactSummaryChip(
-                        key: const Key('calendar-selected-summary-count'),
-                        label: '거래',
-                        value: '${selectedDay!.transactionCount}건',
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                ],
-                for (var index = 0; index < transactions.length; index++) ...[
-                  _EditableTransactionRow(
-                    transaction: transactions[index],
-                    onTap: () => onEditTransaction(transactions[index]),
-                  ),
-                  if (index != transactions.length - 1)
-                    const Divider(height: AppSpacing.lg),
-                ],
               ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) =>
-              Text('거래를 불러오지 못했어요. $error'),
+              for (var index = 0; index < transactions.length; index++) ...[
+                _EditableTransactionRow(
+                  transaction: transactions[index],
+                  onTap: () => onEditTransaction(transactions[index]),
+                ),
+                if (index != transactions.length - 1)
+                  const Divider(height: AppSpacing.lg),
+              ],
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Text('거래를 불러오지 못했어요. $error'),
+      ),
+    );
+  }
+}
+
+class _CalendarDetailSection extends StatelessWidget {
+  const _CalendarDetailSection({
+    required this.title,
+    required this.child,
+  });
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.18),
+          ),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          child,
+        ],
       ),
     );
   }
@@ -828,35 +874,23 @@ class _CalendarYearSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _SummaryTile(
-                  label: '총수입',
-                  value: formatCurrency(snapshot.totalIncome),
-                  color: AppColors.income,
-                ),
-                _SummaryTile(
-                  label: '총지출',
-                  value: formatCurrency(snapshot.totalExpense),
-                  color: AppColors.expense,
-                ),
-              ],
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: [
+          _SummaryTile(
+            label: '총수입',
+            value: formatCurrency(snapshot.totalIncome),
+            color: AppColors.income,
+          ),
+          _SummaryTile(
+            label: '총지출',
+            value: formatCurrency(snapshot.totalExpense),
+            color: AppColors.expense,
+          ),
+        ],
       ),
     );
   }
