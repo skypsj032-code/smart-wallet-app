@@ -9,6 +9,43 @@ import '../../../shared/widgets/app_section.dart';
 import '../application/statistics_interpretation.dart';
 import '../application/statistics_provider.dart';
 
+String statisticsControlsSemanticLabel({
+  required StatisticsRange range,
+  required StatisticsTypeFilter filter,
+  required DateTime currentMonth,
+}) {
+  return 'Statistics controls. Range: ${_statisticsRangeSemanticLabel(range)}. Reference month: ${currentMonth.year}.${currentMonth.month.toString().padLeft(2, '0')}. Filter: ${_statisticsFilterSemanticLabel(filter)}.';
+}
+
+String statisticsMetricSemanticLabel({
+  required String title,
+  required String value,
+}) {
+  return 'Statistics metric. $title: $value.';
+}
+
+String _statisticsRangeSemanticLabel(StatisticsRange range) {
+  switch (range) {
+    case StatisticsRange.month:
+      return 'this month';
+    case StatisticsRange.quarter:
+      return 'recent three months';
+    case StatisticsRange.all:
+      return 'all time';
+  }
+}
+
+String _statisticsFilterSemanticLabel(StatisticsTypeFilter filter) {
+  switch (filter) {
+    case StatisticsTypeFilter.all:
+      return 'all transactions';
+    case StatisticsTypeFilter.income:
+      return 'income only';
+    case StatisticsTypeFilter.expense:
+      return 'expense only';
+  }
+}
+
 class StatisticsScreen extends ConsumerWidget {
   const StatisticsScreen({super.key});
 
@@ -109,88 +146,96 @@ class _ControlsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SegmentedButton<StatisticsRange>(
-              segments: const [
-                ButtonSegment(
-                  value: StatisticsRange.month,
-                  label: Text('이번 달'),
-                ),
-                ButtonSegment(
-                  value: StatisticsRange.quarter,
-                  label: Text('최근 3개월'),
-                ),
-                ButtonSegment(
-                  value: StatisticsRange.all,
-                  label: Text('전체'),
-                ),
-              ],
-              selected: {range},
-              onSelectionChanged: onRangeChanged,
-            ),
-            if (range != StatisticsRange.all) ...[
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.softHighlight.withValues(alpha: 0.44),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: onPreviousMonth,
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          '${currentMonth.year}.${currentMonth.month.toString().padLeft(2, '0')} 기준',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+    return Semantics(
+      container: true,
+      label: statisticsControlsSemanticLabel(
+        range: range,
+        filter: filter,
+        currentMonth: currentMonth,
+      ),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<StatisticsRange>(
+                segments: const [
+                  ButtonSegment(
+                    value: StatisticsRange.month,
+                    label: Text('이번 달'),
+                  ),
+                  ButtonSegment(
+                    value: StatisticsRange.quarter,
+                    label: Text('최근 3개월'),
+                  ),
+                  ButtonSegment(
+                    value: StatisticsRange.all,
+                    label: Text('전체'),
+                  ),
+                ],
+                selected: {range},
+                onSelectionChanged: onRangeChanged,
+              ),
+              if (range != StatisticsRange.all) ...[
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.softHighlight.withValues(alpha: 0.44),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: onPreviousMonth,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            '${currentMonth.year}.${currentMonth.month.toString().padLeft(2, '0')} 기준',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: onNextMonth,
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            SegmentedButton<StatisticsTypeFilter>(
-              key: const Key('statistics-type-filter'),
-              segments: const [
-                ButtonSegment(
-                  value: StatisticsTypeFilter.all,
-                  label: Text('\uC804\uCCB4'),
-                ),
-                ButtonSegment(
-                  value: StatisticsTypeFilter.income,
-                  label: Text('\uC218\uC785'),
-                ),
-                ButtonSegment(
-                  value: StatisticsTypeFilter.expense,
-                  label: Text('\uC9C0\uCD9C'),
+                      IconButton(
+                        onPressed: onNextMonth,
+                        icon: const Icon(Icons.chevron_right_rounded),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-              selected: {filter},
-              onSelectionChanged: onFilterChanged,
-            ),
-          ],
+              const SizedBox(height: AppSpacing.md),
+              SegmentedButton<StatisticsTypeFilter>(
+                key: const Key('statistics-type-filter'),
+                segments: const [
+                  ButtonSegment(
+                    value: StatisticsTypeFilter.all,
+                    label: Text('\uC804\uCCB4'),
+                  ),
+                  ButtonSegment(
+                    value: StatisticsTypeFilter.income,
+                    label: Text('\uC218\uC785'),
+                  ),
+                  ButtonSegment(
+                    value: StatisticsTypeFilter.expense,
+                    label: Text('\uC9C0\uCD9C'),
+                  ),
+                ],
+                selected: {filter},
+                onSelectionChanged: onFilterChanged,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -559,29 +604,33 @@ class _MetricTile extends StatelessWidget {
             .clamp(140.0, 260.0)
             .toDouble();
 
-    return SizedBox(
-      width: width,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ],
+    return Semantics(
+      container: true,
+      label: statisticsMetricSemanticLabel(title: title, value: value),
+      child: SizedBox(
+        width: width,
+        child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
