@@ -10,6 +10,33 @@ import '../../../shared/widgets/app_section.dart';
 import '../application/budget_provider.dart';
 import 'budget_setup_dialog.dart';
 
+String budgetOverviewSemanticLabel({
+  required String monthKey,
+  required int totalBudget,
+  required int totalSpent,
+  required int remaining,
+}) {
+  return 'Budget overview. Month $monthKey. Total budget ${formatCurrency(totalBudget)}. Spent ${formatCurrency(totalSpent)}. Remaining ${formatCurrency(remaining)}. Status ${_budgetProgressLabel(totalBudget, totalSpent)}.';
+}
+
+String budgetCategoryItemSemanticLabel(BudgetSummaryItem item) {
+  return 'Budget category item. ${item.label}. Limit ${formatCurrency(item.limitAmount)}. Spent ${formatCurrency(item.spentAmount)}. Remaining ${formatCurrency(item.remaining)}. Status ${_budgetProgressPercentLabel(item.progress)}.';
+}
+
+String _budgetProgressLabel(int totalBudget, int totalSpent) {
+  if (totalBudget <= 0) {
+    return 'not set';
+  }
+  return _budgetProgressPercentLabel(totalSpent / totalBudget);
+}
+
+String _budgetProgressPercentLabel(double progress) {
+  if (progress >= 1) {
+    return 'over budget';
+  }
+  return '${(progress * 100).round()}% used';
+}
+
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
 
@@ -39,76 +66,86 @@ class BudgetScreen extends ConsumerWidget {
             children: [
               AppSection(
                 title: '이번 달 예산',
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          summary.monthKey,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          formatCurrency(summary.totalBudget),
-                          style: theme.textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          _overallBudgetMessage(summary.totalBudget, summary.totalSpent),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        LinearProgressIndicator(
-                          value: totalProgress,
-                          minHeight: 12,
-                          borderRadius: BorderRadius.circular(AppRadius.full),
-                          color: _progressColor(totalProgress),
-                          backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _BudgetStatTile(
-                                label: '사용',
-                                amount: formatCurrency(summary.totalSpent),
-                              ),
+                child: Semantics(
+                  container: true,
+                  excludeSemantics: true,
+                  label: budgetOverviewSemanticLabel(
+                    monthKey: summary.monthKey,
+                    totalBudget: summary.totalBudget,
+                    totalSpent: summary.totalSpent,
+                    remaining: summary.remaining,
+                  ),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            summary.monthKey,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: _BudgetStatTile(
-                                label: '남음',
-                                amount: formatCurrency(summary.remaining),
-                                valueColor: null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.tonalIcon(
-                            onPressed: categoryOptionsAsync.hasValue
-                                ? () => _openBudgetEditor(
-                                      context,
-                                      ref,
-                                      monthKey: summary.monthKey,
-                                      categories: categoryOptionsAsync.value!,
-                                      initialCategoryId: null,
-                                      initialAmount: overallBudgetAmount,
-                                    )
-                                : null,
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('전체 예산 수정'),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            formatCurrency(summary.totalBudget),
+                            style: theme.textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            _overallBudgetMessage(summary.totalBudget, summary.totalSpent),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          LinearProgressIndicator(
+                            value: totalProgress,
+                            minHeight: 12,
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                            color: _progressColor(totalProgress),
+                            backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _BudgetStatTile(
+                                  label: '사용',
+                                  amount: formatCurrency(summary.totalSpent),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: _BudgetStatTile(
+                                  label: '남음',
+                                  amount: formatCurrency(summary.remaining),
+                                  valueColor: null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.tonalIcon(
+                              onPressed: categoryOptionsAsync.hasValue
+                                  ? () => _openBudgetEditor(
+                                        context,
+                                        ref,
+                                        monthKey: summary.monthKey,
+                                        categories: categoryOptionsAsync.value!,
+                                        initialCategoryId: null,
+                                        initialAmount: overallBudgetAmount,
+                                      )
+                                  : null,
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('전체 예산 수정'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -154,146 +191,151 @@ class BudgetScreen extends ConsumerWidget {
                         ),
                       ),
                     for (final item in categorizedItems) ...[
-                      Card(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: categoryOptionsAsync.hasValue
-                              ? () => _openBudgetEditor(
-                                    context,
-                                    ref,
-                                    monthKey: summary.monthKey,
-                                    categories: categoryOptionsAsync.value!,
-                                    initialCategoryId: item.categoryId,
-                                    initialAmount: item.limitAmount,
-                                  )
-                              : null,
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.label,
-                                            style: theme.textTheme.titleMedium,
-                                          ),
-                                          const SizedBox(height: AppSpacing.xs),
-                                          Text(
-                                            _categoryBudgetMessage(item.progress),
-                                            style: theme.textTheme.bodySmall?.copyWith(
-                                              color: theme.colorScheme.onSurfaceVariant,
+                      Semantics(
+                        container: true,
+                        excludeSemantics: true,
+                        label: budgetCategoryItemSemanticLabel(item),
+                        child: Card(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: categoryOptionsAsync.hasValue
+                                ? () => _openBudgetEditor(
+                                      context,
+                                      ref,
+                                      monthKey: summary.monthKey,
+                                      categories: categoryOptionsAsync.value!,
+                                      initialCategoryId: item.categoryId,
+                                      initialAmount: item.limitAmount,
+                                    )
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.label,
+                                              style: theme.textTheme.titleMedium,
                                             ),
+                                            const SizedBox(height: AppSpacing.xs),
+                                            Text(
+                                              _categoryBudgetMessage(item.progress),
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text(
+                                        formatCurrency(item.limitAmount),
+                                        style: theme.textTheme.titleMedium,
+                                      ),
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) async {
+                                          if (value == 'edit' && categoryOptionsAsync.hasValue) {
+                                            _openBudgetEditor(
+                                              context,
+                                              ref,
+                                              monthKey: summary.monthKey,
+                                              categories: categoryOptionsAsync.value!,
+                                              initialCategoryId: item.categoryId,
+                                              initialAmount: item.limitAmount,
+                                            );
+                                            return;
+                                          }
+
+                                          if (value == 'delete') {
+                                            final confirmed = await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) {
+                                                return AlertDialog(
+                                                  title: const Text('예산 삭제'),
+                                                  content: Text('${item.label} 예산을 삭제할까요?'),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(dialogContext).pop(false),
+                                                      child: const Text('취소'),
+                                                    ),
+                                                    FilledButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(dialogContext).pop(true),
+                                                      child: const Text('삭제'),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+
+                                            if (confirmed != true || !context.mounted) {
+                                              return;
+                                            }
+
+                                            await ref.read(budgetEditorServiceProvider).deleteBudget(
+                                                  monthKey: summary.monthKey,
+                                                  categoryId: item.categoryId,
+                                                );
+
+                                            if (!context.mounted) {
+                                              return;
+                                            }
+
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('${item.label} 예산을 삭제했습니다.')),
+                                            );
+                                          }
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem<String>(
+                                            value: 'edit',
+                                            child: Text('수정'),
+                                          ),
+                                          PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text('삭제'),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Text(
-                                      formatCurrency(item.limitAmount),
-                                      style: theme.textTheme.titleMedium,
-                                    ),
-                                    PopupMenuButton<String>(
-                                      onSelected: (value) async {
-                                        if (value == 'edit' && categoryOptionsAsync.hasValue) {
-                                          _openBudgetEditor(
-                                            context,
-                                            ref,
-                                            monthKey: summary.monthKey,
-                                            categories: categoryOptionsAsync.value!,
-                                            initialCategoryId: item.categoryId,
-                                            initialAmount: item.limitAmount,
-                                          );
-                                          return;
-                                        }
-
-                                        if (value == 'delete') {
-                                          final confirmed = await showDialog<bool>(
-                                            context: context,
-                                            builder: (dialogContext) {
-                                              return AlertDialog(
-                                                title: const Text('예산 삭제'),
-                                                content: Text('${item.label} 예산을 삭제할까요?'),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.of(dialogContext).pop(false),
-                                                    child: const Text('취소'),
-                                                  ),
-                                                  FilledButton(
-                                                    onPressed: () =>
-                                                        Navigator.of(dialogContext).pop(true),
-                                                    child: const Text('삭제'),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-
-                                          if (confirmed != true || !context.mounted) {
-                                            return;
-                                          }
-
-                                          await ref.read(budgetEditorServiceProvider).deleteBudget(
-                                                monthKey: summary.monthKey,
-                                                categoryId: item.categoryId,
-                                              );
-
-                                          if (!context.mounted) {
-                                            return;
-                                          }
-
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('${item.label} 예산을 삭제했습니다.')),
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (context) => const [
-                                        PopupMenuItem<String>(
-                                          value: 'edit',
-                                          child: Text('수정'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  LinearProgressIndicator(
+                                    value: item.progress.clamp(0, 1),
+                                    minHeight: 12,
+                                    borderRadius: BorderRadius.circular(AppRadius.full),
+                                    color: _progressColor(item.progress),
+                                    backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _BudgetStatTile(
+                                          label: '사용',
+                                          amount: formatCurrency(item.spentAmount),
                                         ),
-                                        PopupMenuItem<String>(
-                                          value: 'delete',
-                                          child: Text('삭제'),
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: _BudgetStatTile(
+                                          label: '남음',
+                                          amount: formatCurrency(item.remaining),
+                                          valueColor: null,
                                         ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                LinearProgressIndicator(
-                                  value: item.progress.clamp(0, 1),
-                                  minHeight: 12,
-                                  borderRadius: BorderRadius.circular(AppRadius.full),
-                                  color: _progressColor(item.progress),
-                                  backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _BudgetStatTile(
-                                        label: '사용',
-                                        amount: formatCurrency(item.spentAmount),
                                       ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Expanded(
-                                      child: _BudgetStatTile(
-                                        label: '남음',
-                                        amount: formatCurrency(item.remaining),
-                                        valueColor: null,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
