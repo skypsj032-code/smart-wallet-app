@@ -157,9 +157,15 @@ class _BannerCardState extends State<_BannerCard> {
           borderRadius: BorderRadius.circular(16),
           color: theme.colorScheme.surface,
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: widget.onTap,
-            child: Column(
+          child: Semantics(
+            container: true,
+            button: true,
+            liveRegion: true,
+            label: _bannerSemanticLabel(widget.transaction),
+            child: InkWell(
+              onTap: widget.onTap,
+              child: ExcludeSemantics(
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
@@ -261,6 +267,7 @@ class _BannerCardState extends State<_BannerCard> {
                       // 닫기
                       IconButton(
                         onPressed: widget.onDismiss,
+                        tooltip: 'Dismiss notification',
                         icon: const Icon(Icons.close_rounded, size: 18),
                         color: theme.colorScheme.onSurfaceVariant,
                         visualDensity: VisualDensity.compact,
@@ -277,10 +284,29 @@ class _BannerCardState extends State<_BannerCard> {
                   color: accentColor.withValues(alpha: 0.5),
                 ),
               ],
+                ),
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+String _bannerSemanticLabel(ParsedNotificationTransaction transaction) {
+  final typeLabel = transaction.type == 'income' ? 'income' : 'expense';
+  final parts = <String>[
+    'Detected $typeLabel notification',
+    '${formatCurrency(transaction.amount)} won',
+  ];
+
+  if (transaction.merchant.isNotEmpty) {
+    parts.add('merchant ${transaction.merchant}');
+  }
+  if (transaction.cardName case final cardName?) {
+    parts.add('card $cardName');
+  }
+
+  return '${parts.join(', ')}, double tap to open quick entry.';
 }

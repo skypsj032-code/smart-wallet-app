@@ -166,17 +166,22 @@ class _HistoryTile extends StatelessWidget {
           '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
+    return Semantics(
+      container: true,
+      button: true,
+      label: notificationHistorySemanticLabel(item),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
             children: [
               // 타입 아이콘
               Container(
@@ -247,9 +252,29 @@ class _HistoryTile extends StatelessWidget {
                 color: theme.colorScheme.outlineVariant,
               ),
             ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+String notificationHistorySemanticLabel(NotificationHistory item) {
+  final typeLabel = item.type == 'income' ? 'income' : 'expense';
+  final parts = <String>[
+    'Notification history item',
+    typeLabel,
+    '${formatCurrency(item.amount)} won',
+  ];
+
+  if (item.merchant case final merchant?) {
+    parts.add('merchant $merchant');
+  }
+  if (item.suggestedCategory case final suggestedCategory?) {
+    parts.add('suggested category $suggestedCategory');
+  }
+
+  return '${parts.join(', ')}, double tap to open quick entry.';
 }
