@@ -230,12 +230,17 @@
         <symptom>No Undo after delete; accessibility broken at large font sizes.</symptom>
         <root_cause>Hard delete in DB; missing `Semantics` labels and `TextScaler` clamps.</root_cause>
         <completed>
+          `timeline_screen.dart` (2026-05-08): added `Semantics` for the summary card, filter region, load-more button,
+          day group headers, and swipeable transaction rows.
+          `quick_entry_screen.dart` (2026-05-08): added `Semantics` for the submit CTA, picker fields, and entry
+          readiness summary card.
           `transaction_repository.dart` (2026-05-08): `undoDeleteTransaction` 메서드 추가 — `deletedAt = null`.
           `timeline_screen.dart` (2026-05-08): 삭제 후 SnackBar에 '되돌리기' action 연결 (4초).
           `smart_wallet_app.dart` (2026-05-08): `MediaQuery.withClampedTextScaling(maxScaleFactor: 1.3)` 루트 적용.
         </completed>
         <remaining>
           Semantics 라벨 미적용 (스크린리더용 `Semantics` 위젯 추가 필요).
+          Follow-up accessibility audit still needed for other screens and components beyond timeline and quick entry.
         </remaining>
       </task>
 
