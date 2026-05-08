@@ -106,8 +106,9 @@ String? _extractCardName(String title) {
   const known = [
     '신한카드', 'KB국민카드', '삼성카드', '현대카드', '롯데카드',
     '하나카드', '우리카드', 'NH카드', 'BC카드',
-    '카카오뱅크', '카카오페이', '토스', '네이버페이', 'SSG페이',
-    '신한은행', 'KB국민은행', '우리은행', '하나은행', '농협',
+    '카카오뱅크', '카카오페이', '토스뱅크', '토스', '케이뱅크',
+    '네이버페이', 'SSG페이', '페이코',
+    '신한은행', 'KB국민은행', '우리은행', '하나은행', '농협', '기업은행', '우체국',
   ];
   for (final name in known) {
     if (title.contains(name)) return name;
@@ -133,8 +134,4 @@ String? _guessCategoryKeyword(String merchant, String combined) {
     return '식비';
   }
   // 식비 (배달·외식)
-  if (_containsAny(text, ['맥도날드', '버거킹', 'kfc', '롯데리아', '배달의민족', '요기요', '쿠팡이츠', '피자', '치킨', '떡볶이', '분식', '식당', '레스토랑'])) {
-    return '식비';
-  }
-  // 마트·슈퍼 → 식비
-  i
+  if (_containsAny(text, ['맥도날드', '버거킹', 'kfc', '롯데리아', '배달의민족', '요기요', '쿠팡이츠', '피자', '치킨', '떡볶이', '분식', '식당', '
