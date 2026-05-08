@@ -11,6 +11,52 @@ import '../../accounts/application/accounts_provider.dart';
 import '../../budgets/application/budget_provider.dart';
 import '../application/recurring_expense_service.dart';
 
+String recurringExpenseActionSemanticLabel() {
+  return 'Add recurring transaction. Open the editor to prepare repeating income or expense.';
+}
+
+String recurringExpenseItemSemanticLabel(RecurringExpense item) {
+  final cadenceLabel = item.cadence == 'weekly'
+      ? 'every week on ${_semanticWeekdayLabel(item.weekday ?? DateTime.monday)}'
+      : 'every month on day ${item.dayOfMonth ?? 1}';
+  final typeLabel = item.type == 'income' ? 'income' : 'expense';
+  return 'Recurring transaction item. ${item.name}. $typeLabel. $cadenceLabel. ${_semanticCurrency(item.amount)}.';
+}
+
+String _semanticWeekdayLabel(int weekday) {
+  switch (weekday) {
+    case DateTime.monday:
+      return 'Monday';
+    case DateTime.tuesday:
+      return 'Tuesday';
+    case DateTime.wednesday:
+      return 'Wednesday';
+    case DateTime.thursday:
+      return 'Thursday';
+    case DateTime.friday:
+      return 'Friday';
+    case DateTime.saturday:
+      return 'Saturday';
+    default:
+      return 'Sunday';
+  }
+}
+
+String _semanticCurrency(int amount) {
+  final digits = amount.abs().toString();
+  final buffer = StringBuffer();
+
+  for (var i = 0; i < digits.length; i++) {
+    final reverseIndex = digits.length - i;
+    buffer.write(digits[i]);
+    if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+      buffer.write(',');
+    }
+  }
+
+  return '$buffer원';
+}
+
 class RecurringExpensesScreen extends ConsumerWidget {
   const RecurringExpensesScreen({super.key});
 
@@ -29,10 +75,14 @@ class RecurringExpensesScreen extends ConsumerWidget {
                 title: '반복되는 수입과 지출을 미리 준비해요',
               ),
               const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: () => _showEditor(context, ref),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('정기 거래 추가'),
+              Semantics(
+                button: true,
+                label: recurringExpenseActionSemanticLabel(),
+                child: FilledButton.icon(
+                  onPressed: () => _showEditor(context, ref),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('정기 거래 추가'),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               if (items.isEmpty)
@@ -123,27 +173,31 @@ class _RecurringExpenseTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: ListTile(
-        title: Text(item.name),
-        subtitle: Text(
-          '${_typeLabel(item.type)} · ${_scheduleLabel(item)} · ${formatCurrency(item.amount)}',
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) async {
-            if (value == 'edit') {
-              await const RecurringExpensesScreen()
-                  ._showEditor(context, ref, existing: item);
-            } else if (value == 'delete') {
-              await ref
-                  .read(recurringExpenseServiceProvider)
-                  .deactivate(item.localId);
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'edit', child: Text('수정')),
-            PopupMenuItem(value: 'delete', child: Text('비활성화')),
-          ],
+    return Semantics(
+      container: true,
+      label: recurringExpenseItemSemanticLabel(item),
+      child: Card(
+        child: ListTile(
+          title: Text(item.name),
+          subtitle: Text(
+            '${_typeLabel(item.type)} · ${_scheduleLabel(item)} · ${formatCurrency(item.amount)}',
+          ),
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                await const RecurringExpensesScreen()
+                    ._showEditor(context, ref, existing: item);
+              } else if (value == 'delete') {
+                await ref
+                    .read(recurringExpenseServiceProvider)
+                    .deactivate(item.localId);
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'edit', child: Text('수정')),
+              PopupMenuItem(value: 'delete', child: Text('비활성화')),
+            ],
+          ),
         ),
       ),
     );
