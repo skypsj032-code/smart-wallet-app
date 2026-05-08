@@ -278,3 +278,27 @@ class CsvImportService {
 
     // yyyy-mm-dd / yyyymmdd
     final compact = RegExp(r'^(\d{4})[-./]?(\d{2})[-./]?(\d{2})').firstMatch(raw);
+    if (compact != null) {
+      return DateTime(
+        int.parse(compact.group(1)!),
+        int.parse(compact.group(2)!),
+        int.parse(compact.group(3)!),
+      );
+    }
+
+    return null;
+  }
+
+  String? _normalizeType(String? raw) {
+    if (raw == null) return null;
+    final lower = raw.toLowerCase().trim();
+    if (lower == 'expense' || lower == '지출' || lower == '-') return 'expense';
+    if (lower == 'income' || lower == '수입' || lower == '+') return 'income';
+    if (lower == 'transfer' || lower == '이체') return 'transfer';
+    return null;
+  }
+}
+
+final csvImportServiceProvider = Provider<CsvImportService>((ref) {
+  return CsvImportService(ref.watch(appDatabaseProvider));
+});

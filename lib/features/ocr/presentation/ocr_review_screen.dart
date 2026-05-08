@@ -816,4 +816,9 @@ class _InlineError extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.expense),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(chil
+          Expanded(child: Text(message)),
+        ],
+      ),
+    );
+  }
+}

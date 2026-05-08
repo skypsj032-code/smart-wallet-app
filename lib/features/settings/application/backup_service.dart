@@ -471,4 +471,14 @@ class BackupService {
         'themeMode': settings.themeMode,
         'defaultCategorySeedVersion': settings.defaultCategorySeedVersion,
         'appLockEnabled': settings.appLockEnabled,
-        'biometricEnabled': settings.biomet
+        'biometricEnabled': settings.biometricEnabled,
+        'exportIncludeDeleted': settings.exportIncludeDeleted,
+        'createdAt': settings.createdAt.toIso8601String(),
+        'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
+      };
+}
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return BackupService(database);
+});

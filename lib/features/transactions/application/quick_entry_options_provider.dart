@@ -51,4 +51,12 @@ final quickEntryCategoriesProvider =
       .map(
         (rows) => rows
             .map(
-              (row) => QuickEntryC
+              (row) => QuickEntryCategoryOption(
+                id: row.localId,
+                name: row.name,
+                type: row.type,
+              ),
+            )
+            .toList(),
+      );
+});

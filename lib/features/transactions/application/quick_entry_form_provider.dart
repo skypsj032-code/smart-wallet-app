@@ -198,4 +198,9 @@ class QuickEntryFormController extends Notifier<QuickEntryFormState> {
 /// 제출 진행 중 플래그 — QuickEntryScreen 생명주기와 동기화.
 /// autoDispose: 화면이 닫히면 자동으로 false로 초기화 (좀비 상태 방지).
 final quickEntrySubmitStateProvider =
-    StateProvi
+    StateProvider.autoDispose<bool>((ref) => false);
+
+final quickEntryFormProvider =
+    NotifierProvider<QuickEntryFormController, QuickEntryFormState>(
+  QuickEntryFormController.new,
+);

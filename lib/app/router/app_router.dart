@@ -196,4 +196,29 @@ NoTransitionPage<void> _buildTransitionPage({
   );
 }
 
-/// 하단에서 슬라이드 올라오는 모�
+/// 하단에서 슬라이드 올라오는 모달 스타일 페이지 (퀵 입력 전용)
+CustomTransitionPage<void> _buildModalPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
+  );
+}

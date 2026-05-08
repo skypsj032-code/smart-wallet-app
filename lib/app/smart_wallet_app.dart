@@ -130,3 +130,11 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
       themeMode: themeMode,
       builder: (context, child) => MediaQuery.withClampedTextScaling(
         maxScaleFactor: 1.3,
+        child: AppFrame(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+      routerConfig: router,
+    );
+  }
+}

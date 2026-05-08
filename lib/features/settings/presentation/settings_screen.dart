@@ -1059,4 +1059,23 @@ class _NotificationListenerCardState
       builder: (dialogContext) => AlertDialog(
         title: const Text('알림 접근 권한 필요'),
         content: const Text(
-          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 
+          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 필요해요.\n\n'
+          '설정 → 앱 → 알림 접근에서 Smart Wallet을 허용해 주세요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              NotificationChannel.openPermissionSettings();
+            },
+            child: const Text('설정 열기'),
+          ),
+        ],
+      ),
+    );
+  }
+}

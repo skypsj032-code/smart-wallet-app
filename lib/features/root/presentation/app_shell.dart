@@ -455,4 +455,26 @@ class _AppShellState extends ConsumerState<AppShell>
     final now = DateTime.now();
     final lastBackPressedAt = _lastBackPressedAt;
     final shouldExit = lastBackPressedAt != null &&
-        now.difference(l
+        now.difference(lastBackPressedAt) <= _exitGracePeriod;
+
+    if (shouldExit) {
+      return true;
+    }
+
+    _lastBackPressedAt = now;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
+          duration: _exitGracePeriod,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    return false;
+  }
+
+  bool _isHomeLocation(String location) {
+    return location == '/' || location.startsWith('/?');
+  }
+}

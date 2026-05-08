@@ -308,4 +308,31 @@ extension _CombineLatestExtension<A> on Stream<A> {
 
     subA = listen(
       (value) {
-    
+        latestA = value;
+        hasA = true;
+        emitIfReady();
+      },
+      onError: controller.addError,
+      onDone: () async {
+        await subB.cancel();
+        await controller.close();
+      },
+    );
+
+    subB = other.listen(
+      (value) {
+        latestB = value;
+        hasB = true;
+        emitIfReady();
+      },
+      onError: controller.addError,
+    );
+
+    controller.onCancel = () async {
+      await subA.cancel();
+      await subB.cancel();
+    };
+
+    return controller.stream;
+  }
+}

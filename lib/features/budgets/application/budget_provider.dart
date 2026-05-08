@@ -134,4 +134,7 @@ class BudgetEditorService implements IBudgetRepository {
 }
 
 /// Provider는 인터페이스 타입으로 노출 — 테스트에서 override 가능.
-final budgetEditorServicePro
+final budgetEditorServiceProvider = Provider<IBudgetRepository>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return BudgetEditorService(database);
+});

@@ -193,4 +193,25 @@ String _extractMerchant(String combined, String amountDigits) {
       .replaceAll(RegExp(r'승인|사용|결제|출금|입금|이체|수신|급여'), '')
       .replaceAll(RegExp(r'[^\w\s가-힣A-Za-z0-9]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
-      .tri
+      .trim();
+
+  // 남은 단어 중 2글자 이상인 것을 가맹점으로
+  final words = cleaned.split(' ').where((w) => w.length >= 2).toList();
+  if (words.isEmpty) return '';
+
+  // 카드/은행 이름과 숫자 단어 제외
+  const skipWords = {
+    '신한카드', 'KB국민카드', '삼성카드', '현대카드', '롯데카드',
+    '하나카드', '우리카드', 'NH카드', 'BC카드',
+    '카카오뱅크', '카카오페이', '토스뱅크', '토스', '케이뱅크',
+    '네이버페이', 'SSG페이', '페이코',
+    '신한은행', 'KB국민은행', '우리은행', '하나은행', '농협', '기업은행', '우체국',
+    '현금', 'ATM', '자동이체',
+  };
+
+  final merchant = words.firstWhere(
+    (w) => !skipWords.contains(w) && !RegExp(r'^\d+$').hasMatch(w),
+    orElse: () => words.first,
+  );
+  return merchant;
+}

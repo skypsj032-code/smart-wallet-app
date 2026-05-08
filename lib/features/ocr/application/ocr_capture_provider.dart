@@ -340,4 +340,7 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
 }
 
 /// OCR 화면 종료 시 draft 상태 자동 해제 (DB에 이미 영속화되므로 안전).
-final o
+final ocrCaptureProvider =
+    NotifierProvider.autoDispose<OcrCaptureController, OcrDraftState>(
+  OcrCaptureController.new,
+);

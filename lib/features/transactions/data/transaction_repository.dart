@@ -189,4 +189,22 @@ class TransactionRepository implements ITransactionRepository {
         );
   }
 
-  String _mapType(TransactionEntryType type)
+  String _mapType(TransactionEntryType type) {
+    switch (type) {
+      case TransactionEntryType.expense:
+        return 'expense';
+      case TransactionEntryType.income:
+        return 'income';
+      case TransactionEntryType.transfer:
+        return 'transfer';
+    }
+  }
+}
+
+/// Provider는 인터페이스 타입으로 노출 — 테스트에서 override 가능.
+final transactionRepositoryProvider =
+    Provider<ITransactionRepository>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return TransactionRepository(database);
+});
+

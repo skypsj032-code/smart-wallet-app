@@ -169,4 +169,19 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog>
                 keyboardType: TextInputType.number,
               ),
             ],
-          
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: _saveBudget,
+              child: const Text('저장'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

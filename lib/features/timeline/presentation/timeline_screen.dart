@@ -763,4 +763,16 @@ String _sectionDateLabel(DateTime dateTime) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final target = DateTime(dateTime.year, dateTime.month, dateTime.day);
-  final difference = today.
+  final difference = today.difference(target).inDays;
+
+  if (difference == 0) {
+    return '오늘';
+  }
+  if (difference == 1) {
+    return '어제';
+  }
+
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final day = dateTime.day.toString().padLeft(2, '0');
+  return '${dateTime.year}년 $month월 $day일';
+}
