@@ -48,7 +48,8 @@ class OcrService {
 
     try {
       cameras = await availableCameras();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Loading cameras failed: $error\n$stackTrace');
       throw const OcrCaptureException(
         'Could not load the camera list. Check the camera permission and device state.',
       );
@@ -113,7 +114,8 @@ class OcrService {
       );
     } on OcrCaptureException {
       rethrow;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('OCR text extraction failed: $error\n$stackTrace');
       throw const OcrCaptureException(
         'Text extraction failed. Retake the receipt and try again.',
       );

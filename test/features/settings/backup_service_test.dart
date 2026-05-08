@@ -1,16 +1,22 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/settings/application/backup_service.dart';
 
 import '../../test_support/sqlite_test_setup.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late AppDatabase database;
   late BackupService backupService;
+  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
   setUpAll(() {
     configureSqliteForTests();
@@ -22,6 +28,8 @@ void main() {
   });
 
   tearDown(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(pathProviderChannel, null);
     await database.close();
   });
 
@@ -106,10 +114,8 @@ void main() {
     final payload = await backupService.exportJsonBackup();
 
     expect(payload.summary.recurringExpenseCount, 1);
-    expect(
-      backupService.inspectJsonBackup(payload.json).summary.recurringExpenseCount,
-      1,
-    );
+    final preview = await backupService.inspectJsonBackup(payload.json);
+    expect(preview.summary.recurringExpenseCount, 1);
 
     final decoded = jsonDecode(payload.json) as Map<String, dynamic>;
     final data = decoded['data'] as Map<String, dynamic>;
@@ -166,5 +172,45 @@ void main() {
       () => backupService.inspectJsonBackup(backupJson),
       throwsA(isA<BackupFormatException>()),
     );
+  });
+
+  test('saveBackupFile replaces an existing backup file and removes temp file', () async {
+    final tempDir = await Directory.systemTemp.createTemp('backup_service_test');
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(pathProviderChannel, (call) async {
+      if (call.method == 'getApplicationDocumentsDirectory') {
+        return tempDir.path;
+      }
+      return null;
+    });
+
+    const fileName = 'smart_wallet_backup_existing.json';
+    final targetFile = File(p.join(tempDir.path, fileName));
+    await targetFile.writeAsString('old-payload', flush: true);
+
+    const payloadJson = '{"ok":true}';
+    const payload = BackupPayload(
+      json: '{"ok":true}',
+      summary: BackupSummary(
+        transactionCount: 0,
+        categoryCount: 0,
+        budgetCount: 0,
+        accountCount: 0,
+        recurringExpenseCount: 0,
+      ),
+      fileName: fileName,
+    );
+
+    final savedFile = await backupService.saveBackupFile(payload);
+
+    expect(savedFile.path, targetFile.path);
+    expect(await savedFile.readAsString(), payloadJson);
+    expect(File('${targetFile.path}.tmp').existsSync(), isFalse);
   });
 }

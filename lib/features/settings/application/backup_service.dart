@@ -136,9 +136,42 @@ class BackupService {
 
   Future<File> saveBackupFile(BackupPayload payload) async {
     final directory = await getApplicationDocumentsDirectory();
-    final file = File(p.join(directory.path, payload.fileName));
-    await file.writeAsString(payload.json);
-    return file;
+    final targetPath = p.join(directory.path, payload.fileName);
+    final tmpPath = '$targetPath.tmp';
+    final tmpFile = File(tmpPath);
+    final targetFile = File(targetPath);
+    final backupPath = '$targetPath.bak';
+    final backupFile = File(backupPath);
+
+    // 원자적 저장: .tmp 파일에 먼저 쓰고 완료 후 rename
+    // → 기존 파일이 있으면 .bak으로 잠시 대피시켜 교체 실패 시 복구
+    await tmpFile.writeAsString(payload.json, flush: true);
+
+    if (!await targetFile.exists()) {
+      return tmpFile.rename(targetPath);
+    }
+
+    if (await backupFile.exists()) {
+      await backupFile.delete();
+    }
+
+    await targetFile.rename(backupPath);
+    try {
+      final finalFile = await tmpFile.rename(targetPath);
+      if (await backupFile.exists()) {
+        await backupFile.delete();
+      }
+      return finalFile;
+    } catch (_) {
+      if (await backupFile.exists()) {
+        await backupFile.rename(targetPath);
+      }
+      rethrow;
+    } finally {
+      if (await tmpFile.exists()) {
+        await tmpFile.delete();
+      }
+    }
   }
 
   Future<void> shareBackupFile(

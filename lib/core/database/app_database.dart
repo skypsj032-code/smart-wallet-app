@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 
 import '../../features/budgets/application/budget_provider.dart';
@@ -47,10 +48,20 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'ALTER TABLE app_settings DROP COLUMN onboarding_completed;',
               );
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              debugPrint(
+                'Skipping onboarding_completed drop during migration: '
+                '$error\n$stackTrace',
+              );
+            }
             try {
               await customStatement('DROP TABLE IF EXISTS local_user_profile;');
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              debugPrint(
+                'Skipping local_user_profile drop during migration: '
+                '$error\n$stackTrace',
+              );
+            }
           }
           if (from < 4) {
             await m.createTable(recurringExpenses);
