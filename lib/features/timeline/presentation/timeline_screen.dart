@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -382,8 +383,8 @@ class _TimelineList extends StatelessWidget {
         int dayIncome = 0;
         int dayExpense = 0;
         for (final tx in transactions) {
-          if (tx.type == 'income') dayIncome += (tx.amount as int);
-          if (tx.type == 'expense') dayExpense += (tx.amount as int);
+          if (tx.type == 'income') dayIncome += tx.amount as int;
+          if (tx.type == 'expense') dayExpense += tx.amount as int;
         }
 
         return Padding(
@@ -404,7 +405,8 @@ class _TimelineList extends StatelessWidget {
                   final tx = transactions[index];
                   return Column(
                     children: [
-                      _TimelineTile(
+                      _SwipeableTile(
+                        key: ValueKey(tx.localId),
                         transaction: tx,
                         onEdit: () => onEdit(tx),
                         onDelete: () => onDelete(tx),
@@ -475,6 +477,72 @@ class _DayGroupHeader extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── 스와이프 래퍼 ─────────────────────────────────────────────────────────
+
+class _SwipeableTile extends StatelessWidget {
+  const _SwipeableTile({
+    super.key,
+    required this.transaction,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final dynamic transaction;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dismissible(
+      key: ValueKey('dismissible_${transaction.localId}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppSpacing.lg),
+        color: theme.colorScheme.errorContainer,
+        child: Icon(
+          Icons.delete_outline_rounded,
+          color: theme.colorScheme.onErrorContainer,
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        HapticFeedback.mediumImpact();
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('거래 숨기기'),
+            content: const Text('이 거래를 목록에서 숨길까요?\n설정에서 복원할 수 있습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                ),
+                child: const Text('숨기기'),
+              ),
+            ],
+          ),
+        );
+        return confirmed ?? false;
+      },
+      onDismissed: (_) {
+        HapticFeedback.lightImpact();
+        onDelete();
+      },
+      child: _TimelineTile(
+        transaction: transaction,
+        onEdit: onEdit,
+        onDelete: onDelete,
       ),
     );
   }
