@@ -24,10 +24,16 @@ void main() {
     expect(find.text('거래 검색'), findsOneWidget);
     expect(find.text('계좌 관리'), findsOneWidget);
     expect(find.text('예산 관리'), findsOneWidget);
-    expect(find.text('영수증 스캔'), findsOneWidget);
-    expect(find.text('고정 지출'), findsOneWidget);
+    expect(find.text('정기 거래'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('영수증 촬영'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('영수증 촬영'), findsOneWidget);
     expect(find.text('JSON 백업 만들기'), findsNothing);
-    expect(find.text('화면 테마'), findsNothing);
+    expect(find.text('화면 모드'), findsNothing);
   });
 
   testWidgets('SettingsScreen focuses on app settings and data management',
@@ -56,16 +62,16 @@ void main() {
     expect(find.text('JSON 백업 만들기'), findsOneWidget);
     expect(find.text('CSV 내보내기'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('앱 안내'),
+      find.text('화면 모드'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('앱 안내'), findsOneWidget);
+    expect(find.text('화면 모드'), findsOneWidget);
     expect(find.text('거래 검색'), findsNothing);
     expect(find.text('계좌 관리'), findsNothing);
     expect(find.text('예산 관리'), findsNothing);
-    expect(find.text('영수증 스캔'), findsNothing);
+    expect(find.text('영수증 촬영'), findsNothing);
   });
 }
 

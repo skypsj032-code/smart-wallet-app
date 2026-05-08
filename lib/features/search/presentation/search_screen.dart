@@ -87,9 +87,75 @@ final searchResultsProvider = Provider.autoDispose<List<Transaction>>((ref) {
       }
     }
 
-    return true;
+  return true;
   }).toList();
 });
+
+String searchSummarySemanticLabel(
+  SearchFilter filter,
+  int resultsCount, {
+  required bool isLoading,
+}) {
+  final details = <String>[];
+
+  if (filter.keyword.isNotEmpty) {
+    details.add('keyword ${filter.keyword}');
+  }
+  if (filter.type != null) {
+    details.add('type ${filter.type}');
+  }
+  if (filter.categoryId != null) {
+    details.add('category selected');
+  }
+  if (filter.accountId != null) {
+    details.add('account selected');
+  }
+
+  final filterDescription =
+      details.isEmpty ? 'all transactions' : details.join(', ');
+  final resultDescription =
+      isLoading ? 'Results are loading.' : 'Results: $resultsCount.';
+
+  return 'Search results summary. Current filter: $filterDescription. $resultDescription';
+}
+
+String searchResultSemanticLabel(Transaction transaction) {
+  final details = <String>[
+    'Search result item.',
+    'type ${transaction.type}.',
+    '${_semanticCurrency(transaction.amount)} won.',
+  ];
+
+  final merchant = transaction.merchantName?.trim();
+  if (merchant != null && merchant.isNotEmpty) {
+    details.add('merchant $merchant.');
+  }
+
+  final memo = transaction.memo?.trim();
+  if (memo != null && memo.isNotEmpty) {
+    details.add('memo $memo.');
+  }
+
+  details.add(
+    'Occurred on ${transaction.occurredAt.year}-${transaction.occurredAt.month.toString().padLeft(2, '0')}-${transaction.occurredAt.day.toString().padLeft(2, '0')}.',
+  );
+  return details.join(' ');
+}
+
+String _semanticCurrency(int amount) {
+  final digits = amount.abs().toString();
+  final buffer = StringBuffer();
+
+  for (var i = 0; i < digits.length; i++) {
+    final reverseIndex = digits.length - i;
+    buffer.write(digits[i]);
+    if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+      buffer.write(',');
+    }
+  }
+
+  return buffer.toString();
+}
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -268,7 +334,11 @@ class _SearchControlCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          Semantics(
+            textField: true,
+            label: 'Search transactions by merchant or memo',
+            hint: 'Type a keyword to filter transactions.',
+            child: TextField(
             controller: controller,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
@@ -292,7 +362,8 @@ class _SearchControlCard extends StatelessWidget {
                 vertical: 16,
               ),
             ),
-            onChanged: onKeywordChanged,
+              onChanged: onKeywordChanged,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -339,7 +410,14 @@ class _SearchControlCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Container(
+          Semantics(
+            container: true,
+            label: searchSummarySemanticLabel(
+              filter,
+              resultsCount,
+              isLoading: isLoading,
+            ),
+            child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -390,6 +468,7 @@ class _SearchControlCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         ],
       ),
@@ -443,14 +522,17 @@ class _SearchResultTile extends StatelessWidget {
     final trailingTop = _amountText(transaction);
     final trailingBottom = _formatDateTime(transaction.occurredAt);
 
-    return GlassCard(
-      blur: 12,
-      borderRadius: BorderRadius.circular(20),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: 14,
-      ),
-      child: Padding(
+    return Semantics(
+      container: true,
+      label: searchResultSemanticLabel(transaction),
+      child: GlassCard(
+        blur: 12,
+        borderRadius: BorderRadius.circular(20),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 14,
+        ),
+        child: Padding(
         padding: EdgeInsets.zero,
         child: Row(
           children: [
@@ -515,6 +597,7 @@ class _SearchResultTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

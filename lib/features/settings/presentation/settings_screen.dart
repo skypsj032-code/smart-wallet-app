@@ -31,6 +31,38 @@ final _recentNotificationCountProvider = FutureProvider.autoDispose<int>((ref) {
   return database.countRecentNotificationHistories(dayRange: 30);
 });
 
+String settingsActionSemanticLabel({
+  required String title,
+  String? subtitle,
+}) {
+  final buffer = StringBuffer('Open $title.');
+  if (subtitle != null && subtitle.trim().isNotEmpty) {
+    buffer.write(' ${subtitle.trim()}');
+  }
+  return buffer.toString();
+}
+
+String appLockSemanticLabel({
+  required bool enabled,
+  required bool sessionUnlocked,
+}) {
+  if (!enabled) {
+    return 'App lock settings. Lock is off. Double tap to configure a 4-digit PIN lock.';
+  }
+  if (sessionUnlocked) {
+    return 'App lock settings. Lock is on and the current session is unlocked. Double tap to manage the PIN or lock now.';
+  }
+  return 'App lock settings. Lock is on and the current session is locked. Double tap to manage the PIN.';
+}
+
+String restoreActionSemanticLabel() {
+  return 'Restore from backup. This action will replace the current wallet data and create a safety backup before restoring.';
+}
+
+String themeModeSemanticLabel(String currentMode) {
+  return 'Theme mode settings. Current mode: $currentMode. Double tap to follow the device setting or switch between light and dark mode.';
+}
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -45,44 +77,6 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           const _SettingsHeroCard(),
-          const SizedBox(height: AppSpacing.lg),
-          const AppSectionIntro(
-            title: '일상 이동',
-            subtitle: '자주 쓰는 화면으로 조용하게 이동합니다.',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppUtilityGroup(
-            children: [
-              _SettingsActionTile(
-                icon: Icons.search_rounded,
-                color: AppColors.primary,
-                title: '거래 검색',
-                subtitle: '필요한 기록을 빠르게 찾습니다.',
-                onTap: () => context.go('/search'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.account_balance_wallet_outlined,
-                color: AppColors.primary,
-                title: '계좌 관리',
-                subtitle: '현금, 통장, 카드의 흐름을 정리합니다.',
-                onTap: () => context.go('/accounts'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.savings_outlined,
-                color: AppColors.primary,
-                title: '예산 관리',
-                subtitle: '이번 달 계획을 차분하게 점검합니다.',
-                onTap: () => context.go('/budgets'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.document_scanner_outlined,
-                color: AppColors.primary,
-                title: '영수증 스캔',
-                subtitle: '영수증 내용을 바로 불러옵니다.',
-                onTap: () => context.go('/ocr-capture'),
-              ),
-            ],
-          ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '데이터 안전',
@@ -681,8 +675,14 @@ class _AppLockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
+    return Semantics(
+      container: true,
+      label: appLockSemanticLabel(
+        enabled: enabled,
+        sessionUnlocked: sessionUnlocked,
+      ),
+      child: Card(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -736,6 +736,7 @@ class _AppLockCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -752,75 +753,79 @@ class _RestoreActionCard extends StatelessWidget {
     const color = AppColors.expense;
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.12),
-                  child: const Icon(Icons.restore_rounded, color: color),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '백업에서 복원',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '선택한 JSON 백업으로 현재 데이터를 교체합니다.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+    return Semantics(
+      container: true,
+      label: restoreActionSemanticLabel(),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withValues(alpha: 0.12),
+                    child: const Icon(Icons.restore_rounded, color: color),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                const AppStatusChip(
-                  label: '신중',
-                  dotColor: AppColors.warning,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '복원 전에 자동으로 안전 백업을 한 번 더 남기므로, 실수했을 때 되돌릴 여지를 확보합니다.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.md,
-                    horizontal: AppSpacing.md,
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '백업에서 복원',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '선택한 JSON 백업으로 현재 데이터를 교체합니다.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                onPressed: onTap,
-                icon: const Icon(Icons.file_download_outlined),
-                label: const Text('복원 시작'),
+                  const SizedBox(width: AppSpacing.sm),
+                  const AppStatusChip(
+                    label: '신중',
+                    dotColor: AppColors.warning,
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '복원 전에 자동으로 안전 백업을 한 번 더 남기므로, 실수했을 때 되돌릴 여지를 확보합니다.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                      horizontal: AppSpacing.md,
+                    ),
+                  ),
+                  onPressed: onTap,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('복원 시작'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -844,29 +849,33 @@ class _SettingsActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+    return Semantics(
+      button: true,
+      label: settingsActionSemanticLabel(title: title, subtitle: subtitle),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        subtitle: subtitle != null
+            ? Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(subtitle!),
+              )
+            : null,
+        trailing: const Icon(Icons.chevron_right_rounded),
       ),
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: 0.12),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      subtitle: subtitle != null
-          ? Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(subtitle!),
-            )
-          : null,
-      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }
@@ -882,43 +891,47 @@ class _ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-        child: Icon(
-          currentMode == 'dark'
-              ? Icons.dark_mode_outlined
-              : currentMode == 'light'
-                  ? Icons.light_mode_outlined
-                  : Icons.brightness_auto_outlined,
-          color: AppColors.primary,
+    return Semantics(
+      container: true,
+      label: themeModeSemanticLabel(currentMode),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
         ),
-      ),
-      title: Text(
-        '화면 모드',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(_modeLabel(currentMode)),
-      ),
-      trailing: DropdownButton<String>(
-        value: currentMode,
-        underline: const SizedBox.shrink(),
-        items: const [
-          DropdownMenuItem(value: 'system', child: Text('시스템')),
-          DropdownMenuItem(value: 'light', child: Text('라이트')),
-          DropdownMenuItem(value: 'dark', child: Text('다크')),
-        ],
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+          child: Icon(
+            currentMode == 'dark'
+                ? Icons.dark_mode_outlined
+                : currentMode == 'light'
+                    ? Icons.light_mode_outlined
+                    : Icons.brightness_auto_outlined,
+            color: AppColors.primary,
+          ),
+        ),
+        title: Text(
+          '화면 모드',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_modeLabel(currentMode)),
+        ),
+        trailing: DropdownButton<String>(
+          value: currentMode,
+          underline: const SizedBox.shrink(),
+          items: const [
+            DropdownMenuItem(value: 'system', child: Text('시스템')),
+            DropdownMenuItem(value: 'light', child: Text('라이트')),
+            DropdownMenuItem(value: 'dark', child: Text('다크')),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(value);
+          },
+        ),
       ),
     );
   }
