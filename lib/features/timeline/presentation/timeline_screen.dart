@@ -67,9 +67,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              _TypeFilterBar(
-                selectedType: selectedType,
-                onSelected: (type) => selectTimelineType(ref, type),
+              Semantics(
+                container: true,
+                label: 'Timeline filters',
+                hint: 'Choose a transaction type filter',
+                child: _TypeFilterBar(
+                  selectedType: selectedType,
+                  onSelected: (type) => selectTimelineType(ref, type),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
@@ -179,8 +184,18 @@ class _TimelineSummaryCard extends StatelessWidget {
     final net = totalIncome - totalExpense;
     final netColor = net >= 0 ? AppColors.income : AppColors.expense;
 
-    return Card(
-      child: Padding(
+    return Semantics(
+      container: true,
+      label: _timelineSummarySemanticLabel(
+        totalCount: totalCount,
+        visibleCount: visibleCount,
+        selectedType: selectedType,
+        totalIncome: totalIncome,
+        totalExpense: totalExpense,
+        net: net,
+      ),
+      child: Card(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,6 +257,7 @@ class _TimelineSummaryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -449,8 +465,13 @@ class _TimelineLoadMoreButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
+    return Semantics(
+      button: true,
+      label: 'Load more timeline items',
+      value: '$loadedCount of $totalCount items loaded',
+      hint: 'Double tap to load more transactions',
+      child: Card(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
@@ -468,6 +489,7 @@ class _TimelineLoadMoreButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -488,8 +510,11 @@ class _DayGroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
+    return Semantics(
+      header: true,
+      label: _dayGroupSemanticLabel(date, dayIncome, dayExpense),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: 10,
       ),
@@ -526,6 +551,7 @@ class _DayGroupHeader extends StatelessWidget {
           ],
         ],
       ),
+      ),
     );
   }
 }
@@ -547,10 +573,14 @@ class _SwipeableTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dismissible(
-      key: ValueKey('dismissible_${transaction.localId}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
+    return Semantics(
+      container: true,
+      label: _transactionSemanticLabel(transaction),
+      hint: 'Swipe left to delete. Use the menu for more actions.',
+      child: Dismissible(
+        key: ValueKey('dismissible_${transaction.localId}'),
+        direction: DismissDirection.endToStart,
+        background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppSpacing.lg),
         color: theme.colorScheme.errorContainer,
@@ -587,10 +617,11 @@ class _SwipeableTile extends StatelessWidget {
         HapticFeedback.lightImpact();
         onDelete();
       },
-      child: _TimelineTile(
-        transaction: transaction,
-        onEdit: onEdit,
-        onDelete: onDelete,
+        child: _TimelineTile(
+          transaction: transaction,
+          onEdit: onEdit,
+          onDelete: onDelete,
+        ),
       ),
     );
   }
@@ -674,7 +705,7 @@ class _TimelineTile extends StatelessWidget {
               ),
             ),
             PopupMenuButton<String>(
-              tooltip: '더보기',
+              tooltip: 'More actions',
               onSelected: (value) {
                 if (value == 'edit') {
                   onEdit();
@@ -698,6 +729,35 @@ class _TimelineTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _timelineSummarySemanticLabel({
+  required int totalCount,
+  required int visibleCount,
+  required String? selectedType,
+  required int totalIncome,
+  required int totalExpense,
+  required int net,
+}) {
+  final filterLabel =
+      selectedType == null ? 'all transactions' : 'filtered transactions';
+  return 'Timeline summary. Showing $visibleCount of $totalCount items for '
+      '$filterLabel. Income ${formatCurrency(totalIncome)}. Expense '
+      '${formatCurrency(totalExpense)}. Net ${formatCurrency(net)}.';
+}
+
+String _dayGroupSemanticLabel(DateTime date, int dayIncome, int dayExpense) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return 'Transactions for ${date.year}-$month-$day. Income '
+      '${formatCurrency(dayIncome)}. Expense ${formatCurrency(dayExpense)}.';
+}
+
+String _transactionSemanticLabel(dynamic tx) {
+  final label = _primaryLabel(tx);
+  final amount = _formatAmount(tx.type as String, tx.amount as int);
+  final time = _timeLabel(tx.occurredAt as DateTime);
+  return 'Transaction. $label. Amount $amount. Time $time.';
 }
 
 String _typeLabel(String type) {

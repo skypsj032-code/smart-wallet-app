@@ -383,7 +383,14 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             height: 56,
-            child: FilledButton(
+            child: Semantics(
+              button: true,
+              enabled: form.canSubmit && !isSubmitting,
+              label: isEditing ? 'Save edited transaction' : 'Create transaction',
+              hint: form.canSubmit
+                  ? 'Double tap to submit this transaction'
+                  : 'Complete the required fields before submitting',
+              child: FilledButton(
               onPressed: form.canSubmit && !isSubmitting
                   ? () {
                       developer.log(
@@ -422,6 +429,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
                         ),
                       ],
                     ),
+              ),
             ),
           ),
         ],
@@ -1287,30 +1295,35 @@ class _PickerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon),
-          suffixIcon: const Icon(Icons.expand_more),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value),
-            if (helper != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                helper!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+    return Semantics(
+      button: onTap != null,
+      label: '$label. $value',
+      hint: helper ?? 'Double tap to change this selection',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onTap,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon),
+            suffixIcon: const Icon(Icons.expand_more),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value),
+              if (helper != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  helper!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -1375,9 +1388,14 @@ class _EntryReadinessCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isReady = validationMessages.isEmpty && form.amount.trim().isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
+    return Semantics(
+      container: true,
+      label: isReady
+          ? 'Entry is ready to submit'
+          : 'Entry needs more information before it can be submitted',
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
         color: isReady
             ? AppColors.income.withValues(alpha: 0.08)
             : AppColors.softHighlight.withValues(alpha: 0.52),
@@ -1388,9 +1406,9 @@ class _EntryReadinessCard extends StatelessWidget {
               : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Text(
             isReady ? '저장 준비 완료' : '저장 전 확인',
             style: theme.textTheme.titleSmall?.copyWith(
@@ -1436,7 +1454,8 @@ class _EntryReadinessCard extends StatelessWidget {
               ],
             ],
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
