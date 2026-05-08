@@ -1,9 +1,12 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import 'recurring_transaction_suggestion.dart';
+
+const _uuid = Uuid();
 
 class RecurringExpenseService {
   RecurringExpenseService(this._database);
@@ -137,7 +140,7 @@ class RecurringExpenseService {
     await _database.transaction(() async {
       await _database.into(_database.transactions).insert(
             TransactionsCompanion.insert(
-              localId: 'tx_${now.microsecondsSinceEpoch}',
+              localId: 'tx_${_uuid.v4()}',
               type: recurring.type,
               amount: recurring.amount,
               occurredAt: occurredAt,

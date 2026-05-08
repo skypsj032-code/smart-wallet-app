@@ -194,8 +194,11 @@ class BackupService {
       await _database.delete(_database.accounts).go();
       await _database.delete(_database.appSettings).go();
 
-      for (final raw in categoriesData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.categories).insert(
+      // ─── batch.insertAll: N번 디스크 I/O → 1번 Transaction으로 최적화 ───
+      await _database.batch((batch) {
+        batch.insertAll(
+          _database.categories,
+          categoriesData.cast<Map<String, dynamic>>().map((raw) =>
               CategoriesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -207,12 +210,12 @@ class BackupService {
                 sortOrder: Value((raw['sortOrder'] as int?) ?? 0),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
-              ),
-            );
-      }
+              )).toList(),
+        );
 
-      for (final raw in accountsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.accounts).insert(
+        batch.insertAll(
+          _database.accounts,
+          accountsData.cast<Map<String, dynamic>>().map((raw) =>
               AccountsCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -222,12 +225,12 @@ class BackupService {
                 isActive: Value((raw['isActive'] as bool?) ?? true),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
-              ),
-            );
-      }
+              )).toList(),
+        );
 
-      for (final raw in budgetsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.budgets).insert(
+        batch.insertAll(
+          _database.budgets,
+          budgetsData.cast<Map<String, dynamic>>().map((raw) =>
               BudgetsCompanion.insert(
                 localId: raw['localId'] as String,
                 monthKey: raw['monthKey'] as String,
@@ -238,12 +241,12 @@ class BackupService {
                 alert100Enabled: Value((raw['alert100Enabled'] as bool?) ?? true),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
-              ),
-            );
-      }
+              )).toList(),
+        );
 
-      for (final raw in transactionsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.transactions).insert(
+        batch.insertAll(
+          _database.transactions,
+          transactionsData.cast<Map<String, dynamic>>().map((raw) =>
               TransactionsCompanion.insert(
                 localId: raw['localId'] as String,
                 type: raw['type'] as String,
@@ -264,12 +267,12 @@ class BackupService {
                       ? null
                       : DateTime.parse(raw['deletedAt'] as String),
                 ),
-              ),
-            );
-      }
+              )).toList(),
+        );
 
-      for (final raw in recurringExpensesData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.recurringExpenses).insert(
+        batch.insertAll(
+          _database.recurringExpenses,
+          recurringExpensesData.cast<Map<String, dynamic>>().map((raw) =>
               RecurringExpensesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -281,17 +284,14 @@ class BackupService {
                 accountId: raw['accountId'] as String,
                 categoryId: Value(raw['categoryId'] as String?),
                 isActive: Value((raw['isActive'] as bool?) ?? true),
-                lastSuggestedCycleKey:
-                    Value(raw['lastSuggestedCycleKey'] as String?),
-                lastCompletedCycleKey:
-                    Value(raw['lastCompletedCycleKey'] as String?),
-                lastDismissedCycleKey:
-                    Value(raw['lastDismissedCycleKey'] as String?),
+                lastSuggestedCycleKey: Value(raw['lastSuggestedCycleKey'] as String?),
+                lastCompletedCycleKey: Value(raw['lastCompletedCycleKey'] as String?),
+                lastDismissedCycleKey: Value(raw['lastDismissedCycleKey'] as String?),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
-              ),
-            );
-      }
+              )).toList(),
+        );
+      });
 
       if (settingsData != null) {
         await _database.into(_database.appSettings).insert(
@@ -314,6 +314,7 @@ class BackupService {
             );
       }
     });
+
 
     return BackupSummary(
       transactionCount: transactionsData.length,

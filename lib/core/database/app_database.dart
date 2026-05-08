@@ -31,6 +31,8 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
         beforeOpen: (details) async {
+          // WAL 모드: 동시 읽기/쓰기 시 DB Lock 마비 방지 (Read ↔ Write 비블로킹)
+          await customStatement('PRAGMA journal_mode=WAL;');
           await customStatement('PRAGMA foreign_keys = ON;');
         },
         onCreate: (Migrator m) async {
