@@ -107,71 +107,55 @@ class _BudgetSetupDialogState extends ConsumerState<BudgetSetupDialog> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const AlertDialog(
-        content: SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
+      return const AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator())));
     }
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SingleChildScrollView(
-        child: AlertDialog(
-          title: const Text('예산 설정'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedCategoryId,
-                decoration: const InputDecoration(labelText: '대상 카테고리'),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('전체 예산'),
-                  ),
-                  ..._categories.map(
-                    (c) => DropdownMenuItem(
-                      value: c.localId,
-                      child: Text(c.name),
-                    ),
-                  ),
-                ],
-                onChanged: (val) {
-                  setState(() {
-                    _selectedCategoryId = val;
-                  });
-                },
+    return AlertDialog(
+      title: const Text('예산 설정'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String?>(
+            initialValue: _selectedCategoryId,
+            decoration: const InputDecoration(labelText: '대상 카테고리'),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('전체 예산'),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: '예산 금액',
-                  suffixText: '원',
-                ),
-                keyboardType: TextInputType.number,
-              ),
+              ..._categories.map((c) => DropdownMenuItem(
+                value: c.localId,
+                child: Text(c.name),
+              )),
             ],
+            onChanged: (val) {
+              setState(() {
+                _selectedCategoryId = val;
+              });
+            },
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            decoration: const InputDecoration(
+              labelText: '예산 금액',
+              suffixText: '원',
             ),
-            FilledButton(
-              onPressed: _saveBudget,
-              child: const Text('저장'),
-            ),
-          ],
-        ),
+            keyboardType: TextInputType.number,
+          ),
+        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: _saveBudget,
+          child: const Text('저장'),
+        ),
+      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/database/providers/database_providers.dart';
 import '../data/notification_channel.dart';
 import 'notification_parser.dart';
 
@@ -36,4 +37,49 @@ final notificationListenerEnabledProvider =
 );
 
 /// 현재 감지된 거래 (배너 표시용) — null이면 배너 없음
-final detectedNotificationTransa
+final detectedNotificationTransactionProvider =
+    StateProvider<ParsedNotificationTransaction?>((ref) => null);
+
+/// 알림 권한 허용 여부
+final notificationPermissionGrantedProvider = FutureProvider<bool>((ref) async {
+  return NotificationChannel.isPermissionGranted();
+});
+
+/// 마지막으로 처리한 알림의 (금액, 타임스탬프) — 중복 방지용
+final _lastNotificationKey = StateProvider<String?>((ref) => null);
+
+/// 알림 스트림을 구독하고 파싱된 거래를 [detectedNotificationTransactionProvider]에 저장
+final notificationListenerProvider = Provider<void>((ref) {
+  final enabled = ref.watch(notificationListenerEnabledProvider);
+  if (!enabled) return;
+
+  StreamSubscription<Map<String, dynamic>>? sub;
+
+  sub = NotificationChannel.stream.listen((event) {
+    final parsed = parseNotification(event);
+    if (parsed == null) return;
+
+    // 동일 금액 + 3초 이내 중복 알림 무시
+    final key = '${parsed.amount}_${parsed.detectedAt.millisecondsSinceEpoch ~/ 3000}';
+    final lastKey = ref.read(_lastNotificationKey);
+    if (key == lastKey) return;
+    ref.read(_lastNotificationKey.notifier).state = key;
+
+    ref.read(detectedNotificationTransactionProvider.notifier).state = parsed;
+
+    // 이력 DB 저장 (최대 200건 유지)
+    final db = ref.read(appDatabaseProvider);
+    db
+        .insertNotificationHistory(
+          packageName: event['package'] as String? ?? '',
+          amount: parsed.amount,
+          type: parsed.type,
+          merchant: parsed.merchant.isEmpty ? null : parsed.merchant,
+          suggestedCategory: parsed.suggestedCategoryKeyword,
+          detectedAt: parsed.detectedAt,
+        )
+        .then((_) => db.deleteOldNotificationHistories());
+  });
+
+  ref.onDispose(() => sub?.cancel());
+});

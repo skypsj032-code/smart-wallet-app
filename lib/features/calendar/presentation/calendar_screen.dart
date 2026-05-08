@@ -715,7 +715,7 @@ class _MonthCalendarView extends StatelessWidget {
             crossAxisCount: 7,
             mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 0.95,
+            childAspectRatio: 0.75,
           ),
           itemBuilder: (context, index) {
             final cell = cells[index];

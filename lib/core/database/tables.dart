@@ -121,6 +121,16 @@ class BackupMetadata extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class NotificationHistories extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get packageName => text()();
+  IntColumn get amount => integer()();
+  TextColumn get type => text()(); // 'expense' | 'income'
+  TextColumn get merchant => text().nullable()();
+  TextColumn get suggestedCategory => text().nullable()();
+  DateTimeColumn get detectedAt => dateTime()();
+}
+
 class OcrDrafts extends Table {
   TextColumn get localId => text()();
   TextColumn get sourceImagePath => text().nullable()();

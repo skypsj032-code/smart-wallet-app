@@ -6,6 +6,7 @@ import '../../features/accounts/presentation/accounts_screen.dart';
 import '../../features/budgets/presentation/budget_screen.dart';
 import '../../features/calendar/presentation/calendar_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/notifications/presentation/notification_history_screen.dart';
 import '../../features/ocr/presentation/ocr_capture_screen.dart';
 import '../../features/ocr/presentation/ocr_review_screen.dart';
 import '../../features/recurring_expenses/presentation/recurring_expenses_screen.dart';
@@ -132,6 +133,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               child: const RecurringExpensesScreen(),
             ),
           ),
+          GoRoute(
+            path: '/notification-history',
+            name: 'notification-history',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const NotificationHistoryScreen(),
+            ),
+          ),
         ],
       ),
     ],
@@ -157,5 +166,32 @@ NoTransitionPage<void> _buildTransitionPage({
   return NoTransitionPage<void>(
     key: state.pageKey,
     child: child,
+  );
+}
+
+/// 하단에서 슬라이드 올라오는 모달 스타일 페이지 (퀵 입력 전용)
+CustomTransitionPage<void> _buildModalPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
   );
 }

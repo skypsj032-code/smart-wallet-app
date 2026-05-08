@@ -18,6 +18,7 @@ part 'app_database.g.dart';
     AppSettings,
     BackupMetadata,
     OcrDrafts,
+    NotificationHistories,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -25,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -114,6 +115,9 @@ class AppDatabase extends _$AppDatabase {
               );
             });
           }
+          if (from < 7) {
+            await m.createTable(notificationHistories);
+          }
         },
       );
 
@@ -174,6 +178,45 @@ class AppDatabase extends _$AppDatabase {
         );
       },
     );
+  }
+
+  // ── 알림 이력 ───────────────────────────────────────────────────────────────
+  Future<void> insertNotificationHistory({
+    required String packageName,
+    required int amount,
+    required String type,
+    String? merchant,
+    String? suggestedCategory,
+    required DateTime detectedAt,
+  }) {
+    return into(notificationHistories).insert(
+      NotificationHistoriesCompanion.insert(
+        packageName: packageName,
+        amount: amount,
+        type: type,
+        merchant: Value(merchant),
+        suggestedCategory: Value(suggestedCategory),
+        detectedAt: detectedAt,
+      ),
+    );
+  }
+
+  Stream<List<NotificationHistory>> watchNotificationHistories({int limit = 100}) {
+    return (select(notificationHistories)
+          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)])
+          ..limit(limit))
+        .watch();
+  }
+
+  Future<void> deleteOldNotificationHistories({int keepCount = 200}) async {
+    final all = await (select(notificationHistories)
+          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]))
+        .get();
+    if (all.length <= keepCount) return;
+    final toDelete = all.sublist(keepCount).map((h) => h.id).toList();
+    await (delete(notificationHistories)
+          ..where((h) => h.id.isIn(toDelete)))
+        .go();
   }
 
   // ── 타임라인 ────────────────────────────────────────────────────────────────

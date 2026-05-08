@@ -212,4 +212,75 @@ class _BannerCardState extends State<_BannerCard> {
                                   ),
                                 ],
                               ],
- 
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  formatCurrency(widget.transaction.amount),
+                                  style:
+                                      theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                if (widget.transaction.merchant
+                                    .isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      widget.transaction.merchant,
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 기록하기 버튼
+                      TextButton(
+                        onPressed: widget.onTap,
+                        style: TextButton.styleFrom(
+                          foregroundColor: accentColor,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 10),
+                        ),
+                        child: const Text(
+                          '기록',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      // 닫기
+                      IconButton(
+                        onPressed: widget.onDismiss,
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        color: theme.colorScheme.onSurfaceVariant,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+                // 자동 닫힘 진행 표시줄
+                LinearProgressIndicator(
+                  value: _progress,
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                  color: accentColor.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -228,66 +228,23 @@ class OcrService {
     return int.tryParse(digitsOnly);
   }
 
-  /// 영수증 텍스트를 분석해 가장 가까운 기본 카테고리 ID를 반환한다.
-  /// 반환값은 앱 기본 카테고리의 localId와 동일한 형식이다.
   String _guessCategory(String rawText, String storeName) {
     final lowerText = '${storeName.toLowerCase()}\n${rawText.toLowerCase()}';
-
-    // 카테고리 ID → 매칭 키워드 목록
-    const categories = <String, List<String>>{
-      'expense-food': [
-        'coffee', 'cafe', 'restaurant', 'burger', 'pizza', 'bbq', 'grill',
-        'boba', 'ramen', 'sushi', 'chicken', 'noodle', 'bakery', 'bingsu',
-        '스타벅스', '카페', '식당', '치킨', '피자', '분식', '냉면', '국밥',
-        '도시락', '버거', '맥도날드', '롯데리아', '교촌',
-      ],
-      'expense-cafe-snack': [
-        'starbucks', 'twosome', 'ediya', 'hollys', 'megacoffee', 'paik',
-        '투썸', '이디야', '할리스', '메가커피', '빽다방', '커피빈',
-        'dessert', 'bakery', 'snack', '디저트', '베이커리', '케이크',
-      ],
-      'expense-groceries': [
-        'mart', 'market', 'grocery', 'super', 'emart', 'homeplus',
-        'lotte mart', 'costco', 'traders',
-        '마트', '홈플러스', '이마트', '코스트코', '롯데마트', '슈퍼',
-      ],
-      'expense-transport': [
-        'taxi', 'uber', 'kakao t', 'bus', 'subway', 'train', 'ktx', 'gas',
-        'parking', 'toll', 'highway',
-        '택시', '버스', '지하철', '기차', 'ktx', '주유', '주차', '교통', '통행료',
-      ],
-      'expense-shopping': [
-        'store', 'mall', 'shop', 'olive young', 'daiso', 'musinsa',
-        'shein', 'zara', 'h&m', 'uniqlo', 'nike', 'adidas',
-        '무신사', '올리브영', '다이소', '쇼핑', '패션', '의류', '신발',
-      ],
-      'expense-household': [
-        'ikea', 'electro', 'home', 'hardware', 'furniture',
-        '이케아', '가구', '생활용품', '청소', '전자', '다이소',
-      ],
-      'expense-health': [
-        'pharmacy', 'hospital', 'clinic', 'dental', 'drug', 'medicine',
-        '약국', '병원', '의원', '치과', '한의원', '의료', '헬스',
-      ],
-      'expense-leisure': [
-        'cinema', 'movie', 'theater', 'gym', 'sport', 'game', 'book',
-        'concert', 'ticket',
-        '영화', '헬스장', '스포츠', '게임', '도서', '공연', '콘서트',
-      ],
-      'expense-subscriptions': [
-        'netflix', 'spotify', 'apple', 'google', 'youtube', 'naver',
-        'kakao', 'subscription', 'membership',
-        '구독', '넷플릭스', '스포티파이', '유튜브',
-      ],
+    final categories = <String, List<String>>{
+      'Food & Drink': ['coffee', 'cafe', 'restaurant', 'burger', 'pizza', '스타벅스', '카페'],
+      'Transport': ['taxi', 'uber', 'bus', 'subway', '주유', '주차', '교통'],
+      'Groceries': ['mart', 'market', 'grocery', 'super', 'emart', '홈플러스'],
+      'Shopping': ['store', 'mall', 'shop', 'olive young', 'daiso', '무신사'],
     };
 
     for (final entry in categories.entries) {
-      if (entry.value.any(lowerText.contains)) {
+      final matched = entry.value.any(lowerText.contains);
+      if (matched) {
         return entry.key;
       }
     }
 
-    return 'expense-other';
+    return 'Uncategorized';
   }
 
   bool _supportsNativeOcr() {

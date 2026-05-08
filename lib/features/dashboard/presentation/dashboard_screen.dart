@@ -73,9 +73,6 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              // 예산 현황 — 수입/지출 바로 다음에 노출
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-              SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: DashboardHomeLinksCard(
@@ -134,6 +131,8 @@ class DashboardScreen extends ConsumerWidget {
                   transactions: summary.recentTransactions,
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
               const SliverToBoxAdapter(child: SizedBox(height: 148)),
             ],
           );
@@ -539,6 +538,128 @@ class _TodayLoopCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
+class _UpcomingRecurringExpenseCard extends ConsumerWidget {
+  const _UpcomingRecurringExpenseCard({required this.items});
+
+  final List<RecurringExpense> items;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+    final previewItems = sortRecurringExpensesByNextDueDate(
+      items,
+      today: DateTime.now(),
+    ).take(3).toList();
+
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '다가오는 고정 지출',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: onCard,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/recurring-expenses'),
+                child: const Text('관리'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < previewItems.length; index++) ...[
+            _UpcomingRecurringExpenseTile(item: previewItems[index]),
+            if (index != previewItems.length - 1)
+              Divider(
+                height: 18,
+                color: onCard.withValues(alpha: 0.12),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingRecurringExpenseTile extends ConsumerWidget {
+  const _UpcomingRecurringExpenseTile({required this.item});
+
+  final RecurringExpense item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () async {
+        final created =
+            await ref.read(recurringExpenseServiceProvider).materializeForMonth(
+                  recurringId: item.localId,
+                  month: DateTime.now(),
+                );
+        if (!context.mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(created ? '이번 달 거래로 기록했습니다.' : '이미 이번 달 거래로 기록했습니다.'),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: onCard.withValues(alpha: 0.10),
+              child: const Icon(Icons.event_repeat_rounded),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '매월 ${item.dayOfMonth}일',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              formatCurrency(item.amount),
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: AppColors.expense,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _RecentTransactionsSection extends StatelessWidget {
   const _RecentTransactionsSection({required this.transactions});
@@ -580,6 +701,139 @@ class _RecentTransactionsSection extends StatelessWidget {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
+class _RepeatSuggestionSection extends StatelessWidget {
+  const _RepeatSuggestionSection({
+    required this.suggestions,
+    required this.onRepeat,
+  });
+
+  final List<Transaction> suggestions;
+  final ValueChanged<Transaction> onRepeat;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return GlassCard(
+      blur: 16,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '다시 기록하기',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: onCard,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < suggestions.length; index++) ...[
+            _RepeatSuggestionTile(
+              transaction: suggestions[index],
+              onTap: () => onRepeat(suggestions[index]),
+            ),
+            if (index != suggestions.length - 1)
+              Divider(
+                height: 18,
+                color: onCard.withValues(alpha: 0.12),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RepeatSuggestionTile extends StatelessWidget {
+  const _RepeatSuggestionTile({
+    required this.transaction,
+    required this.onTap,
+  });
+
+  final Transaction transaction;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isExpense = transaction.type == 'expense';
+    final accent = isExpense ? AppColors.expense : AppColors.income;
+    final title = transaction.memo?.trim().isNotEmpty == true
+        ? transaction.memo!
+        : transaction.merchantName?.trim().isNotEmpty == true
+            ? transaction.merchantName!
+            : isExpense
+                ? '같은 지출 다시 기록'
+                : '같은 수입 다시 기록';
+    final theme = Theme.of(context);
+    final onCard = theme.colorScheme.onSurface;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: onCard.withValues(alpha: 0.10),
+              child: Icon(
+                isExpense ? Icons.remove_rounded : Icons.add_rounded,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: onCard,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_typeLabel(transaction.type)} · ${formatCurrency(transaction.amount)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            SizedBox(
+              width: 96,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(96, 42),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: onTap,
+                child: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '불러오기',
+                    softWrap: false,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -794,4 +1048,9 @@ String _typeLabel(String type) {
       return '수입';
     case 'expense':
       return '지출';
-    case 
+    case 'transfer':
+      return '이체';
+    default:
+      return type;
+  }
+}

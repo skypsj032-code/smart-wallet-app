@@ -45,8 +45,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           int totalIncome = 0;
           int totalExpense = 0;
           for (final tx in filteredItems) {
-            if (tx.type == 'income') totalIncome += (tx.amount as int);
-            if (tx.type == 'expense') totalExpense += (tx.amount as int);
+            if (tx.type == 'income') totalIncome += tx.amount;
+            if (tx.type == 'expense') totalExpense += tx.amount;
           }
 
           return ListView(
@@ -225,8 +225,8 @@ class _TimelineSummaryCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               selectedType == null
-                  ? '전체 ${totalCount}건'
-                  : '${visibleCount}건 표시 중 (전체 ${totalCount}건)',
+                  ? '전체 $totalCount건'
+                  : '$visibleCount건 표시 중 (전체 $totalCount건)',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -533,4 +533,130 @@ class _TimelineTile extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Expan
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatAmount(transaction.type, transaction.amount),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: accentColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timeLabel(transaction.occurredAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: '더보기',
+              onSelected: (value) {
+                if (value == 'edit') {
+                  onEdit();
+                } else if (value == 'delete') {
+                  onDelete();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Text('수정'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Text('숨기기'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _typeLabel(String type) {
+  switch (type) {
+    case 'expense':
+      return '지출';
+    case 'income':
+      return '수입';
+    case 'transfer':
+    case 'transfer_reserved':
+      return '이체';
+    default:
+      return type;
+  }
+}
+
+String _primaryLabel(dynamic tx) {
+  if ((tx.merchantName as String?)?.trim().isNotEmpty ?? false) {
+    return tx.merchantName as String;
+  }
+  if ((tx.memo as String?)?.trim().isNotEmpty ?? false) {
+    return tx.memo as String;
+  }
+  return _typeLabel(tx.type as String);
+}
+
+String _secondaryLabel(dynamic tx) {
+  final type = _typeLabel(tx.type as String);
+  final memo = (tx.memo as String?)?.trim() ?? '';
+  final merchant = (tx.merchantName as String?)?.trim() ?? '';
+
+  if (memo.isNotEmpty && memo != merchant) {
+    return '$type · $memo';
+  }
+  return type;
+}
+
+String _formatAmount(String type, int amount) {
+  final formatted = formatCurrency(amount);
+  switch (type) {
+    case 'expense':
+      return '-$formatted';
+    case 'income':
+      return '+$formatted';
+    default:
+      return formatted;
+  }
+}
+
+String _timeLabel(DateTime dateTime) {
+  final hour = dateTime.hour.toString().padLeft(2, '0');
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+String _dateKey(DateTime dateTime) {
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final day = dateTime.day.toString().padLeft(2, '0');
+  return '${dateTime.year}-$month-$day';
+}
+
+String _sectionDateLabel(DateTime dateTime) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(dateTime.year, dateTime.month, dateTime.day);
+  final difference = today.difference(target).inDays;
+
+  if (difference == 0) {
+    return '오늘';
+  }
+  if (difference == 1) {
+    return '어제';
+  }
+
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final day = dateTime.day.toString().padLeft(2, '0');
+  return '${dateTime.year}년 $month월 $day일';
+}

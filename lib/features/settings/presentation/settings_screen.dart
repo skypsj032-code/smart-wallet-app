@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
@@ -148,6 +148,18 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           const _NotificationListenerCard(),
+          const SizedBox(height: AppSpacing.sm),
+          AppUtilityGroup(
+            children: [
+              _SettingsActionTile(
+                icon: Icons.history_rounded,
+                color: AppColors.primary,
+                title: '알림 수신 이력',
+                subtitle: '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                onTap: () => context.go('/notification-history'),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '화면',
@@ -880,4 +892,168 @@ class _ThemeModeTile extends StatelessWidget {
         items: const [
           DropdownMenuItem(value: 'system', child: Text('시스템')),
           DropdownMenuItem(value: 'light', child: Text('라이트')),
-          DropdownMenuItem(value: 'dark'
+          DropdownMenuItem(value: 'dark', child: Text('다크')),
+        ],
+        onChanged: (value) {
+          if (value != null) onChanged(value);
+        },
+      ),
+    );
+  }
+
+  String _modeLabel(String mode) {
+    switch (mode) {
+      case 'light':
+        return '밝은 화면으로 표시합니다.';
+      case 'dark':
+        return '어두운 화면으로 표시합니다.';
+      default:
+        return '기기 설정에 따라 자동으로 맞춥니다.';
+    }
+  }
+}
+
+// ── 알림 자동 기록 카드 ──────────────────────────────────────────────
+
+class _NotificationListenerCard extends ConsumerStatefulWidget {
+  const _NotificationListenerCard();
+
+  @override
+  ConsumerState<_NotificationListenerCard> createState() =>
+      _NotificationListenerCardState();
+}
+
+class _NotificationListenerCardState
+    extends ConsumerState<_NotificationListenerCard> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        // 앱 포그라운드 복귀 시 권한 상태 재확인
+        ref.invalidate(notificationPermissionGrantedProvider);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = ref.watch(notificationListenerEnabledProvider);
+    final permissionAsync = ref.watch(notificationPermissionGrantedProvider);
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: enabled,
+              onChanged: (value) async {
+                if (value) {
+                  // 권한 확인 후 활성화
+                  final granted = await NotificationChannel.isPermissionGranted();
+                  if (!granted && context.mounted) {
+                    await _showPermissionDialog(context);
+                    return;
+                  }
+                }
+                ref.read(notificationListenerEnabledProvider.notifier).toggle(value);
+              },
+              secondary: const Icon(Icons.notifications_active_outlined),
+              title: const Text('알림 자동 기록'),
+              subtitle: const Text('카드·은행 결제 알림을 읽어 거래를 자동 제안합니다.'),
+            ),
+            permissionAsync.when(
+              data: (granted) {
+                if (granted) {
+                  return Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 14,
+                        color: AppColors.income,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '알림 접근 권한이 허용되어 있습니다.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.income,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '알림 접근 권한이 필요해요.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.warning,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: () => NotificationChannel.openPermissionSettings(),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: const Text('권한 설정 열기'),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPermissionDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('알림 접근 권한 필요'),
+        content: const Text(
+          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 필요해요.\n\n'
+          '설정 → 앱 → 알림 접근에서 Smart Wallet을 허용해 주세요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              NotificationChannel.openPermissionSettings();
+            },
+            child: const Text('설정 열기'),
+          ),
+        ],
+      ),
+    );
+  }
+}

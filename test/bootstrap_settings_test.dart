@@ -85,7 +85,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
+      find.text('Lock is not configured. Returning to the app...'),
       findsOneWidget,
     );
     expect(container.read(sessionUnlockedProvider), isTrue);

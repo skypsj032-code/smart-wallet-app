@@ -134,4 +134,64 @@ String? _guessCategoryKeyword(String merchant, String combined) {
     return '식비';
   }
   // 식비 (배달·외식)
-  if (_containsAny(text, ['맥도날드', '버거킹', 'kfc', '롯데리아', '배달의민족', '요기요', '쿠팡이츠', '피자', '치킨', '떡볶이', '분식', '식당', '
+  if (_containsAny(text, ['맥도날드', '버거킹', 'kfc', '롯데리아', '배달의민족', '요기요', '쿠팡이츠', '피자', '치킨', '떡볶이', '분식', '식당', '레스토랑'])) {
+    return '식비';
+  }
+  // 마트·슈퍼 → 식비
+  if (_containsAny(text, ['이마트', '홈플러스', '롯데마트', '코스트코', '마트', '슈퍼'])) {
+    return '식비';
+  }
+  // 쇼핑
+  if (_containsAny(text, ['쿠팡', '11번가', '지마켓', '옥션', '무신사', '올리브영', '다이소', '유니클로', 'h&m', '아디다스', '나이키'])) {
+    return '쇼핑';
+  }
+  // 의료
+  if (_containsAny(text, ['병원', '약국', '의원', '한의원', '치과', '안과'])) {
+    return '의료';
+  }
+  // 문화·여가
+  if (_containsAny(text, ['cgv', '롯데시네마', '메가박스', '영화', '넷플릭스', '유튜브', '멜론', '스포티파이'])) {
+    return '문화';
+  }
+  // 통신
+  if (_containsAny(text, ['skt', 'kt ', 'lgu', 'lg유플러스', '통신비'])) {
+    return '통신';
+  }
+
+  return null;
+}
+
+/// 가맹점명 추출
+/// 금액과 거래 유형 키워드를 제거하고 남은 텍스트에서 첫 의미있는 단어
+String _extractMerchant(String combined, String amountDigits) {
+  // 제거할 패턴들
+  var cleaned = combined
+      .replaceAll(RegExp(r'\[.+?\]'), '')           // 대괄호 카드명
+      .replaceAll(RegExp(r'[\d,]+원'), '')           // 금액
+      .replaceAll(RegExp(r'\d{1,2}/\d{1,2}'), '')   // 날짜 5/7
+      .replaceAll(RegExp(r'\d{2}:\d{2}'), '')        // 시간 14:32
+      .replaceAll(RegExp(r'승인|사용|결제|출금|입금|이체|수신|급여'), '')
+      .replaceAll(RegExp(r'[^\w\s가-힣A-Za-z0-9]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  // 남은 단어 중 2글자 이상인 것을 가맹점으로
+  final words = cleaned.split(' ').where((w) => w.length >= 2).toList();
+  if (words.isEmpty) return '';
+
+  // 카드/은행 이름과 숫자 단어 제외
+  const skipWords = {
+    '신한카드', 'KB국민카드', '삼성카드', '현대카드', '롯데카드',
+    '하나카드', '우리카드', 'NH카드', 'BC카드',
+    '카카오뱅크', '카카오페이', '토스뱅크', '토스', '케이뱅크',
+    '네이버페이', 'SSG페이', '페이코',
+    '신한은행', 'KB국민은행', '우리은행', '하나은행', '농협', '기업은행', '우체국',
+    '현금', 'ATM', '자동이체',
+  };
+
+  final merchant = words.firstWhere(
+    (w) => !skipWords.contains(w) && !RegExp(r'^\d+$').hasMatch(w),
+    orElse: () => words.first,
+  );
+  return merchant;
+}

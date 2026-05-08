@@ -120,11 +120,6 @@ class BudgetScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSpacing.xs),
-                    // 카테고리 예산 비교 차트 (2개 이상일 때만 표시)
-                    if (categorizedItems.length >= 2) ...[
-                      _CategoryBudgetChartCard(items: categorizedItems),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
                     if (categorizedItems.isEmpty)
                       Card(
                         child: Padding(
@@ -493,25 +488,45 @@ class _BudgetEditorResult {
   final int amountLimit;
 }
 
-/// 카테고리별 예산 사용량을 수평 막대 차트로 보여주는 요약 카드
-class _CategoryBudgetChartCard extends StatelessWidget {
-  const _CategoryBudgetChartCard({required this.items});
+class _BudgetStatTile extends StatelessWidget {
+  const _BudgetStatTile({
+    required this.label,
+    required this.amount,
+    this.valueColor,
+  });
 
-  final List<BudgetSummaryItem> items;
+  final String label;
+  final String amount;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // 사용률 내림차순 정렬
-    final sorted = [...items]..sort((a, b) => b.progress.compareTo(a.progress));
-    // 최대 limitAmount 기준으로 막대 너비 비율 산정
-    final maxLimit = sorted.fold(1, (m, i) => i.limitAmount > m ? i.limitAmount : m);
-
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-    
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              amount,
+              style: theme.textTheme.titleMedium?.copyWith(color: valueColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
