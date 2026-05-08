@@ -24,9 +24,15 @@ class QuickEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<QuickEntryScreen> createState() => _QuickEntryScreenState();
 }
 
+enum _QuickEntryExitAction {
+  discard,
+  save,
+}
+
 class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   late final TextEditingController _amountController;
   late final TextEditingController _memoController;
+  bool _allowDirectPop = false;
 
   @override
   void initState() {
@@ -106,7 +112,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         _selectedCategoryName(categoryOptions, form.categoryId);
     final validationMessages = _validationMessages(form);
 
-    return AppScaffold(
+    final screen = AppScaffold(
       title: isEditing ? '거래 수정' : '빠른 입력',
       hideGlobalQuickPanel: true,
       body: ListView(
@@ -343,52 +349,91 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
             const SizedBox(height: AppSpacing.md),
             _ValidationCard(messages: validationMessages),
           ],
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            height: 56,
-            child: FilledButton(
-              onPressed: form.canSubmit && !isSubmitting
-                  ? () {
-                      developer.log(
-                        'quick_entry_submit_pressed type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
-                        name: 'quick_entry',
-                      );
-                      _submit(context, ref, form);
-                    }
-                  : null,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              ),
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isEditing ? Icons.check_rounded : Icons.save_rounded,
-                          size: 20,
+          if (!isEditing) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: 56,
+              child: FilledButton(
+                onPressed: form.canSubmit && !isSubmitting
+                    ? () {
+                        developer.log(
+                          'quick_entry_submit_pressed type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
+                          name: 'quick_entry',
+                        );
+                        _submit(context, ref, form);
+                      }
+                    : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isEditing ? '거래 수정하기' : '거래 저장하기',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.save_rounded, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            '거래 저장하기',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+              ),
             ),
-          ),
+          ],
         ],
       ),
+    );
+
+    if (!isEditing) {
+      return screen;
+    }
+
+    return PopScope(
+      canPop: _allowDirectPop,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || _allowDirectPop) {
+          return;
+        }
+
+        final action = await _showEditingExitDialog(
+          context,
+          isSubmitting: isSubmitting,
+        );
+        if (!mounted || action == null) {
+          return;
+        }
+
+        switch (action) {
+          case _QuickEntryExitAction.discard:
+            ref.read(quickEntryFormProvider.notifier).reset();
+            _leaveScreen(this.context);
+            break;
+          case _QuickEntryExitAction.save:
+            if (!form.canSubmit || isSubmitting) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(
+                  content: Text('저장할 수 있도록 항목을 먼저 확인해 주세요.'),
+                ),
+              );
+              return;
+            }
+            await _submit(this.context, ref, form);
+            break;
+        }
+      },
+      child: screen,
     );
   }
 
@@ -412,6 +457,55 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       text: value,
       selection: TextSelection.collapsed(offset: value.length),
     );
+  }
+
+  Future<_QuickEntryExitAction?> _showEditingExitDialog(
+    BuildContext context, {
+    required bool isSubmitting,
+  }) {
+    return showGuardedDialog<_QuickEntryExitAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('거래 수정 저장'),
+          content: const Text('수정한 내용을 저장할지 선택해 주세요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(
+                _QuickEntryExitAction.discard,
+              ),
+              child: const Text('저장 안 함'),
+            ),
+            FilledButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(
+                        _QuickEntryExitAction.save,
+                      ),
+              child: const Text('저장'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _leaveScreen(BuildContext context) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _allowDirectPop = true;
+    });
+
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    context.go('/timeline');
   }
 
   Future<void> _openCategoryPicker(
@@ -819,7 +913,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
   String _heroTitleFor(TransactionEntryType type, bool isEditing) {
     if (isEditing) {
-      return '${_labelForType(type)} 기록을 차분하게 다듬고 있어요';
+      return '거래 수정';
     }
 
     switch (type) {
@@ -832,9 +926,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     }
   }
 
-  String _heroBodyFor(TransactionEntryType type, bool isEditing) {
+  String? _heroBodyFor(TransactionEntryType type, bool isEditing) {
     if (isEditing) {
-      return '금액, 메모, 계좌를 수정하고 저장하세요.';
+      return null;
     }
 
     switch (type) {
@@ -912,11 +1006,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           ),
         );
 
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/timeline');
-        }
+        _leaveScreen(context);
       }
     } catch (error, stackTrace) {
       developer.log(
@@ -1008,7 +1098,7 @@ class _EditingBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           const Expanded(
             child: Text(
-              '기존 거래를 다듬는 중이에요. 저장하면 바로 현재 기록으로 반영됩니다.',
+              '수정 중인 거래예요.',
             ),
           ),
           TextButton(

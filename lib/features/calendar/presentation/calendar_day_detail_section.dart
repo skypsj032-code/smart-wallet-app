@@ -418,13 +418,6 @@ class _EditableTransactionRow extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '눌러서 수정',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
                 ],
               ),
             ],
