@@ -73,7 +73,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 hint: 'Choose a transaction type filter',
                 child: _TypeFilterBar(
                   selectedType: selectedType,
-                  onSelected: (type) => selectTimelineType(ref, type),
+                  onSelected: (type) =>
+                      ref.read(timelineControllerProvider.notifier).selectType(type),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -98,7 +99,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 _TimelineLoadMoreButton(
                   loadedCount: items.length,
                   totalCount: snapshot.totalCount,
-                  onPressed: () => loadMoreTimelineItems(ref),
+                  onPressed: () =>
+                      ref.read(timelineControllerProvider.notifier).loadMore(),
                 ),
               ],
             ],

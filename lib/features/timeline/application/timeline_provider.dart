@@ -41,16 +41,27 @@ final timelineTransactionsProvider =
   );
 });
 
-void selectTimelineType(WidgetRef ref, String? type) {
-  ref.read(timelineSelectedTypeProvider.notifier).state = type;
-  ref.read(timelineVisibleLimitProvider.notifier).state =
-      ref.read(timelinePageSizeProvider);
+/// 타임라인 상태 컨트롤러 — UI 객체(WidgetRef) 없이 비즈니스 로직을 캡슐화합니다.
+class TimelineController extends AutoDisposeNotifier<void> {
+  @override
+  void build() {}
+
+  void selectType(String? type) {
+    ref.read(timelineSelectedTypeProvider.notifier).state = type;
+    ref.read(timelineVisibleLimitProvider.notifier).state =
+        ref.read(timelinePageSizeProvider);
+  }
+
+  void loadMore() {
+    ref.read(timelineVisibleLimitProvider.notifier).state +=
+        ref.read(timelinePageSizeProvider);
+  }
 }
 
-void loadMoreTimelineItems(WidgetRef ref) {
-  ref.read(timelineVisibleLimitProvider.notifier).state +=
-      ref.read(timelinePageSizeProvider);
-}
+final timelineControllerProvider =
+    NotifierProvider.autoDispose<TimelineController, void>(
+  TimelineController.new,
+);
 
 Stream<R> _combineLatest<A, B, R>(
   Stream<A> a,
