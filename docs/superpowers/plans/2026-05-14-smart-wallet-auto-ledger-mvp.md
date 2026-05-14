@@ -10,6 +10,46 @@
 
 ---
 
+## Summary
+
+### In scope
+
+- ingest Android notification and SMS signals into a raw signal store
+- normalize signals into ledger candidates
+- verify, dedupe, and publish only trustworthy candidates
+- expose a read-first dashboard with review visibility
+- add provenance, trust, and backup controls needed for MVP
+
+### Out of scope
+
+- full bank or card API integrations
+- advanced budgeting and complex installment UX
+- exhaustive power-user filtering and customization
+- iOS capture parity
+
+### Execution order
+
+1. schema and domain models
+2. ingestion pipeline
+3. verification and publication
+4. dashboard and review UI
+5. trust controls and backup hooks
+
+### Definition of done
+
+- raw signals can be captured without mutating the canonical ledger
+- trustworthy candidates auto-publish into `transactions`
+- uncertain candidates remain reviewable without polluting the ledger
+- the home/dashboard experience reads as auto-ledger-first
+- provenance and backup surfaces exist for user trust
+
+## Risks And Dependencies
+
+- Android signal formats are noisy and vary across apps, so parser and verification boundaries must stay explicit.
+- Drift migration work is the critical path because every later task depends on new tables and columns.
+- Dashboard changes should not regress existing manual entry flows during MVP transition.
+- Backup and provenance UI matter early because automatic ingestion without trust cues will feel unsafe.
+
 ## File Structure
 
 ### Existing files to modify
@@ -713,10 +753,9 @@ git commit -m "feat: add auto-ledger trust and backup support"
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-05-14-smart-wallet-auto-ledger-mvp.md`. Two execution options:
+Plan complete and saved to `docs/superpowers/plans/2026-05-14-smart-wallet-auto-ledger-mvp.md`.
 
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+Recommended execution modes:
 
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-Which approach?
+- `Subagent-Driven`: one task per worker, review after each task, lower integration risk
+- `Inline Execution`: single-session execution when tighter serial control is preferred
