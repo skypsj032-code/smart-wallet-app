@@ -24,11 +24,7 @@ class CsvExportPayload {
 }
 
 class TransactionCsvExportOptions {
-  const TransactionCsvExportOptions({
-    this.startDate,
-    this.endDate,
-    this.label,
-  });
+  const TransactionCsvExportOptions({this.startDate, this.endDate, this.label});
 
   final DateTime? startDate;
   final DateTime? endDate;
@@ -65,17 +61,15 @@ class TransactionExportService {
 
     if (options.startDate != null) {
       query.where(
-        (tx) => tx.occurredAt.isBiggerOrEqualValue(
-          _startOfDay(options.startDate!),
-        ),
+        (tx) =>
+            tx.occurredAt.isBiggerOrEqualValue(_startOfDay(options.startDate!)),
       );
     }
 
     if (options.endDate != null) {
       query.where(
-        (tx) => tx.occurredAt.isSmallerOrEqualValue(
-          _endOfDay(options.endDate!),
-        ),
+        (tx) =>
+            tx.occurredAt.isSmallerOrEqualValue(_endOfDay(options.endDate!)),
       );
     }
 
@@ -109,10 +103,7 @@ class TransactionExportService {
     return file;
   }
 
-  Future<void> shareCsvFile(
-    File file, {
-    String? text,
-  }) async {
+  Future<void> shareCsvFile(File file, {String? text}) async {
     await Share.shareXFiles([
       XFile(file.path),
     ], text: text?.trim().isNotEmpty == true ? text : _defaultShareText(file));
@@ -154,7 +145,7 @@ class TransactionExportService {
 
   String _defaultShareText(File file) {
     final fileName = p.basename(file.path);
-    return 'Smart Wallet transactions CSV attached: $fileName';
+    return '다정가계부 거래 CSV 파일입니다: $fileName';
   }
 
   String? _buildFilterDescription(TransactionCsvExportOptions options) {

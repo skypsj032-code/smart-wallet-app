@@ -7,8 +7,8 @@ import 'app_brand_mark.dart';
 class BrandSplashScreen extends StatelessWidget {
   const BrandSplashScreen({
     super.key,
-    this.title = 'Smart Wallet',
-    this.subtitle = '오늘의 흐름을 차분하게 기록하는 지갑',
+    this.title = '다정가계부',
+    this.subtitle = '오늘의 흐름을 차분하게 기록하는 다정가계부.',
     this.trailing,
   });
 
