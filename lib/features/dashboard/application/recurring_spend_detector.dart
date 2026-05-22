@@ -6,12 +6,28 @@ enum RecurringSpendKind {
   lifestyle,
 }
 
+enum RecurringSpendConfidence {
+  high,
+  medium,
+}
+
+enum RecurringSpendEvidenceCode {
+  monthlyCadence,
+  stableAmount,
+  subscriptionKeyword,
+  recentRepeatCount,
+  sameCategoryPattern,
+  sameAccountPattern,
+}
+
 class RecurringSpendGroup {
   const RecurringSpendGroup({
     required this.groupKey,
     required this.displayName,
     required this.kind,
     required this.score,
+    required this.confidence,
+    required this.evidenceCodes,
     required this.isVisibleOnHome,
     required this.currentMonthAmount,
     required this.previousMonthAmount,
@@ -22,6 +38,8 @@ class RecurringSpendGroup {
   final String displayName;
   final RecurringSpendKind kind;
   final int score;
+  final RecurringSpendConfidence confidence;
+  final List<RecurringSpendEvidenceCode> evidenceCodes;
   final bool isVisibleOnHome;
   final int currentMonthAmount;
   final int previousMonthAmount;
@@ -108,6 +126,8 @@ RecurringSpendInsight detectRecurringSpendInsight(
         displayName: _displayName(cluster.first)!,
         kind: classification.kind,
         score: classification.score,
+        confidence: _confidenceFor(classification),
+        evidenceCodes: classification.evidenceCodes,
         isVisibleOnHome: classification.score >= 80,
         currentMonthAmount: currentMonthAmount,
         previousMonthAmount: previousMonthAmount,
@@ -141,10 +161,11 @@ RecurringSpendInsight detectRecurringSpendInsight(
 }
 
 class _Classification {
-  const _Classification(this.kind, this.score);
+  const _Classification(this.kind, this.score, this.evidenceCodes);
 
   final RecurringSpendKind kind;
   final int score;
+  final List<RecurringSpendEvidenceCode> evidenceCodes;
 }
 
 _Classification? _classifyCluster(
@@ -179,7 +200,14 @@ _Classification? _classifySubscription(List<Transaction> cluster) {
     return null;
   }
 
-  return const _Classification(RecurringSpendKind.subscription, 90);
+  return const _Classification(
+    RecurringSpendKind.subscription,
+    90,
+    [
+      RecurringSpendEvidenceCode.subscriptionKeyword,
+      RecurringSpendEvidenceCode.stableAmount,
+    ],
+  );
 }
 
 _Classification? _classifyFixed(List<Transaction> cluster) {
@@ -187,7 +215,14 @@ _Classification? _classifyFixed(List<Transaction> cluster) {
     return null;
   }
 
-  return const _Classification(RecurringSpendKind.fixed, 92);
+  return const _Classification(
+    RecurringSpendKind.fixed,
+    92,
+    [
+      RecurringSpendEvidenceCode.monthlyCadence,
+      RecurringSpendEvidenceCode.stableAmount,
+    ],
+  );
 }
 
 _Classification? _classifyLifestyle(
@@ -227,7 +262,30 @@ _Classification? _classifyLifestyle(
     return null;
   }
 
-  return _Classification(RecurringSpendKind.lifestyle, score);
+  final evidenceCodes = <RecurringSpendEvidenceCode>[
+    RecurringSpendEvidenceCode.recentRepeatCount,
+  ];
+  if (cluster.first.categoryId != null) {
+    evidenceCodes.add(RecurringSpendEvidenceCode.sameCategoryPattern);
+  }
+  if (cluster.first.accountId != null || cluster.first.paymentMethod != null) {
+    evidenceCodes.add(RecurringSpendEvidenceCode.sameAccountPattern);
+  }
+  if (_isAmountVarianceWithin(cluster, 0.15)) {
+    evidenceCodes.add(RecurringSpendEvidenceCode.stableAmount);
+  }
+
+  return _Classification(RecurringSpendKind.lifestyle, score, evidenceCodes);
+}
+
+RecurringSpendConfidence _confidenceFor(_Classification classification) {
+  if (classification.kind == RecurringSpendKind.lifestyle) {
+    return RecurringSpendConfidence.medium;
+  }
+
+  return classification.score >= 90
+      ? RecurringSpendConfidence.high
+      : RecurringSpendConfidence.medium;
 }
 
 bool _isEligibleExpense(Transaction tx) {

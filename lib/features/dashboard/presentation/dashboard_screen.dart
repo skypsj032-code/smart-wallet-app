@@ -564,6 +564,7 @@ class _RecurringSpendBottomSheet extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          const SizedBox(height: AppSpacing.xs),
                         ],
                       ),
                     ),
@@ -687,36 +688,243 @@ class _RecurringBottomSheetTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    return InkWell(
+      key: Key('recurring-item-${item.group.groupKey}'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => _RecurringSpendDetailSheet(item: item),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.group.displayName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _recurringKindLabel(item.group.kind),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    emphasisLabel ?? _recurringTimingLabel(item),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _recurringDeltaLabel(item.group),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              formatCurrency(item.group.currentMonthAmount),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringSpendDetailSheet extends StatelessWidget {
+  const _RecurringSpendDetailSheet({required this.item});
+
+  final _RecurringSheetGroupView item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reasons = _recurringEvidenceBullets(item.group);
+    final transactions = [...item.group.transactions]
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+
+    return SafeArea(
+      child: Material(
+        key: const Key('recurring-spend-detail-sheet'),
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.group.displayName,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${_recurringKindLabel(item.group.kind)} · ${formatCurrency(item.group.currentMonthAmount)}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const AppSectionIntro(
+                  title: '반복으로 본 이유',
+                  subtitle: '반복지출로 판단한 근거를 먼저 보여드릴게요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _recurringConfidenceLabel(item.group.confidence),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        for (final reason in reasons) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Icon(Icons.circle, size: 8),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  reason,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const AppSectionIntro(
+                  title: '최근 거래 내역',
+                  subtitle: '묶인 거래 흐름을 최신 순으로 보여드려요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      children: [
+                        for (var index = 0;
+                            index < transactions.length;
+                            index++) ...[
+                          _RecurringTransactionHistoryTile(
+                            transaction: transactions[index],
+                          ),
+                          if (index != transactions.length - 1)
+                            const Divider(height: AppSpacing.lg),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const AppSectionIntro(
+                  title: '요약 정보',
+                  subtitle: '최근 결제일과 다음 예상 시점까지 같이 봐요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_recurringTimingLabel(item)),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(_recurringDeltaLabel(item.group)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringTransactionHistoryTile extends StatelessWidget {
+  const _RecurringTransactionHistoryTile({required this.transaction});
+
+  final Transaction transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                item.group.displayName,
-                style: theme.textTheme.titleMedium?.copyWith(
+                _monthDayLabel(transaction.occurredAt),
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _recurringKindLabel(item.group.kind),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                emphasisLabel ?? _recurringTimingLabel(item),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                _recurringDeltaLabel(item.group),
+                transaction.merchantName ?? transaction.memo ?? '',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -724,13 +932,7 @@ class _RecurringBottomSheetTile extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        Text(
-          formatCurrency(item.group.currentMonthAmount),
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        Text(formatCurrency(transaction.amount)),
       ],
     );
   }
@@ -763,6 +965,49 @@ String _recurringDeltaLabel(RecurringSpendGroup group) {
 
 String _monthDayLabel(DateTime date) {
   return '${date.month}/${date.day}';
+}
+
+List<String> _recurringReasonBullets(RecurringSpendGroup group) {
+  return switch (group.kind) {
+    RecurringSpendKind.fixed => [
+        '월간 간격이 비슷하게 이어졌어요.',
+        '비슷한 금액으로 반복돼서 고정비 흐름으로 봤어요.',
+      ],
+    RecurringSpendKind.subscription => [
+        '구독/정기결제처럼 보이는 이름이 반복됐어요.',
+        '비슷한 금액으로 다시 결제돼 반복지출로 판단했어요.',
+      ],
+    RecurringSpendKind.lifestyle => [
+        '최근 45일 안에 여러 번 반복해서 보여요.',
+        '비슷한 금액과 같은 흐름이 이어져 생활 반복지출로 봤어요.',
+      ],
+  };
+}
+
+List<String> _recurringEvidenceBullets(RecurringSpendGroup group) {
+  return group.evidenceCodes.map(_recurringEvidenceLabel).toList();
+}
+
+String _recurringConfidenceLabel(RecurringSpendConfidence confidence) {
+  return switch (confidence) {
+    RecurringSpendConfidence.high => '높은 신뢰',
+    RecurringSpendConfidence.medium => '보통 신뢰',
+  };
+}
+
+String _recurringEvidenceLabel(RecurringSpendEvidenceCode code) {
+  return switch (code) {
+    RecurringSpendEvidenceCode.monthlyCadence => '월간 간격이 비슷하게 이어졌어요.',
+    RecurringSpendEvidenceCode.stableAmount => '비슷한 금액으로 반복돼 정기 지출처럼 보여요.',
+    RecurringSpendEvidenceCode.subscriptionKeyword =>
+      '구독이나 멤버십으로 보이는 이름이 반복해서 나타났어요.',
+    RecurringSpendEvidenceCode.recentRepeatCount =>
+      '최근 45일 안에 여러 번 반복된 소비 흐름이 보여요.',
+    RecurringSpendEvidenceCode.sameCategoryPattern =>
+      '같은 카테고리 안에서 비슷한 패턴이 이어졌어요.',
+    RecurringSpendEvidenceCode.sameAccountPattern =>
+      '같은 결제 수단에서 같은 흐름으로 반복되고 있어요.',
+  };
 }
 
 class _TodayLoopCard extends StatelessWidget {

@@ -38,6 +38,14 @@ void main() {
       expect(insight.groups, hasLength(1));
       expect(insight.groups.single.kind, RecurringSpendKind.fixed);
       expect(insight.groups.single.displayName, '삼성화재');
+      expect(insight.groups.single.confidence, RecurringSpendConfidence.high);
+      expect(
+        insight.groups.single.evidenceCodes,
+        containsAll([
+          RecurringSpendEvidenceCode.monthlyCadence,
+          RecurringSpendEvidenceCode.stableAmount,
+        ]),
+      );
       expect(insight.groups.single.currentMonthAmount, 86000);
       expect(insight.groups.single.isVisibleOnHome, isTrue);
       expect(insight.totalCurrentMonthAmount, 86000);
@@ -69,6 +77,14 @@ void main() {
       expect(insight.groups, hasLength(1));
       expect(insight.groups.single.kind, RecurringSpendKind.subscription);
       expect(insight.groups.single.score, greaterThanOrEqualTo(80));
+      expect(insight.groups.single.confidence, RecurringSpendConfidence.high);
+      expect(
+        insight.groups.single.evidenceCodes,
+        containsAll([
+          RecurringSpendEvidenceCode.subscriptionKeyword,
+          RecurringSpendEvidenceCode.stableAmount,
+        ]),
+      );
       expect(insight.groups.single.currentMonthAmount, 17000);
     });
 
@@ -107,6 +123,14 @@ void main() {
 
       expect(insight.groups, hasLength(1));
       expect(insight.groups.single.kind, RecurringSpendKind.lifestyle);
+      expect(insight.groups.single.confidence, RecurringSpendConfidence.medium);
+      expect(
+        insight.groups.single.evidenceCodes,
+        containsAll([
+          RecurringSpendEvidenceCode.recentRepeatCount,
+          RecurringSpendEvidenceCode.sameCategoryPattern,
+        ]),
+      );
       expect(insight.groups.single.currentMonthAmount, 15900);
       expect(insight.groups.single.isVisibleOnHome, isTrue);
     });

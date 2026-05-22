@@ -88,6 +88,50 @@ void main() {
   });
 
   testWidgets(
+      'dashboard opens recurring spend detail sheet with reasons and recent transactions',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('recurring-spend-insight-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('recurring-item-insurance')));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.byKey(const Key('recurring-spend-detail-sheet')), findsOneWidget);
+    expect(find.textContaining('높은 신뢰'), findsOneWidget);
+    expect(find.text('반복으로 본 이유'), findsOneWidget);
+    expect(find.text('최근 거래 내역'), findsOneWidget);
+    expect(find.textContaining('비슷한 금액'), findsOneWidget);
+    expect(find.textContaining('월간 간격'), findsOneWidget);
+    expect(find.textContaining('86,000'), findsWidgets);
+    expect(find.textContaining('5/5'), findsWidgets);
+  });
+
+  testWidgets(
       'dashboard hides recurring spend insight when there are no visible groups',
       (
     tester,
@@ -148,6 +192,11 @@ DashboardSummary _summaryWithRecurringGroups() {
           displayName: '삼성화재',
           kind: RecurringSpendKind.fixed,
           score: 92,
+          confidence: RecurringSpendConfidence.high,
+          evidenceCodes: const [
+            RecurringSpendEvidenceCode.monthlyCadence,
+            RecurringSpendEvidenceCode.stableAmount,
+          ],
           isVisibleOnHome: true,
           currentMonthAmount: 86000,
           previousMonthAmount: 86000,
@@ -175,6 +224,11 @@ DashboardSummary _summaryWithRecurringGroups() {
           displayName: 'NETFLIX',
           kind: RecurringSpendKind.subscription,
           score: 90,
+          confidence: RecurringSpendConfidence.high,
+          evidenceCodes: const [
+            RecurringSpendEvidenceCode.subscriptionKeyword,
+            RecurringSpendEvidenceCode.stableAmount,
+          ],
           isVisibleOnHome: true,
           currentMonthAmount: 17000,
           previousMonthAmount: 17000,
@@ -202,6 +256,11 @@ DashboardSummary _summaryWithRecurringGroups() {
           displayName: '새벽배송',
           kind: RecurringSpendKind.lifestyle,
           score: 84,
+          confidence: RecurringSpendConfidence.medium,
+          evidenceCodes: const [
+            RecurringSpendEvidenceCode.recentRepeatCount,
+            RecurringSpendEvidenceCode.sameCategoryPattern,
+          ],
           isVisibleOnHome: true,
           currentMonthAmount: 24000,
           previousMonthAmount: 0,
