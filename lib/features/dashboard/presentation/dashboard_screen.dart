@@ -15,6 +15,7 @@ import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/wealth_hero_backdrop.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/dashboard_summary_provider.dart';
+import '../application/recurring_spend_detector.dart';
 import '../application/wealth_hero_motion.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -32,72 +33,83 @@ class DashboardScreen extends ConsumerWidget {
           final totalBalance = totalBalanceAsync.valueOrNull ?? 0;
 
           return ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            144,
-          ),
-          children: [
-            _OverviewHero(summary: summary, totalBalance: totalBalance),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '이번 달 수입',
-                    value: formatCurrency(summary.monthIncome),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppMetricStrip(
-                    label: '이번 달 지출',
-                    value: formatCurrency(summary.monthExpense),
-                    emphasize: true,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              144,
             ),
-            const SizedBox(height: AppSpacing.md),
-            _TodayLoopCard(
-              summary: summary,
-              onQuickEntry: () {
-                ref.read(quickEntryFormProvider.notifier).reset();
-                context.push('/quick-entry');
-              },
-              onOpenTimeline: () => context.push('/timeline'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const AppSectionIntro(
-              title: '최근 거래',
-              subtitle: '막 기록한 흐름을 바로 훑어보며 비어 있는 거래가 없는지 확인해보세요.',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _RecentTransactionsSection(
-              transactions: summary.recentTransactions,
-            ),
-            if (summary.repeatSuggestions.isNotEmpty) ...[
+            children: [
+              _OverviewHero(summary: summary, totalBalance: totalBalance),
               const SizedBox(height: AppSpacing.md),
-              _RepeatSuggestionSection(
-                suggestions: summary.repeatSuggestions,
-                onRepeat: (transaction) {
-                  ref.read(quickEntryFormProvider.notifier).loadTemplate(transaction);
+              if (summary.recurringSpendInsight.groups.isNotEmpty) ...[
+                const AppSectionIntro(
+                  title: '반복적으로 나가는 돈',
+                  subtitle: '이번 달에도 이어지는 고정비와 구독, 생활 반복 소비를 먼저 보여드려요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _RecurringSpendInsightCard(summary: summary),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: AppMetricStrip(
+                      label: '이번 달 수입',
+                      value: formatCurrency(summary.monthIncome),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppMetricStrip(
+                      label: '이번 달 지출',
+                      value: formatCurrency(summary.monthExpense),
+                      emphasize: true,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _TodayLoopCard(
+                summary: summary,
+                onQuickEntry: () {
+                  ref.read(quickEntryFormProvider.notifier).reset();
                   context.push('/quick-entry');
                 },
+                onOpenTimeline: () => context.push('/timeline'),
               ),
+              const SizedBox(height: AppSpacing.md),
+              const AppSectionIntro(
+                title: '최근 거래',
+                subtitle: '막 기록한 흐름을 바로 훑어보며 비어 있는 거래가 없는지 확인해보세요.',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _RecentTransactionsSection(
+                transactions: summary.recentTransactions,
+              ),
+              if (summary.repeatSuggestions.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                _RepeatSuggestionSection(
+                  suggestions: summary.repeatSuggestions,
+                  onRepeat: (transaction) {
+                    ref
+                        .read(quickEntryFormProvider.notifier)
+                        .loadTemplate(transaction);
+                    context.push('/quick-entry');
+                  },
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              AppSectionIntro(
+                title: '예산 흐름',
+                subtitle: summary.totalBudget > 0
+                    ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준으로 흐름을 읽어보세요.'
+                    : '아직 예산을 정하지 않았다면 이번 달 흐름부터 가볍게 확인해보세요.',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _BudgetStatusCard(summary: summary),
             ],
-            const SizedBox(height: AppSpacing.md),
-            AppSectionIntro(
-              title: '예산 흐름',
-              subtitle: summary.totalBudget > 0
-                  ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준으로 흐름을 읽어보세요.'
-                  : '아직 예산을 정하지 않았다면 이번 달 흐름부터 가볍게 확인해보세요.',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _BudgetStatusCard(summary: summary),
-          ],
-        );
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
@@ -260,14 +272,16 @@ class _OverviewHeroState extends State<_OverviewHero>
               coinDensity: _visualState.coinDensity,
               billDensity: _visualState.billDensity,
               vaultIntensity: _visualState.assetIntensity,
-              direction: _reaction?.direction == WealthReactionDirection.decrease
-                  ? WealthBackdropDirection.decrease
-                  : WealthBackdropDirection.increase,
+              direction:
+                  _reaction?.direction == WealthReactionDirection.decrease
+                      ? WealthBackdropDirection.decrease
+                      : WealthBackdropDirection.increase,
               reactionIntensity: _mapReactionIntensity(
                 _reaction?.intensity ?? WealthReactionIntensity.tiny,
               ),
               progress: _reactionController.value,
-              reducedMotion: MediaQuery.maybeOf(context)?.disableAnimations ?? false,
+              reducedMotion:
+                  MediaQuery.maybeOf(context)?.disableAnimations ?? false,
             ),
             eyebrow: AppStatusChip(
               label: monthLabel,
@@ -332,6 +346,423 @@ String _stageLabel(WealthStage stage) {
     WealthStage.coinsAndBills => '지폐 확장',
     WealthStage.coinsBillsAndAssets => '자산 축적',
   };
+}
+
+String _recurringInsightCaption(RecurringSpendInsight insight) {
+  final delta = insight.monthDelta;
+  final newCount =
+      insight.groups.where((group) => group.previousMonthAmount == 0).length;
+  final hasLifestyle = insight.groups.any(
+    (group) => group.kind == RecurringSpendKind.lifestyle,
+  );
+
+  if (newCount > 0) {
+    return '이번 달 새로 보이는 반복 지출이 $newCount건 있어요.';
+  }
+
+  if (delta != null && delta > 0) {
+    return '지난달보다 ${formatCurrency(delta)} 늘었어요.';
+  }
+
+  if (delta != null && delta < 0) {
+    return '지난달보다 ${formatCurrency(delta.abs())} 줄었어요.';
+  }
+
+  if (hasLifestyle) {
+    return '생활 속에서 자주 반복되는 지출이 보여요.';
+  }
+
+  return '고정적으로 이어지는 지출이 먼저 보여요.';
+}
+
+String _recurringKindLabel(RecurringSpendKind kind) {
+  return switch (kind) {
+    RecurringSpendKind.fixed => '고정비',
+    RecurringSpendKind.subscription => '구독',
+    RecurringSpendKind.lifestyle => '생활 반복',
+  };
+}
+
+class _RecurringSpendInsightCard extends StatelessWidget {
+  const _RecurringSpendInsightCard({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final insight = summary.recurringSpendInsight;
+    final share = summary.monthExpense <= 0
+        ? null
+        : ((insight.totalCurrentMonthAmount / summary.monthExpense) * 100)
+            .round();
+    final groups = insight.groups.take(3).toList();
+
+    return InkWell(
+      key: const Key('recurring-spend-insight-card'),
+      borderRadius: BorderRadius.circular(28),
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => _RecurringSpendBottomSheet(summary: summary),
+        );
+      },
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppStatusChip(
+                label: 'FIRST INSIGHT',
+                dotColor: AppColors.warning,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                formatCurrency(insight.totalCurrentMonthAmount),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                share == null
+                    ? '이번 달 반복적으로 나가는 돈부터 먼저 정리해드릴게요.'
+                    : '이번 달 지출의 $share%가 반복적으로 나가는 돈이에요.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _recurringInsightCaption(insight),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (var index = 0; index < groups.length; index++) ...[
+                _RecurringSpendGroupTile(group: groups[index]),
+                if (index != groups.length - 1)
+                  const Divider(height: AppSpacing.lg),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringSpendGroupTile extends StatelessWidget {
+  const _RecurringSpendGroupTile({required this.group});
+
+  final RecurringSpendGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                group.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _recurringKindLabel(group.kind),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          formatCurrency(group.currentMonthAmount),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecurringSpendBottomSheet extends StatelessWidget {
+  const _RecurringSpendBottomSheet({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final newGroups = summary.recurringSpendInsight.groups
+        .where((group) => group.previousMonthAmount == 0)
+        .map(_RecurringSheetGroupView.fromGroup)
+        .toList()
+      ..sort((a, b) => b.latestDate.compareTo(a.latestDate));
+    final upcomingGroups = summary.recurringSpendInsight.groups
+        .where((group) => group.previousMonthAmount != 0)
+        .map(_RecurringSheetGroupView.fromGroup)
+        .toList()
+      ..sort((a, b) {
+        final dateCompare = a.nextExpectedDate.compareTo(b.nextExpectedDate);
+        if (dateCompare != 0) {
+          return dateCompare;
+        }
+
+        return b.group.currentMonthAmount.compareTo(a.group.currentMonthAmount);
+      });
+
+    return SafeArea(
+      child: Material(
+        key: const Key('recurring-spend-bottom-sheet'),
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '반복적으로 나가는 돈',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            formatCurrency(
+                              summary.recurringSpendInsight
+                                  .totalCurrentMonthAmount,
+                            ),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '곧 다시 이어질 수 있는 지출부터 보여드릴게요.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (newGroups.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  const AppSectionIntro(
+                    title: '새로 보이는 반복지출',
+                    subtitle: '이번 달 처음 잡힌 반복 흐름을 먼저 확인해보세요.',
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        children: [
+                          for (var index = 0;
+                              index < newGroups.length;
+                              index++) ...[
+                            _RecurringBottomSheetTile(
+                              item: newGroups[index],
+                              emphasisLabel: '이번 달 새로 보였어요',
+                            ),
+                            if (index != newGroups.length - 1)
+                              const Divider(height: AppSpacing.lg),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                if (upcomingGroups.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  const AppSectionIntro(
+                    title: '다가오는 반복지출',
+                    subtitle: '최근 흐름을 기준으로 다시 이어질 가능성이 높은 순서예요.',
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        children: [
+                          for (var index = 0;
+                              index < upcomingGroups.length;
+                              index++) ...[
+                            _RecurringBottomSheetTile(
+                                item: upcomingGroups[index]),
+                            if (index != upcomingGroups.length - 1)
+                              const Divider(height: AppSpacing.lg),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringSheetGroupView {
+  const _RecurringSheetGroupView({
+    required this.group,
+    required this.latestDate,
+    required this.nextExpectedDate,
+  });
+
+  final RecurringSpendGroup group;
+  final DateTime latestDate;
+  final DateTime nextExpectedDate;
+
+  factory _RecurringSheetGroupView.fromGroup(RecurringSpendGroup group) {
+    final latestDate = group.transactions
+        .map((tx) => tx.occurredAt)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+
+    return _RecurringSheetGroupView(
+      group: group,
+      latestDate: latestDate,
+      nextExpectedDate: switch (group.kind) {
+        RecurringSpendKind.fixed || RecurringSpendKind.subscription => DateTime(
+            latestDate.year,
+            latestDate.month + 1,
+            latestDate.day,
+            latestDate.hour,
+            latestDate.minute,
+          ),
+        RecurringSpendKind.lifestyle => latestDate,
+      },
+    );
+  }
+}
+
+class _RecurringBottomSheetTile extends StatelessWidget {
+  const _RecurringBottomSheetTile({
+    required this.item,
+    this.emphasisLabel,
+  });
+
+  final _RecurringSheetGroupView item;
+  final String? emphasisLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.group.displayName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _recurringKindLabel(item.group.kind),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                emphasisLabel ?? _recurringTimingLabel(item),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _recurringDeltaLabel(item.group),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Text(
+          formatCurrency(item.group.currentMonthAmount),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _recurringTimingLabel(_RecurringSheetGroupView item) {
+  final label = switch (item.group.kind) {
+    RecurringSpendKind.fixed || RecurringSpendKind.subscription => '?ㅼ쓬 ?덉긽',
+    RecurringSpendKind.lifestyle => '理쒓렐 寃곗젣',
+  };
+
+  return '$label ${_monthDayLabel(item.nextExpectedDate)}';
+}
+
+String _recurringDeltaLabel(RecurringSpendGroup group) {
+  if (group.previousMonthAmount == 0) {
+    return '?댁쟾 ?ъ뿉???좎궗 ???듬쓣 ?ㅼ븯吏 紐삵뻽?댁슂.';
+  }
+
+  final delta = group.currentMonthAmount - group.previousMonthAmount;
+  if (delta > 0) {
+    return '吏?쒕떖蹂대떎 ${formatCurrency(delta)} ?섏뿀?댁슂.';
+  }
+  if (delta < 0) {
+    return '吏?쒕떖蹂대떎 ${formatCurrency(delta.abs())} 以꾩뿀?댁슂.';
+  }
+
+  return '吏?쒕떖怨??숈씪???섏쐞?먯슂.';
+}
+
+String _monthDayLabel(DateTime date) {
+  return '${date.month}/${date.day}';
 }
 
 class _TodayLoopCard extends StatelessWidget {
@@ -511,8 +942,8 @@ class _RepeatSuggestionTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -543,8 +974,9 @@ class _BudgetStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progress =
-        summary.totalBudget <= 0 ? 0.0 : summary.budgetUsageRate.clamp(0, 1).toDouble();
+    final progress = summary.totalBudget <= 0
+        ? 0.0
+        : summary.budgetUsageRate.clamp(0, 1).toDouble();
     final progressColor = summary.totalBudget <= 0
         ? AppColors.primary
         : summary.budgetUsageRate >= 1
@@ -587,7 +1019,8 @@ class _BudgetStatusCard extends StatelessWidget {
                 value: progress,
                 minHeight: 10,
                 color: progressColor,
-                backgroundColor: theme.colorScheme.outline.withValues(alpha: 0.8),
+                backgroundColor:
+                    theme.colorScheme.outline.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -664,9 +1097,9 @@ class _RecentTransactionTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: accent,
-              ),
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -699,8 +1132,8 @@ class _EmptyRecentTransactions extends StatelessWidget {
             Text(
               '아직 쌓인 거래가 없어요',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
