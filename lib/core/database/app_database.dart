@@ -70,6 +70,12 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> unmarkRecurringSpendGroupNotRecurring(String groupKey) {
+    return (delete(recurringSpendOverrides)
+          ..where((t) => t.groupKey.equals(groupKey)))
+        .go();
+  }
+
   Stream<BudgetSummary> watchBudgetSummary() {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);

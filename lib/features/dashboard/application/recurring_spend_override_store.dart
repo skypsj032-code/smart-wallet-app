@@ -6,6 +6,7 @@ import '../../../core/database/providers/database_providers.dart';
 abstract class RecurringSpendOverrideStore {
   Stream<Set<String>> watchNotRecurringGroupKeys();
   Future<void> markGroupNotRecurring(String groupKey);
+  Future<void> unmarkGroupNotRecurring(String groupKey);
 }
 
 class DriftRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
@@ -16,6 +17,11 @@ class DriftRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
   @override
   Future<void> markGroupNotRecurring(String groupKey) {
     return _database.markRecurringSpendGroupNotRecurring(groupKey);
+  }
+
+  @override
+  Future<void> unmarkGroupNotRecurring(String groupKey) {
+    return _database.unmarkRecurringSpendGroupNotRecurring(groupKey);
   }
 
   @override

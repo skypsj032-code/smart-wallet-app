@@ -530,6 +530,10 @@ class _RecurringSpendBottomSheet extends ConsumerWidget {
 
         return b.group.currentMonthAmount.compareTo(a.group.currentMonthAmount);
       });
+    final excludedGroups = summary.excludedRecurringSpendGroups
+        .map(_RecurringSheetGroupView.fromGroup)
+        .toList()
+      ..sort((a, b) => b.latestDate.compareTo(a.latestDate));
 
     return SafeArea(
       child: Material(
@@ -635,6 +639,27 @@ class _RecurringSpendBottomSheet extends ConsumerWidget {
                           ],
                         ],
                       ),
+                    ),
+                  ),
+                ],
+                if (excludedGroups.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: const Key('recurring-excluded-manage-button'),
+                      onPressed: () {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (context) =>
+                              _ExcludedRecurringSpendBottomSheet(
+                            initialSummary: summary,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.visibility_off_outlined),
+                      label: Text('제외한 항목 ${excludedGroups.length}개 관리'),
                     ),
                   ),
                 ],
@@ -752,6 +777,169 @@ class _RecurringBottomSheetTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ExcludedRecurringSpendBottomSheet extends ConsumerWidget {
+  const _ExcludedRecurringSpendBottomSheet({required this.initialSummary});
+
+  final DashboardSummary initialSummary;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary =
+        ref.watch(dashboardSummaryProvider).valueOrNull ?? initialSummary;
+    final theme = Theme.of(context);
+    final excludedGroups = summary.excludedRecurringSpendGroups
+        .map(_RecurringSheetGroupView.fromGroup)
+        .toList()
+      ..sort((a, b) => b.latestDate.compareTo(a.latestDate));
+
+    return SafeArea(
+      child: Material(
+        key: const Key('recurring-excluded-bottom-sheet'),
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '제외한 반복지출',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '반복 아님으로 제외한 항목을 다시 반복지출 해석에 넣을 수 있어요.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (excludedGroups.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        '지금은 제외된 반복지출이 없어요.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  )
+                else
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        children: [
+                          for (var index = 0;
+                              index < excludedGroups.length;
+                              index++) ...[
+                            _ExcludedRecurringSpendTile(
+                                item: excludedGroups[index]),
+                            if (index != excludedGroups.length - 1)
+                              const Divider(height: AppSpacing.lg),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExcludedRecurringSpendTile extends ConsumerWidget {
+  const _ExcludedRecurringSpendTile({required this.item});
+
+  final _RecurringSheetGroupView item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.group.displayName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _recurringKindLabel(item.group.kind),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _monthDayLabel(item.latestDate),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              formatCurrency(item.group.currentMonthAmount),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton(
+              key: Key('recurring-restore-button-${item.group.groupKey}'),
+              onPressed: () {
+                ref
+                    .read(recurringSpendOverrideStoreProvider)
+                    .unmarkGroupNotRecurring(item.group.groupKey);
+              },
+              child: const Text('다시 포함'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

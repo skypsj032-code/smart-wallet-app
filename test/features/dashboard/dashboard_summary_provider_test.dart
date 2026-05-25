@@ -137,6 +137,11 @@ void main() {
       'NETFLIX',
     );
     expect(summary.recurringSpendInsight.totalCurrentMonthAmount, 17000);
+    expect(summary.excludedRecurringSpendGroups, hasLength(1));
+    expect(
+      summary.excludedRecurringSpendGroups.single.groupKey,
+      excludedKey,
+    );
   });
 
   test(
@@ -195,6 +200,11 @@ void main() {
     );
 
     expect(summary.recurringSpendInsight.groups, isEmpty);
+    expect(summary.excludedRecurringSpendGroups, hasLength(1));
+    expect(
+      summary.excludedRecurringSpendGroups.single.displayName,
+      'KB Insurance',
+    );
   });
 }
 

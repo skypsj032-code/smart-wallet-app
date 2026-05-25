@@ -1,0 +1,5 @@
+- 실제 변경: dashboard summary가 보이는 반복지출과 제외된 반복지출을 둘 다 들고 있게 확장했고, 반복지출 목록 바텀시트 하단에 `제외한 항목 n개 관리` 진입점을 추가했다.
+- 실제 변경: 제외 항목 관리 바텀시트에서 항목별 `다시 포함` 액션을 제공하고, `not_recurring` override를 삭제해서 반복지출 해석에 복구할 수 있게 했다.
+- 계획과 차이: 별도 설정 화면은 만들지 않았고, 기존 반복지출 흐름 안에서만 복구하게 유지했다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/recurring_spend_detector_test.dart test/features/dashboard/dashboard_summary_provider_test.dart test/features/dashboard/dashboard_screen_test.dart`
+- 다음: 제외 항목이 많아질 때를 대비해 검색이나 정렬이 필요한지 실제 사용 흐름을 보고 판단한다.

@@ -20,6 +20,7 @@ class DashboardSummary {
     required this.recentTransactions,
     required this.repeatSuggestions,
     required this.recurringSpendInsight,
+    required this.excludedRecurringSpendGroups,
   });
 
   final int monthIncome;
@@ -32,6 +33,7 @@ class DashboardSummary {
   final List<Transaction> recentTransactions;
   final List<Transaction> repeatSuggestions;
   final RecurringSpendInsight recurringSpendInsight;
+  final List<RecurringSpendGroup> excludedRecurringSpendGroups;
 
   double get budgetUsageRate {
     if (totalBudget <= 0) {
@@ -122,11 +124,16 @@ DashboardSummary buildDashboardSummary({
       budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
   final repeatSuggestions = <Transaction>[];
   final seenKeys = <String>{};
+  final rawRecurringSpendInsight = detectRecurringSpendInsight(
+    lookbackTransactions,
+    now: now,
+  );
   final recurringSpendInsight = _filterRecurringSpendInsight(
-    detectRecurringSpendInsight(
-      lookbackTransactions,
-      now: now,
-    ),
+    rawRecurringSpendInsight,
+    excludedRecurringGroupKeys,
+  );
+  final excludedRecurringSpendGroups = _excludedRecurringSpendGroups(
+    rawRecurringSpendInsight,
     excludedRecurringGroupKeys,
   );
 
@@ -160,7 +167,38 @@ DashboardSummary buildDashboardSummary({
     recentTransactions: recentTransactions.take(5).toList(),
     repeatSuggestions: repeatSuggestions,
     recurringSpendInsight: recurringSpendInsight,
+    excludedRecurringSpendGroups: excludedRecurringSpendGroups,
   );
+}
+
+List<RecurringSpendGroup> _excludedRecurringSpendGroups(
+  RecurringSpendInsight insight,
+  Set<String> excludedRecurringGroupKeys,
+) {
+  if (excludedRecurringGroupKeys.isEmpty) {
+    return const [];
+  }
+
+  final groups = insight.groups
+      .where((group) => excludedRecurringGroupKeys.contains(group.groupKey))
+      .toList();
+
+  groups.sort((a, b) {
+    final latestA = a.transactions
+        .map((tx) => tx.occurredAt)
+        .reduce((first, second) => first.isAfter(second) ? first : second);
+    final latestB = b.transactions
+        .map((tx) => tx.occurredAt)
+        .reduce((first, second) => first.isAfter(second) ? first : second);
+    final dateCompare = latestB.compareTo(latestA);
+    if (dateCompare != 0) {
+      return dateCompare;
+    }
+
+    return b.currentMonthAmount.compareTo(a.currentMonthAmount);
+  });
+
+  return groups;
 }
 
 RecurringSpendInsight _filterRecurringSpendInsight(

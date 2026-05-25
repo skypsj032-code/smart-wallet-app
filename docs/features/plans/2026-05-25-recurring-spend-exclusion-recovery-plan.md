@@ -1,0 +1,11 @@
+- 파일: `lib/features/dashboard/application/dashboard_summary_provider.dart`
+- 파일: `lib/features/dashboard/application/recurring_spend_override_store.dart`
+- 파일: `lib/core/database/app_database.dart`
+- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- 파일: `test/features/dashboard/dashboard_summary_provider_test.dart`
+- 파일: `test/features/dashboard/dashboard_screen_test.dart`
+- 단계: summary가 visible recurring과 excluded recurring을 둘 다 들고 있도록 확장한다.
+- 단계: override store에 `반복 아님` 해제 메서드를 추가한다.
+- 단계: 반복지출 바텀시트 하단에 `제외된 항목 n개` 진입점을 추가하고 복구용 바텀시트를 붙인다.
+- 단계: 복구 액션 위젯 테스트와 summary 단위 테스트를 먼저 실패시키고, 최소 구현으로 통과시킨다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_summary_provider_test.dart test/features/dashboard/dashboard_screen_test.dart`

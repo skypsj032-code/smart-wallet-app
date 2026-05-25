@@ -161,6 +161,7 @@ void main() {
         totalCurrentMonthAmount: 0,
         totalPreviousMonthAmount: 0,
       ),
+      excludedRecurringSpendGroups: const [],
     );
 
     await tester.pumpWidget(
@@ -228,14 +229,100 @@ void main() {
 
     expect(overrideStore.markedGroupKeys, ['insurance']);
   });
+
+  testWidgets(
+      'dashboard opens excluded recurring manager and lets user restore an item',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups(
+      excludedGroups: [
+        RecurringSpendGroup(
+          groupKey: 'insurance',
+          displayName: '?쇱꽦?붿옱',
+          kind: RecurringSpendKind.fixed,
+          score: 92,
+          confidence: RecurringSpendConfidence.high,
+          evidenceCodes: const [
+            RecurringSpendEvidenceCode.monthlyCadence,
+            RecurringSpendEvidenceCode.stableAmount,
+          ],
+          isVisibleOnHome: true,
+          currentMonthAmount: 86000,
+          previousMonthAmount: 86000,
+          transactions: [
+            _tx(
+              'insurance-apr',
+              amount: 86000,
+              occurredAt: DateTime(2026, 4, 5, 10),
+              merchantName: '?쇱꽦?붿옱',
+              categoryId: 'insurance',
+              accountId: 'card-1',
+            ),
+            _tx(
+              'insurance-may',
+              amount: 86000,
+              occurredAt: DateTime(2026, 5, 5, 10),
+              merchantName: '?쇱꽦?붿옱',
+              categoryId: 'insurance',
+              accountId: 'card-1',
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('recurring-spend-insight-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('recurring-excluded-manage-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('recurring-excluded-bottom-sheet')),
+      findsOneWidget,
+    );
+    expect(find.text('?쇱꽦?붿옱'), findsWidgets);
+
+    await tester
+        .tap(find.byKey(const Key('recurring-restore-button-insurance')));
+    await tester.pumpAndSettle();
+
+    expect(overrideStore.restoredGroupKeys, ['insurance']);
+  });
 }
 
 class _FakeRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
   final List<String> markedGroupKeys = [];
+  final List<String> restoredGroupKeys = [];
 
   @override
   Future<void> markGroupNotRecurring(String groupKey) async {
     markedGroupKeys.add(groupKey);
+  }
+
+  @override
+  Future<void> unmarkGroupNotRecurring(String groupKey) async {
+    restoredGroupKeys.add(groupKey);
   }
 
   @override
@@ -244,7 +331,9 @@ class _FakeRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
   }
 }
 
-DashboardSummary _summaryWithRecurringGroups() {
+DashboardSummary _summaryWithRecurringGroups({
+  List<RecurringSpendGroup> excludedGroups = const [],
+}) {
   return DashboardSummary(
     monthIncome: 3200000,
     monthExpense: 430000,
@@ -365,6 +454,7 @@ DashboardSummary _summaryWithRecurringGroups() {
       totalCurrentMonthAmount: 127000,
       totalPreviousMonthAmount: 103000,
     ),
+    excludedRecurringSpendGroups: excludedGroups,
   );
 }
 
