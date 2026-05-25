@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import 'recurring_spend_detector.dart';
+import 'recurring_spend_override_store.dart';
 
 class DashboardSummary {
   const DashboardSummary({
@@ -43,6 +44,7 @@ class DashboardSummary {
 
 final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
   final database = ref.watch(appDatabaseProvider);
+  final overrideStore = ref.watch(recurringSpendOverrideStoreProvider);
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
   final nextMonth = DateTime(now.year, now.month + 1, 1);
@@ -69,17 +71,20 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         ])
         ..limit(12))
       .watch();
+  final excludedRecurringGroupKeys = overrideStore.watchNotRecurringGroupKeys();
 
-  return _combine3(
+  return _combine4(
     lookbackTransactions,
     monthlyBudgets,
     recentTransactions,
-    (lookback, budgets, recent) {
+    excludedRecurringGroupKeys,
+    (lookback, budgets, recent, excludedGroupKeys) {
       return buildDashboardSummary(
         lookbackTransactions: lookback,
         budgets: budgets,
         recentTransactions: recent,
         now: now,
+        excludedRecurringGroupKeys: excludedGroupKeys,
       );
     },
   );
@@ -90,6 +95,7 @@ DashboardSummary buildDashboardSummary({
   required List<Budget> budgets,
   required List<Transaction> recentTransactions,
   required DateTime now,
+  Set<String> excludedRecurringGroupKeys = const {},
 }) {
   final monthStart = DateTime(now.year, now.month, 1);
   final nextMonth = DateTime(now.year, now.month + 1, 1);
@@ -117,9 +123,12 @@ DashboardSummary buildDashboardSummary({
       budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
   final repeatSuggestions = <Transaction>[];
   final seenKeys = <String>{};
-  final recurringSpendInsight = detectRecurringSpendInsight(
-    lookbackTransactions,
-    now: now,
+  final recurringSpendInsight = _filterRecurringSpendInsight(
+    detectRecurringSpendInsight(
+      lookbackTransactions,
+      now: now,
+    ),
+    excludedRecurringGroupKeys,
   );
 
   for (final tx in recentTransactions) {
@@ -155,27 +164,56 @@ DashboardSummary buildDashboardSummary({
   );
 }
 
-Stream<R> _combine3<A, B, C, R>(
+RecurringSpendInsight _filterRecurringSpendInsight(
+  RecurringSpendInsight insight,
+  Set<String> excludedRecurringGroupKeys,
+) {
+  if (excludedRecurringGroupKeys.isEmpty) {
+    return insight;
+  }
+
+  final groups = insight.groups
+      .where((group) => !excludedRecurringGroupKeys.contains(group.groupKey))
+      .toList();
+
+  return RecurringSpendInsight(
+    groups: groups,
+    totalCurrentMonthAmount: groups.fold<int>(
+      0,
+      (sum, group) => sum + group.currentMonthAmount,
+    ),
+    totalPreviousMonthAmount: groups.fold<int>(
+      0,
+      (sum, group) => sum + group.previousMonthAmount,
+    ),
+  );
+}
+
+Stream<R> _combine4<A, B, C, D, R>(
   Stream<A> a,
   Stream<B> b,
   Stream<C> c,
-  R Function(A a, B b, C c) combiner,
+  Stream<D> d,
+  R Function(A a, B b, C c, D d) combiner,
 ) {
   late A latestA;
   late B latestB;
   late C latestC;
+  late D latestD;
   var hasA = false;
   var hasB = false;
   var hasC = false;
+  var hasD = false;
 
   final controller = StreamController<R>.broadcast();
   late StreamSubscription<A> subA;
   late StreamSubscription<B> subB;
   late StreamSubscription<C> subC;
+  late StreamSubscription<D> subD;
 
   void emitIfReady() {
-    if (hasA && hasB && hasC) {
-      controller.add(combiner(latestA, latestB, latestC));
+    if (hasA && hasB && hasC && hasD) {
+      controller.add(combiner(latestA, latestB, latestC, latestD));
     }
   }
 
@@ -206,10 +244,20 @@ Stream<R> _combine3<A, B, C, R>(
     onError: controller.addError,
   );
 
+  subD = d.listen(
+    (value) {
+      latestD = value;
+      hasD = true;
+      emitIfReady();
+    },
+    onError: controller.addError,
+  );
+
   controller.onCancel = () async {
     await subA.cancel();
     await subB.cancel();
     await subC.cancel();
+    await subD.cancel();
   };
 
   return controller.stream;

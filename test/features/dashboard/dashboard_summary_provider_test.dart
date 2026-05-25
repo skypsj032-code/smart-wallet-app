@@ -79,6 +79,65 @@ void main() {
       containsAll([RecurringSpendKind.fixed, RecurringSpendKind.subscription]),
     );
   });
+
+  test('buildDashboardSummary excludes recurring groups marked not recurring',
+      () {
+    final now = DateTime(2026, 5, 22, 9);
+    final lookbackTransactions = [
+      _tx(
+        'insurance-apr',
+        amount: 86000,
+        occurredAt: DateTime(2026, 4, 5, 10),
+        merchantName: '?쇱꽦?붿옱',
+        categoryId: 'insurance',
+        accountId: 'card-1',
+      ),
+      _tx(
+        'insurance-may',
+        amount: 86000,
+        occurredAt: DateTime(2026, 5, 5, 10),
+        merchantName: '?쇱꽦?붿옱',
+        categoryId: 'insurance',
+        accountId: 'card-1',
+      ),
+      _tx(
+        'netflix-apr',
+        amount: 17000,
+        occurredAt: DateTime(2026, 4, 10, 8),
+        merchantName: 'NETFLIX',
+        categoryId: 'subscription',
+        accountId: 'card-1',
+      ),
+      _tx(
+        'netflix-may',
+        amount: 17000,
+        occurredAt: DateTime(2026, 5, 10, 8),
+        merchantName: 'NETFLIX',
+        categoryId: 'subscription',
+        accountId: 'card-1',
+      ),
+    ];
+
+    final excludedKey = detectRecurringSpendInsight(
+      lookbackTransactions,
+      now: now,
+    ).groups.firstWhere((group) => group.displayName == '?쇱꽦?붿옱').groupKey;
+
+    final summary = buildDashboardSummary(
+      lookbackTransactions: lookbackTransactions,
+      budgets: const [],
+      recentTransactions: lookbackTransactions.reversed.toList(),
+      now: now,
+      excludedRecurringGroupKeys: {excludedKey},
+    );
+
+    expect(summary.recurringSpendInsight.groups, hasLength(1));
+    expect(
+      summary.recurringSpendInsight.groups.single.displayName,
+      'NETFLIX',
+    );
+    expect(summary.recurringSpendInsight.totalCurrentMonthAmount, 17000);
+  });
 }
 
 Transaction _tx(

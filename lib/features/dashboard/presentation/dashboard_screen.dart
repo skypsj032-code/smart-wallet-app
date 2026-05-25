@@ -16,6 +16,7 @@ import '../../../shared/widgets/wealth_hero_backdrop.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/dashboard_summary_provider.dart';
 import '../application/recurring_spend_detector.dart';
+import '../application/recurring_spend_override_store.dart';
 import '../application/wealth_hero_motion.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -405,7 +406,9 @@ class _RecurringSpendInsightCard extends StatelessWidget {
         showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
-          builder: (context) => _RecurringSpendBottomSheet(summary: summary),
+          builder: (context) => _RecurringSpendBottomSheet(
+            initialSummary: summary,
+          ),
         );
       },
       child: Card(
@@ -500,13 +503,15 @@ class _RecurringSpendGroupTile extends StatelessWidget {
   }
 }
 
-class _RecurringSpendBottomSheet extends StatelessWidget {
-  const _RecurringSpendBottomSheet({required this.summary});
+class _RecurringSpendBottomSheet extends ConsumerWidget {
+  const _RecurringSpendBottomSheet({required this.initialSummary});
 
-  final DashboardSummary summary;
+  final DashboardSummary initialSummary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary =
+        ref.watch(dashboardSummaryProvider).valueOrNull ?? initialSummary;
     final theme = Theme.of(context);
     final newGroups = summary.recurringSpendInsight.groups
         .where((group) => group.previousMonthAmount == 0)
@@ -751,13 +756,13 @@ class _RecurringBottomSheetTile extends StatelessWidget {
   }
 }
 
-class _RecurringSpendDetailSheet extends StatelessWidget {
+class _RecurringSpendDetailSheet extends ConsumerWidget {
   const _RecurringSpendDetailSheet({required this.item});
 
   final _RecurringSheetGroupView item;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final reasons = _recurringEvidenceBullets(item.group);
     final transactions = [...item.group.transactions]
@@ -890,6 +895,52 @@ class _RecurringSpendDetailSheet extends StatelessWidget {
                         Text(_recurringDeltaLabel(item.group)),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    key: const Key('recurring-not-recurring-button'),
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          key: const Key('recurring-not-recurring-dialog'),
+                          title: const Text('이 항목을 반복지출에서 제외할까요?'),
+                          content: const Text(
+                            '이후에는 이 항목이 반복지출 카드와 목록에 보이지 않아요. 거래 자체가 삭제되지는 않아요.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(false),
+                              child: const Text('취소'),
+                            ),
+                            FilledButton.tonal(
+                              key: const Key(
+                                'recurring-not-recurring-confirm-button',
+                              ),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(true),
+                              child: const Text('반복 아님으로 제외'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed != true) {
+                        return;
+                      }
+
+                      await ref
+                          .read(recurringSpendOverrideStoreProvider)
+                          .markGroupNotRecurring(item.group.groupKey);
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    child: const Text('반복 아님'),
                   ),
                 ),
               ],

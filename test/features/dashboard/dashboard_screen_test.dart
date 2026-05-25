@@ -6,12 +6,19 @@ import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_summary_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_detector.dart';
+import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_override_store.dart';
 import 'package:smart_wallet_app/features/dashboard/application/wealth_hero_motion.dart';
 import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_screen.dart';
 
 void main() {
   setUpAll(() {
     GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
+  late _FakeRecurringSpendOverrideStore overrideStore;
+
+  setUp(() {
+    overrideStore = _FakeRecurringSpendOverrideStore();
   });
 
   testWidgets(
@@ -27,6 +34,7 @@ void main() {
           totalActiveAccountBalanceProvider.overrideWith(
             (ref) => const AsyncData(4800000),
           ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -65,6 +73,7 @@ void main() {
           totalActiveAccountBalanceProvider.overrideWith(
             (ref) => const AsyncData(4800000),
           ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -106,6 +115,7 @@ void main() {
           totalActiveAccountBalanceProvider.overrideWith(
             (ref) => const AsyncData(4800000),
           ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -160,6 +170,7 @@ void main() {
           totalActiveAccountBalanceProvider.overrideWith(
             (ref) => const AsyncData(1800000),
           ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -172,6 +183,65 @@ void main() {
 
     expect(find.byKey(const Key('recurring-spend-insight-card')), findsNothing);
   });
+
+  testWidgets(
+      'dashboard lets user mark a recurring item as not recurring from detail sheet',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('recurring-spend-insight-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('recurring-item-insurance')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('recurring-not-recurring-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('recurring-not-recurring-dialog')),
+        findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('recurring-not-recurring-confirm-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(overrideStore.markedGroupKeys, ['insurance']);
+  });
+}
+
+class _FakeRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
+  final List<String> markedGroupKeys = [];
+
+  @override
+  Future<void> markGroupNotRecurring(String groupKey) async {
+    markedGroupKeys.add(groupKey);
+  }
+
+  @override
+  Stream<Set<String>> watchNotRecurringGroupKeys() {
+    return Stream.value(const <String>{});
+  }
 }
 
 DashboardSummary _summaryWithRecurringGroups() {

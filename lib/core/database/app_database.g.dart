@@ -3848,6 +3848,292 @@ class OcrDraftsCompanion extends UpdateCompanion<OcrDraft> {
   }
 }
 
+class $RecurringSpendOverridesTable extends RecurringSpendOverrides
+    with TableInfo<$RecurringSpendOverridesTable, RecurringSpendOverride> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringSpendOverridesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _groupKeyMeta =
+      const VerificationMeta('groupKey');
+  @override
+  late final GeneratedColumn<String> groupKey = GeneratedColumn<String>(
+      'group_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _actionTypeMeta =
+      const VerificationMeta('actionType');
+  @override
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+      'action_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _lastModifiedAtMeta =
+      const VerificationMeta('lastModifiedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastModifiedAt =
+      GeneratedColumn<DateTime>('last_modified_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [groupKey, actionType, createdAt, lastModifiedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_spend_overrides';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<RecurringSpendOverride> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('group_key')) {
+      context.handle(_groupKeyMeta,
+          groupKey.isAcceptableOrUnknown(data['group_key']!, _groupKeyMeta));
+    } else if (isInserting) {
+      context.missing(_groupKeyMeta);
+    }
+    if (data.containsKey('action_type')) {
+      context.handle(
+          _actionTypeMeta,
+          actionType.isAcceptableOrUnknown(
+              data['action_type']!, _actionTypeMeta));
+    } else if (isInserting) {
+      context.missing(_actionTypeMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_modified_at')) {
+      context.handle(
+          _lastModifiedAtMeta,
+          lastModifiedAt.isAcceptableOrUnknown(
+              data['last_modified_at']!, _lastModifiedAtMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {groupKey};
+  @override
+  RecurringSpendOverride map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringSpendOverride(
+      groupKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}group_key'])!,
+      actionType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action_type'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      lastModifiedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_modified_at'])!,
+    );
+  }
+
+  @override
+  $RecurringSpendOverridesTable createAlias(String alias) {
+    return $RecurringSpendOverridesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringSpendOverride extends DataClass
+    implements Insertable<RecurringSpendOverride> {
+  final String groupKey;
+  final String actionType;
+  final DateTime createdAt;
+  final DateTime lastModifiedAt;
+  const RecurringSpendOverride(
+      {required this.groupKey,
+      required this.actionType,
+      required this.createdAt,
+      required this.lastModifiedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['group_key'] = Variable<String>(groupKey);
+    map['action_type'] = Variable<String>(actionType);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['last_modified_at'] = Variable<DateTime>(lastModifiedAt);
+    return map;
+  }
+
+  RecurringSpendOverridesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringSpendOverridesCompanion(
+      groupKey: Value(groupKey),
+      actionType: Value(actionType),
+      createdAt: Value(createdAt),
+      lastModifiedAt: Value(lastModifiedAt),
+    );
+  }
+
+  factory RecurringSpendOverride.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringSpendOverride(
+      groupKey: serializer.fromJson<String>(json['groupKey']),
+      actionType: serializer.fromJson<String>(json['actionType']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastModifiedAt: serializer.fromJson<DateTime>(json['lastModifiedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'groupKey': serializer.toJson<String>(groupKey),
+      'actionType': serializer.toJson<String>(actionType),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastModifiedAt': serializer.toJson<DateTime>(lastModifiedAt),
+    };
+  }
+
+  RecurringSpendOverride copyWith(
+          {String? groupKey,
+          String? actionType,
+          DateTime? createdAt,
+          DateTime? lastModifiedAt}) =>
+      RecurringSpendOverride(
+        groupKey: groupKey ?? this.groupKey,
+        actionType: actionType ?? this.actionType,
+        createdAt: createdAt ?? this.createdAt,
+        lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
+      );
+  RecurringSpendOverride copyWithCompanion(
+      RecurringSpendOverridesCompanion data) {
+    return RecurringSpendOverride(
+      groupKey: data.groupKey.present ? data.groupKey.value : this.groupKey,
+      actionType:
+          data.actionType.present ? data.actionType.value : this.actionType,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastModifiedAt: data.lastModifiedAt.present
+          ? data.lastModifiedAt.value
+          : this.lastModifiedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringSpendOverride(')
+          ..write('groupKey: $groupKey, ')
+          ..write('actionType: $actionType, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastModifiedAt: $lastModifiedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(groupKey, actionType, createdAt, lastModifiedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringSpendOverride &&
+          other.groupKey == this.groupKey &&
+          other.actionType == this.actionType &&
+          other.createdAt == this.createdAt &&
+          other.lastModifiedAt == this.lastModifiedAt);
+}
+
+class RecurringSpendOverridesCompanion
+    extends UpdateCompanion<RecurringSpendOverride> {
+  final Value<String> groupKey;
+  final Value<String> actionType;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> lastModifiedAt;
+  final Value<int> rowid;
+  const RecurringSpendOverridesCompanion({
+    this.groupKey = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastModifiedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringSpendOverridesCompanion.insert({
+    required String groupKey,
+    required String actionType,
+    required DateTime createdAt,
+    required DateTime lastModifiedAt,
+    this.rowid = const Value.absent(),
+  })  : groupKey = Value(groupKey),
+        actionType = Value(actionType),
+        createdAt = Value(createdAt),
+        lastModifiedAt = Value(lastModifiedAt);
+  static Insertable<RecurringSpendOverride> custom({
+    Expression<String>? groupKey,
+    Expression<String>? actionType,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastModifiedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (groupKey != null) 'group_key': groupKey,
+      if (actionType != null) 'action_type': actionType,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastModifiedAt != null) 'last_modified_at': lastModifiedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringSpendOverridesCompanion copyWith(
+      {Value<String>? groupKey,
+      Value<String>? actionType,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? lastModifiedAt,
+      Value<int>? rowid}) {
+    return RecurringSpendOverridesCompanion(
+      groupKey: groupKey ?? this.groupKey,
+      actionType: actionType ?? this.actionType,
+      createdAt: createdAt ?? this.createdAt,
+      lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (groupKey.present) {
+      map['group_key'] = Variable<String>(groupKey.value);
+    }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastModifiedAt.present) {
+      map['last_modified_at'] = Variable<DateTime>(lastModifiedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringSpendOverridesCompanion(')
+          ..write('groupKey: $groupKey, ')
+          ..write('actionType: $actionType, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastModifiedAt: $lastModifiedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3858,6 +4144,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $BackupMetadataTable backupMetadata = $BackupMetadataTable(this);
   late final $OcrDraftsTable ocrDrafts = $OcrDraftsTable(this);
+  late final $RecurringSpendOverridesTable recurringSpendOverrides =
+      $RecurringSpendOverridesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3869,7 +4157,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         accounts,
         appSettings,
         backupMetadata,
-        ocrDrafts
+        ocrDrafts,
+        recurringSpendOverrides
       ];
 }
 
@@ -5481,6 +5770,146 @@ typedef $$OcrDraftsTableProcessedTableManager = ProcessedTableManager<
     (OcrDraft, BaseReferences<_$AppDatabase, $OcrDraftsTable, OcrDraft>),
     OcrDraft,
     PrefetchHooks Function()>;
+typedef $$RecurringSpendOverridesTableCreateCompanionBuilder
+    = RecurringSpendOverridesCompanion Function({
+  required String groupKey,
+  required String actionType,
+  required DateTime createdAt,
+  required DateTime lastModifiedAt,
+  Value<int> rowid,
+});
+typedef $$RecurringSpendOverridesTableUpdateCompanionBuilder
+    = RecurringSpendOverridesCompanion Function({
+  Value<String> groupKey,
+  Value<String> actionType,
+  Value<DateTime> createdAt,
+  Value<DateTime> lastModifiedAt,
+  Value<int> rowid,
+});
+
+class $$RecurringSpendOverridesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $RecurringSpendOverridesTable> {
+  $$RecurringSpendOverridesTableFilterComposer(super.$state);
+  ColumnFilters<String> get groupKey => $state.composableBuilder(
+      column: $state.table.groupKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get actionType => $state.composableBuilder(
+      column: $state.table.actionType,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastModifiedAt => $state.composableBuilder(
+      column: $state.table.lastModifiedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$RecurringSpendOverridesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $RecurringSpendOverridesTable> {
+  $$RecurringSpendOverridesTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get groupKey => $state.composableBuilder(
+      column: $state.table.groupKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get actionType => $state.composableBuilder(
+      column: $state.table.actionType,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastModifiedAt => $state.composableBuilder(
+      column: $state.table.lastModifiedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+class $$RecurringSpendOverridesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RecurringSpendOverridesTable,
+    RecurringSpendOverride,
+    $$RecurringSpendOverridesTableFilterComposer,
+    $$RecurringSpendOverridesTableOrderingComposer,
+    $$RecurringSpendOverridesTableCreateCompanionBuilder,
+    $$RecurringSpendOverridesTableUpdateCompanionBuilder,
+    (
+      RecurringSpendOverride,
+      BaseReferences<_$AppDatabase, $RecurringSpendOverridesTable,
+          RecurringSpendOverride>
+    ),
+    RecurringSpendOverride,
+    PrefetchHooks Function()> {
+  $$RecurringSpendOverridesTableTableManager(
+      _$AppDatabase db, $RecurringSpendOverridesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer: $$RecurringSpendOverridesTableFilterComposer(
+              ComposerState(db, table)),
+          orderingComposer: $$RecurringSpendOverridesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> groupKey = const Value.absent(),
+            Value<String> actionType = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> lastModifiedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringSpendOverridesCompanion(
+            groupKey: groupKey,
+            actionType: actionType,
+            createdAt: createdAt,
+            lastModifiedAt: lastModifiedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String groupKey,
+            required String actionType,
+            required DateTime createdAt,
+            required DateTime lastModifiedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringSpendOverridesCompanion.insert(
+            groupKey: groupKey,
+            actionType: actionType,
+            createdAt: createdAt,
+            lastModifiedAt: lastModifiedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RecurringSpendOverridesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $RecurringSpendOverridesTable,
+        RecurringSpendOverride,
+        $$RecurringSpendOverridesTableFilterComposer,
+        $$RecurringSpendOverridesTableOrderingComposer,
+        $$RecurringSpendOverridesTableCreateCompanionBuilder,
+        $$RecurringSpendOverridesTableUpdateCompanionBuilder,
+        (
+          RecurringSpendOverride,
+          BaseReferences<_$AppDatabase, $RecurringSpendOverridesTable,
+              RecurringSpendOverride>
+        ),
+        RecurringSpendOverride,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5499,4 +5928,7 @@ class $AppDatabaseManager {
       $$BackupMetadataTableTableManager(_db, _db.backupMetadata);
   $$OcrDraftsTableTableManager get ocrDrafts =>
       $$OcrDraftsTableTableManager(_db, _db.ocrDrafts);
+  $$RecurringSpendOverridesTableTableManager get recurringSpendOverrides =>
+      $$RecurringSpendOverridesTableTableManager(
+          _db, _db.recurringSpendOverrides);
 }
