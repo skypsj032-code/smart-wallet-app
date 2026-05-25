@@ -309,6 +309,91 @@ void main() {
 
     expect(overrideStore.restoredGroupKeys, ['insurance']);
   });
+
+  testWidgets(
+      'dashboard shows recurring recovery entry when only excluded groups remain',
+      (tester) async {
+    final excludedGroup = RecurringSpendGroup(
+      groupKey: 'insurance',
+      displayName: '?쇱꽦?붿옱',
+      kind: RecurringSpendKind.fixed,
+      score: 92,
+      confidence: RecurringSpendConfidence.high,
+      evidenceCodes: const [
+        RecurringSpendEvidenceCode.monthlyCadence,
+        RecurringSpendEvidenceCode.stableAmount,
+      ],
+      isVisibleOnHome: true,
+      currentMonthAmount: 86000,
+      previousMonthAmount: 86000,
+      transactions: [
+        _tx(
+          'insurance-apr',
+          amount: 86000,
+          occurredAt: DateTime(2026, 4, 5, 10),
+          merchantName: '?쇱꽦?붿옱',
+          categoryId: 'insurance',
+          accountId: 'card-1',
+        ),
+        _tx(
+          'insurance-may',
+          amount: 86000,
+          occurredAt: DateTime(2026, 5, 5, 10),
+          merchantName: '?쇱꽦?붿옱',
+          categoryId: 'insurance',
+          accountId: 'card-1',
+        ),
+      ],
+    );
+
+    final summary = DashboardSummary(
+      monthIncome: 3200000,
+      monthExpense: 430000,
+      todayExpense: 17000,
+      todayTransactionCount: 2,
+      remainingBudget: 70000,
+      totalBudget: 500000,
+      netCashflow: 2770000,
+      recentTransactions: const [],
+      repeatSuggestions: const [],
+      recurringSpendInsight: const RecurringSpendInsight(
+        groups: [],
+        totalCurrentMonthAmount: 0,
+        totalPreviousMonthAmount: 0,
+      ),
+      excludedRecurringSpendGroups: [excludedGroup],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.byKey(const Key('recurring-spend-insight-card')), findsNothing);
+    expect(
+        find.byKey(const Key('recurring-recovery-entry-card')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('recurring-recovery-entry-card')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('recurring-excluded-bottom-sheet')),
+      findsOneWidget,
+    );
+  });
 }
 
 class _FakeRecurringSpendOverrideStore implements RecurringSpendOverrideStore {

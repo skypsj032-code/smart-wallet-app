@@ -51,6 +51,14 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.sm),
                 _RecurringSpendInsightCard(summary: summary),
                 const SizedBox(height: AppSpacing.md),
+              ] else if (summary.excludedRecurringSpendGroups.isNotEmpty) ...[
+                const AppSectionIntro(
+                  title: '반복지출 복구',
+                  subtitle: '지금은 숨긴 반복지출만 남아 있어요. 필요하면 바로 다시 포함할 수 있어요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _RecurringRecoveryEntryCard(summary: summary),
+                const SizedBox(height: AppSpacing.md),
               ],
               Row(
                 children: [
@@ -450,6 +458,76 @@ class _RecurringSpendInsightCard extends StatelessWidget {
                 if (index != groups.length - 1)
                   const Divider(height: AppSpacing.lg),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurringRecoveryEntryCard extends StatelessWidget {
+  const _RecurringRecoveryEntryCard({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final excludedCount = summary.excludedRecurringSpendGroups.length;
+
+    return InkWell(
+      key: const Key('recurring-recovery-entry-card'),
+      borderRadius: BorderRadius.circular(28),
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => _ExcludedRecurringSpendBottomSheet(
+            initialSummary: summary,
+          ),
+        );
+      },
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.undo_rounded,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '제외한 반복지출 $excludedCount개',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '복구가 필요하면 여기서 바로 다시 포함할 수 있어요.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.chevron_right_rounded),
             ],
           ),
         ),

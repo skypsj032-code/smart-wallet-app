@@ -1,0 +1,5 @@
+- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- 파일: `test/features/dashboard/dashboard_screen_test.dart`
+- 단계: `보이는 반복지출 0개 + 제외 항목 1개 이상`일 때 보이는 홈 복구 카드 테스트를 먼저 추가한다.
+- 단계: 복구 카드는 기존 반복지출 카드 자리 근처에 두고, 탭하면 기존 제외 항목 관리 바텀시트를 연다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`
