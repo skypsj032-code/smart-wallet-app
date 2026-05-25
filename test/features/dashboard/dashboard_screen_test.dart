@@ -228,6 +228,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(overrideStore.markedGroupKeys, ['insurance']);
+    expect(find.text('반복지출에서 제외했어요.'), findsOneWidget);
   });
 
   testWidgets(
@@ -308,6 +309,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(overrideStore.restoredGroupKeys, ['insurance']);
+    expect(find.text('다시 반복지출에 포함했어요.'), findsOneWidget);
+    expect(
+      find.byKey(const Key('recurring-excluded-bottom-sheet')),
+      findsNothing,
+    );
   });
 
   testWidgets(

@@ -939,7 +939,9 @@ class _ExcludedRecurringSpendBottomSheet extends ConsumerWidget {
                               index < excludedGroups.length;
                               index++) ...[
                             _ExcludedRecurringSpendTile(
-                                item: excludedGroups[index]),
+                              item: excludedGroups[index],
+                              isLastItem: excludedGroups.length == 1,
+                            ),
                             if (index != excludedGroups.length - 1)
                               const Divider(height: AppSpacing.lg),
                           ],
@@ -957,9 +959,13 @@ class _ExcludedRecurringSpendBottomSheet extends ConsumerWidget {
 }
 
 class _ExcludedRecurringSpendTile extends ConsumerWidget {
-  const _ExcludedRecurringSpendTile({required this.item});
+  const _ExcludedRecurringSpendTile({
+    required this.item,
+    required this.isLastItem,
+  });
 
   final _RecurringSheetGroupView item;
+  final bool isLastItem;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1008,10 +1014,20 @@ class _ExcludedRecurringSpendTile extends ConsumerWidget {
             const SizedBox(height: AppSpacing.xs),
             TextButton(
               key: Key('recurring-restore-button-${item.group.groupKey}'),
-              onPressed: () {
-                ref
+              onPressed: () async {
+                await ref
                     .read(recurringSpendOverrideStoreProvider)
                     .unmarkGroupNotRecurring(item.group.groupKey);
+                if (context.mounted) {
+                  if (isLastItem) {
+                    Navigator.of(context).pop();
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('다시 반복지출에 포함했어요.'),
+                    ),
+                  );
+                }
               },
               child: const Text('다시 포함'),
             ),
@@ -1204,6 +1220,11 @@ class _RecurringSpendDetailSheet extends ConsumerWidget {
                           .markGroupNotRecurring(item.group.groupKey);
                       if (context.mounted) {
                         Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('반복지출에서 제외했어요.'),
+                          ),
+                        );
                       }
                     },
                     child: const Text('반복 아님'),

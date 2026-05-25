@@ -1,0 +1,5 @@
+- 실제 변경: `반복 아님` 확정 뒤 Snackbar로 제외 결과를 알려주게 했다.
+- 실제 변경: `다시 포함` 뒤 Snackbar로 복구 결과를 알려주고, 마지막 제외 항목이면 관리 시트를 닫게 했다.
+- 계획과 차이: 별도 undo 액션은 넣지 않았고 즉시 피드백만 추가했다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`
+- 다음: 실제 단말에서 Snackbar 타이밍과 바텀시트 닫힘 감각이 과하지 않은지 확인한다.
