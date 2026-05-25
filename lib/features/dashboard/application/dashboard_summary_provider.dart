@@ -45,12 +45,11 @@ class DashboardSummary {
 final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
   final database = ref.watch(appDatabaseProvider);
   final overrideStore = ref.watch(recurringSpendOverrideStoreProvider);
-  final now = DateTime.now();
-  final monthStart = DateTime(now.year, now.month, 1);
-  final nextMonth = DateTime(now.year, now.month + 1, 1);
-  final lookbackStart = now.subtract(const Duration(days: 90));
+  final queryNow = DateTime.now();
+  final nextMonth = DateTime(queryNow.year, queryNow.month + 1, 1);
+  final lookbackStart = queryNow.subtract(const Duration(days: 90));
   final monthKey =
-      '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+      '${queryNow.year.toString().padLeft(4, '0')}-${queryNow.month.toString().padLeft(2, '0')}';
 
   final lookbackTransactions = (database.select(database.transactions)
         ..where((t) =>
@@ -83,7 +82,7 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         lookbackTransactions: lookback,
         budgets: budgets,
         recentTransactions: recent,
-        now: now,
+        now: DateTime.now(),
         excludedRecurringGroupKeys: excludedGroupKeys,
       );
     },

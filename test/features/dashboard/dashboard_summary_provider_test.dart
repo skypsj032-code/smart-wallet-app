@@ -138,6 +138,64 @@ void main() {
     );
     expect(summary.recurringSpendInsight.totalCurrentMonthAmount, 17000);
   });
+
+  test(
+      'buildDashboardSummary keeps not recurring exclusion even if category changes',
+      () {
+    final now = DateTime(2026, 5, 22, 9);
+    final originalTransactions = [
+      _tx(
+        'insurance-apr',
+        amount: 86000,
+        occurredAt: DateTime(2026, 4, 5, 10),
+        merchantName: 'KB Insurance',
+        categoryId: 'insurance',
+        accountId: 'card-1',
+      ),
+      _tx(
+        'insurance-may',
+        amount: 86000,
+        occurredAt: DateTime(2026, 5, 5, 10),
+        merchantName: 'KB Insurance',
+        categoryId: 'insurance',
+        accountId: 'card-1',
+      ),
+    ];
+
+    final excludedKey = detectRecurringSpendInsight(
+      originalTransactions,
+      now: now,
+    ).groups.single.groupKey;
+
+    final recategorizedTransactions = [
+      _tx(
+        'insurance-apr',
+        amount: 86000,
+        occurredAt: DateTime(2026, 4, 5, 10),
+        merchantName: 'KB Insurance',
+        categoryId: 'fixed-cost',
+        accountId: 'card-1',
+      ),
+      _tx(
+        'insurance-may',
+        amount: 86000,
+        occurredAt: DateTime(2026, 5, 5, 10),
+        merchantName: 'KB Insurance',
+        categoryId: 'fixed-cost',
+        accountId: 'card-1',
+      ),
+    ];
+
+    final summary = buildDashboardSummary(
+      lookbackTransactions: recategorizedTransactions,
+      budgets: const [],
+      recentTransactions: recategorizedTransactions.reversed.toList(),
+      now: now,
+      excludedRecurringGroupKeys: {excludedKey},
+    );
+
+    expect(summary.recurringSpendInsight.groups, isEmpty);
+  });
 }
 
 Transaction _tx(

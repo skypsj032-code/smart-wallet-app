@@ -85,8 +85,7 @@ RecurringSpendInsight detectRecurringSpendInsight(
       continue;
     }
 
-    final clusterKey =
-        '${tx.accountId ?? ''}|${tx.categoryId ?? ''}|$normalizedName';
+    final clusterKey = '${tx.accountId ?? ''}|$normalizedName';
     clusters.putIfAbsent(clusterKey, () => []).add(tx);
   }
 
