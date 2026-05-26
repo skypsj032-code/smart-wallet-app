@@ -68,6 +68,15 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               _MonthlySpendPaceCard(summary: summary),
               const SizedBox(height: AppSpacing.md),
+              if (_homeUpcomingRecurringGroups(summary).isNotEmpty) ...[
+                const AppSectionIntro(
+                  title: '곧 나갈 돈',
+                  subtitle: '다음 결제 흐름을 먼저 확인해둘게요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _UpcomingRecurringCard(summary: summary),
+                const SizedBox(height: AppSpacing.md),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -851,6 +860,29 @@ class _RecurringSheetGroupView {
       },
     );
   }
+}
+
+List<_RecurringSheetGroupView> _homeUpcomingRecurringGroups(
+  DashboardSummary summary,
+) {
+  final groups = summary.recurringSpendInsight.groups
+      .where(
+        (group) =>
+            group.kind == RecurringSpendKind.fixed ||
+            group.kind == RecurringSpendKind.subscription,
+      )
+      .map(_RecurringSheetGroupView.fromGroup)
+      .toList()
+    ..sort((a, b) {
+      final dateCompare = a.nextExpectedDate.compareTo(b.nextExpectedDate);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+
+      return b.group.currentMonthAmount.compareTo(a.group.currentMonthAmount);
+    });
+
+  return groups.take(3).toList();
 }
 
 class _RecurringBottomSheetTile extends StatelessWidget {
@@ -1710,6 +1742,113 @@ class _MonthlySpendPaceCard extends StatelessWidget {
       MonthlySpendPaceStatus.overspending => '이 속도면 이번 달 예산을 넘길 수 있어요',
       MonthlySpendPaceStatus.noBudget => '이달 지출 흐름을 기준으로 월말 예상치를 잡아봤어요',
     };
+  }
+}
+
+class _UpcomingRecurringCard extends StatelessWidget {
+  const _UpcomingRecurringCard({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = _homeUpcomingRecurringGroups(summary);
+
+    return InkWell(
+      key: const Key('upcoming-recurring-card'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) =>
+              _RecurringSpendBottomSheet(initialSummary: summary),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  AppStatusChip(
+                    label: 'UPCOMING',
+                    dotColor: AppColors.primary,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${items.length}건',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (var index = 0; index < items.length; index++) ...[
+                _UpcomingRecurringRow(item: items[index]),
+                if (index != items.length - 1)
+                  const Divider(height: AppSpacing.lg),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingRecurringRow extends StatelessWidget {
+  const _UpcomingRecurringRow({required this.item});
+
+  final _RecurringSheetGroupView item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      key: Key('upcoming-recurring-item-${item.group.groupKey}'),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.group.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _monthDayLabel(item.nextExpectedDate),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            formatCurrency(item.group.currentMonthAmount),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

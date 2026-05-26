@@ -88,6 +88,136 @@ void main() {
     expect(find.textContaining('460,455'), findsOneWidget);
   });
 
+  testWidgets('dashboard shows upcoming recurring card with nearest items first',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('upcoming-recurring-card')));
+
+    expect(find.byKey(const Key('upcoming-recurring-card')), findsOneWidget);
+    expect(find.text('곧 나갈 돈'), findsOneWidget);
+    expect(find.byKey(const Key('upcoming-recurring-item-insurance')), findsOneWidget);
+    expect(find.byKey(const Key('upcoming-recurring-item-netflix')), findsOneWidget);
+    expect(find.byKey(const Key('upcoming-recurring-item-dawn-delivery')), findsNothing);
+
+    final insuranceTopLeft =
+        tester.getTopLeft(find.byKey(const Key('upcoming-recurring-item-insurance')));
+    final netflixTopLeft =
+        tester.getTopLeft(find.byKey(const Key('upcoming-recurring-item-netflix')));
+    expect(insuranceTopLeft.dy, lessThan(netflixTopLeft.dy));
+  });
+
+  testWidgets('dashboard hides upcoming recurring card when no scheduled groups exist',
+      (tester) async {
+    final summary = DashboardSummary(
+      monthIncome: 3200000,
+      monthExpense: 240000,
+      todayExpense: 17000,
+      todayTransactionCount: 2,
+      remainingBudget: 260000,
+      totalBudget: 500000,
+      netCashflow: 2960000,
+      recentTransactions: const [],
+      repeatSuggestions: const [],
+      recurringSpendInsight: RecurringSpendInsight(
+        groups: [
+          RecurringSpendGroup(
+            groupKey: 'dawn-delivery',
+            displayName: '?덈꼍諛곗넚',
+            kind: RecurringSpendKind.lifestyle,
+            score: 84,
+            confidence: RecurringSpendConfidence.medium,
+            evidenceCodes: const [
+              RecurringSpendEvidenceCode.recentRepeatCount,
+              RecurringSpendEvidenceCode.sameCategoryPattern,
+            ],
+            isVisibleOnHome: true,
+            currentMonthAmount: 24000,
+            previousMonthAmount: 0,
+            transactions: [
+              _tx(
+                'delivery-may-1',
+                amount: 8000,
+                occurredAt: DateTime(2026, 5, 8, 7),
+                merchantName: '?덈꼍諛곗넚',
+                categoryId: 'groceries',
+                accountId: 'card-1',
+              ),
+              _tx(
+                'delivery-may-2',
+                amount: 8000,
+                occurredAt: DateTime(2026, 5, 15, 7),
+                merchantName: '?덈꼍諛곗넚',
+                categoryId: 'groceries',
+                accountId: 'card-1',
+              ),
+              _tx(
+                'delivery-may-3',
+                amount: 8000,
+                occurredAt: DateTime(2026, 5, 21, 7),
+                merchantName: '?덈꼍諛곗넚',
+                categoryId: 'groceries',
+                accountId: 'card-1',
+              ),
+            ],
+          ),
+        ],
+        totalCurrentMonthAmount: 24000,
+        totalPreviousMonthAmount: 0,
+      ),
+      spendPace: const MonthlySpendPace(
+        status: MonthlySpendPaceStatus.steady,
+        elapsedDays: 22,
+        daysInMonth: 31,
+        projectedMonthExpense: 338182,
+        projectedBudgetUsageRate: 0.676,
+      ),
+      excludedRecurringSpendGroups: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.byKey(const Key('upcoming-recurring-card')), findsNothing);
+  });
+
   testWidgets(
       'dashboard shows excluded recurring count hint when excluded groups exist',
       (tester) async {
