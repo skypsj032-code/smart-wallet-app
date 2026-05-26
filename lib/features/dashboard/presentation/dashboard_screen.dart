@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section_intro.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/wealth_hero_backdrop.dart';
+import '../../budgets/application/budget_provider.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../application/dashboard_summary_provider.dart';
 import '../application/recurring_spend_detector.dart';
@@ -77,6 +78,8 @@ class DashboardScreen extends ConsumerWidget {
                 _UpcomingRecurringCard(summary: summary),
                 const SizedBox(height: AppSpacing.md),
               ],
+              const _CategoryPressureSection(),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
@@ -1849,6 +1852,98 @@ class _UpcomingRecurringRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CategoryPressureSection extends ConsumerWidget {
+  const _CategoryPressureSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgetSummaryAsync = ref.watch(budgetSummaryProvider);
+    final summary = budgetSummaryAsync.valueOrNull;
+    final insight = summary == null ? null : deriveCategoryPressure(summary);
+    if (insight == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AppSectionIntro(
+          title: '카테고리 압박',
+          subtitle: '이번 달엔 어디를 조금 더 자주 보게 될지 먼저 짚어드릴게요.',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _CategoryPressureCard(insight: insight),
+      ],
+    );
+  }
+}
+
+class _CategoryPressureCard extends StatelessWidget {
+  const _CategoryPressureCard({required this.insight});
+
+  final CategoryPressureInsight insight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = switch (insight.status) {
+      CategoryPressureStatus.spending => AppColors.primary,
+      CategoryPressureStatus.watch => AppColors.warning,
+      CategoryPressureStatus.overspending => AppColors.expense,
+    };
+
+    final badgeLabel = insight.progress == null
+        ? '이번 달 최다 지출 카테고리'
+        : '예산 대비 ${(insight.progress! * 100).round()}%';
+
+    return Card(
+      key: const Key('category-pressure-card'),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppStatusChip(
+              label: 'CATEGORY PRESSURE',
+              dotColor: accent,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              _headlineForCategoryPressure(insight),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '${insight.label}에 ${formatCurrency(insight.spentAmount)} 나갔어요.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _PaceMetaChip(
+              label: badgeLabel,
+              accent: accent,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _headlineForCategoryPressure(CategoryPressureInsight insight) {
+    return switch (insight.status) {
+      CategoryPressureStatus.overspending =>
+        '이번 달은 ${insight.label}가 가장 빠르게 커졌어요',
+      CategoryPressureStatus.watch =>
+        '이번 달은 ${insight.label}를 조금 더 자주 보게 될 것 같아요',
+      CategoryPressureStatus.spending =>
+        '이번 달은 ${insight.label}가 가장 크게 나가고 있어요',
+    };
   }
 }
 

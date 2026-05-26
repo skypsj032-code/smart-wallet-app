@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
+import 'package:smart_wallet_app/features/budgets/application/budget_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_summary_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_detector.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_override_store.dart';
@@ -127,6 +128,68 @@ void main() {
     final netflixTopLeft =
         tester.getTopLeft(find.byKey(const Key('upcoming-recurring-item-netflix')));
     expect(insuranceTopLeft.dy, lessThan(netflixTopLeft.dy));
+  });
+
+  testWidgets('dashboard shows category pressure card from budget summary',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+    final budgetSummary = const BudgetSummary(
+      monthKey: '2026-05',
+      totalBudget: 500000,
+      totalSpent: 430000,
+      remaining: 70000,
+      items: [
+        BudgetSummaryItem(
+          categoryId: null,
+          label: '전체 예산',
+          limitAmount: 500000,
+          spentAmount: 430000,
+        ),
+        BudgetSummaryItem(
+          categoryId: 'food',
+          label: '식비',
+          limitAmount: 200000,
+          spentAmount: 120000,
+        ),
+        BudgetSummaryItem(
+          categoryId: 'transport',
+          label: '교통',
+          limitAmount: 50000,
+          spentAmount: 45000,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          budgetSummaryProvider.overrideWith((ref) => Stream.value(budgetSummary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('category-pressure-card')));
+
+    expect(find.byKey(const Key('category-pressure-card')), findsOneWidget);
+    expect(find.text('카테고리 압박'), findsOneWidget);
+    expect(find.textContaining('교통'), findsWidgets);
+    expect(find.textContaining('예산 대비 90%'), findsOneWidget);
   });
 
   testWidgets('dashboard hides upcoming recurring card when no scheduled groups exist',
