@@ -192,6 +192,38 @@ void main() {
     expect(find.textContaining('예산 대비 90%'), findsOneWidget);
   });
 
+  testWidgets('dashboard shows compact budget status card', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('budget-status-card')));
+
+    expect(find.byKey(const Key('budget-status-card')), findsOneWidget);
+    expect(find.textContaining('70,000'), findsWidgets);
+    expect(find.textContaining('86%'), findsWidgets);
+  });
+
   testWidgets('dashboard hides upcoming recurring card when no scheduled groups exist',
       (tester) async {
     final summary = DashboardSummary(

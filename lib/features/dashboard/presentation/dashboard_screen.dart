@@ -1487,6 +1487,7 @@ class _TodayLoopCard extends StatelessWidget {
     final hasTodayEntry = summary.todayTransactionCount > 0;
 
     return Card(
+      key: const Key('budget-status-card'),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -2034,6 +2035,34 @@ class _BudgetStatusCard extends StatelessWidget {
                 backgroundColor:
                     theme.colorScheme.outline.withValues(alpha: 0.8),
               ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    summary.totalBudget <= 0
+                        ? 'No budget'
+                        : '${(summary.budgetUsageRate * 100).clamp(0, 999).toStringAsFixed(0)}%',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: progressColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      formatCurrency(summary.remainingBudget),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
