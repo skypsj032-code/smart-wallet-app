@@ -105,7 +105,6 @@ class DashboardScreen extends ConsumerWidget {
                   ref.read(quickEntryFormProvider.notifier).reset();
                   context.push('/quick-entry');
                 },
-                onOpenTimeline: () => context.push('/timeline'),
               ),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
@@ -1475,12 +1474,10 @@ class _TodayLoopCard extends StatelessWidget {
   const _TodayLoopCard({
     required this.summary,
     required this.onQuickEntry,
-    required this.onOpenTimeline,
   });
 
   final DashboardSummary summary;
   final VoidCallback onQuickEntry;
-  final VoidCallback onOpenTimeline;
 
   @override
   Widget build(BuildContext context) {
@@ -1520,12 +1517,9 @@ class _TodayLoopCard extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 FilledButton(
+                  key: const Key('today-loop-quick-entry-button'),
                   onPressed: onQuickEntry,
                   child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
-                ),
-                OutlinedButton(
-                  onPressed: onOpenTimeline,
-                  child: const Text('최근 내역 보기'),
                 ),
               ],
             ),

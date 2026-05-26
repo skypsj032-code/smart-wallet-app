@@ -225,6 +225,44 @@ void main() {
     expect(find.textContaining('86%'), findsWidgets);
   });
 
+  testWidgets('dashboard keeps today loop focused on quick entry', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('today-loop-card')), findsOneWidget);
+    expect(find.byKey(const Key('today-loop-quick-entry-button')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('today-loop-card')),
+        matching: find.byType(OutlinedButton),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('dashboard shows only three recent transactions on home',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 3200);

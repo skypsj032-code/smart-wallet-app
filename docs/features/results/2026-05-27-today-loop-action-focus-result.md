@@ -1,0 +1,3 @@
+- Changed: `Today Loop` now has a single quick-entry CTA, and timeline navigation stays with the recent-transactions card.
+- Changed: Added a stable key for the quick-entry button and a widget test for the focused action layout.
+- Result: The top home flow is less redundant, with `Today Loop` handling action and `Recent Transactions` handling review.
