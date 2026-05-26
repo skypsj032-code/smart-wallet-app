@@ -17,6 +17,7 @@ class AppScaffold extends StatelessWidget {
     this.contentPadding,
     this.backgroundColor,
     this.appBarBackgroundColor,
+    this.bottom,
   });
 
   final String title;
@@ -29,6 +30,8 @@ class AppScaffold extends StatelessWidget {
   final EdgeInsetsGeometry? contentPadding;
   final Color? backgroundColor;
   final Color? appBarBackgroundColor;
+  /// AppBar 하단 위젯 (예: TabBar)
+  final PreferredSizeWidget? bottom;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +45,7 @@ class AppScaffold extends StatelessWidget {
                 title: Text(title),
                 actions: actions,
                 backgroundColor: appBarBackgroundColor,
+                bottom: bottom,
               ),
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet,

@@ -196,6 +196,23 @@ class SettingsScreen extends ConsumerWidget {
             ),
             error: (error, stackTrace) => const SizedBox.shrink(),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionIntro(
+            title: '개발자',
+            subtitle: '디자인 시스템과 내부 도구를 확인합니다.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppUtilityGroup(
+            children: [
+              _SettingsActionTile(
+                icon: Icons.palette_outlined,
+                color: AppColors.info,
+                title: '디자인 시스템',
+                subtitle: '색상, 타이포그래피, 컴포넌트를 한눈에 확인합니다.',
+                onTap: () => context.go('/dev/design'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -331,7 +348,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     file,
-                    text: '공유용으로 만든 Smart Wallet 백업 파일입니다.',
+                    text: '공유용으로 만든 다정가계부 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -521,7 +538,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: '복원 직전에 만든 Smart Wallet 안전 백업 파일입니다.',
+                    text: '복원 직전에 만든 다정가계부 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -561,7 +578,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: 'Smart Wallet 복원 실패 시 보관한 안전 백업 파일입니다.',
+                    text: '다정가계부 복원 실패 시 보관한 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -615,7 +632,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(transactionExportServiceProvider).shareCsvFile(
                     file,
-                    text: '공유용으로 만든 Smart Wallet CSV 파일입니다.',
+                    text: '공유용으로 만든 다정가계부 CSV 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -1110,7 +1127,7 @@ class _NotificationListenerCardState
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '삼성/샤오미 등 일부 기기에서는 Smart Wallet을 절전 예외로 등록해야 알림 감지가 계속 유지됩니다.',
+                      '삼성/샤오미 등 일부 기기에서는 다정가계부을 절전 예외로 등록해야 알림 감지가 계속 유지됩니다.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -1144,7 +1161,7 @@ class _NotificationListenerCardState
         title: const Text('알림 접근 권한 필요'),
         content: const Text(
           '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 필요해요.\n\n'
-          '설정 → 앱 → 알림 접근에서 Smart Wallet을 허용해 주세요.',
+          '설정 → 앱 → 알림 접근에서 다정가계부을 허용해 주세요.',
         ),
         actions: [
           TextButton(

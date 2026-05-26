@@ -6,6 +6,7 @@ import '../../features/accounts/presentation/accounts_screen.dart';
 import '../../features/budgets/presentation/budget_screen.dart';
 import '../../features/calendar/presentation/calendar_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/dev/presentation/design_system_screen.dart';
 import '../../features/notifications/presentation/notification_history_screen.dart';
 import '../../features/ocr/presentation/ocr_capture_screen.dart';
 import '../../features/ocr/presentation/ocr_review_screen.dart';
@@ -39,6 +40,7 @@ const _kRouteTabIndex = <String, int>{
   '/recurring-expenses': 2,
   '/notification-history': 2,
   '/settings': 3,
+  '/dev/design': 3, // 디자인 시스템 — 설정 탭에서 진입
   '/lock': 0, // 잠금화면 — 탭 무관
 };
 
@@ -166,6 +168,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => _buildShellPage(
               state: state,
               child: const NotificationHistoryScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dev/design',
+            name: 'dev-design',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const DesignSystemScreen(),
             ),
           ),
         ],
