@@ -61,6 +61,13 @@ class DashboardScreen extends ConsumerWidget {
                 _RecurringRecoveryEntryCard(summary: summary),
                 const SizedBox(height: AppSpacing.md),
               ],
+              const AppSectionIntro(
+                title: '이번 달 소비 페이스',
+                subtitle: '지금 속도로 보면 월말쯤 어디에 도착할지 먼저 읽어드릴게요.',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _MonthlySpendPaceCard(summary: summary),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
@@ -1624,6 +1631,114 @@ class _RepeatSuggestionTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MonthlySpendPaceCard extends StatelessWidget {
+  const _MonthlySpendPaceCard({required this.summary});
+
+  final DashboardSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pace = summary.spendPace;
+    final accent = switch (pace.status) {
+      MonthlySpendPaceStatus.steady => AppColors.income,
+      MonthlySpendPaceStatus.watch => AppColors.warning,
+      MonthlySpendPaceStatus.overspending => AppColors.expense,
+      MonthlySpendPaceStatus.noBudget => AppColors.primary,
+    };
+
+    final badgeLabel = pace.projectedBudgetUsageRate == null
+        ? '월말 예상 지출'
+        : '예산 대비 ${(pace.projectedBudgetUsageRate! * 100).round()}% 예상';
+
+    return Card(
+      key: const Key('monthly-spend-pace-card'),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppStatusChip(
+              label: 'MONTHLY PACE',
+              dotColor: accent,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              _paceHeadline(pace),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '오늘은 ${pace.daysInMonth}일 중 ${pace.elapsedDays}일째예요. 지금까지 ${formatCurrency(summary.monthExpense)} 썼고, 이 속도면 약 ${formatCurrency(pace.projectedMonthExpense)} 정도가 될 것 같아요.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _PaceMetaChip(
+                  label: badgeLabel,
+                  accent: accent,
+                ),
+                _PaceMetaChip(
+                  label: '지금까지 ${formatCurrency(summary.monthExpense)}',
+                  accent: theme.colorScheme.primary,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _paceHeadline(MonthlySpendPace pace) {
+    return switch (pace.status) {
+      MonthlySpendPaceStatus.steady => '지금 속도면 이번 달도 무리 없이 가고 있어요',
+      MonthlySpendPaceStatus.watch => '지출 속도가 조금 빠른 편이에요',
+      MonthlySpendPaceStatus.overspending => '이 속도면 이번 달 예산을 넘길 수 있어요',
+      MonthlySpendPaceStatus.noBudget => '이달 지출 흐름을 기준으로 월말 예상치를 잡아봤어요',
+    };
+  }
+}
+
+class _PaceMetaChip extends StatelessWidget {
+  const _PaceMetaChip({
+    required this.label,
+    required this.accent,
+  });
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }

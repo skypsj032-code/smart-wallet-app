@@ -8,6 +8,29 @@ import '../../../core/database/providers/database_providers.dart';
 import 'recurring_spend_detector.dart';
 import 'recurring_spend_override_store.dart';
 
+enum MonthlySpendPaceStatus {
+  steady,
+  watch,
+  overspending,
+  noBudget,
+}
+
+class MonthlySpendPace {
+  const MonthlySpendPace({
+    required this.status,
+    required this.elapsedDays,
+    required this.daysInMonth,
+    required this.projectedMonthExpense,
+    required this.projectedBudgetUsageRate,
+  });
+
+  final MonthlySpendPaceStatus status;
+  final int elapsedDays;
+  final int daysInMonth;
+  final int projectedMonthExpense;
+  final double? projectedBudgetUsageRate;
+}
+
 class DashboardSummary {
   const DashboardSummary({
     required this.monthIncome,
@@ -20,6 +43,7 @@ class DashboardSummary {
     required this.recentTransactions,
     required this.repeatSuggestions,
     required this.recurringSpendInsight,
+    required this.spendPace,
     required this.excludedRecurringSpendGroups,
   });
 
@@ -33,6 +57,7 @@ class DashboardSummary {
   final List<Transaction> recentTransactions;
   final List<Transaction> repeatSuggestions;
   final RecurringSpendInsight recurringSpendInsight;
+  final MonthlySpendPace spendPace;
   final List<RecurringSpendGroup> excludedRecurringSpendGroups;
 
   double get budgetUsageRate {
@@ -122,6 +147,11 @@ DashboardSummary buildDashboardSummary({
       .fold<int>(0, (sum, tx) => sum + tx.amount);
   final totalBudget =
       budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
+  final spendPace = _buildMonthlySpendPace(
+    monthExpense: expense,
+    totalBudget: totalBudget,
+    now: now,
+  );
   final repeatSuggestions = <Transaction>[];
   final seenKeys = <String>{};
   final rawRecurringSpendInsight = detectRecurringSpendInsight(
@@ -167,7 +197,46 @@ DashboardSummary buildDashboardSummary({
     recentTransactions: recentTransactions.take(5).toList(),
     repeatSuggestions: repeatSuggestions,
     recurringSpendInsight: recurringSpendInsight,
+    spendPace: spendPace,
     excludedRecurringSpendGroups: excludedRecurringSpendGroups,
+  );
+}
+
+MonthlySpendPace _buildMonthlySpendPace({
+  required int monthExpense,
+  required int totalBudget,
+  required DateTime now,
+}) {
+  final nextMonth = DateTime(now.year, now.month + 1, 1);
+  final daysInMonth = nextMonth.subtract(const Duration(days: 1)).day;
+  final elapsedDays = now.day.clamp(1, daysInMonth);
+  final monthProgress = elapsedDays / daysInMonth;
+  final projectedMonthExpense =
+      monthProgress <= 0 ? monthExpense : (monthExpense / monthProgress).round();
+
+  if (totalBudget <= 0) {
+    return MonthlySpendPace(
+      status: MonthlySpendPaceStatus.noBudget,
+      elapsedDays: elapsedDays,
+      daysInMonth: daysInMonth,
+      projectedMonthExpense: projectedMonthExpense,
+      projectedBudgetUsageRate: null,
+    );
+  }
+
+  final projectedBudgetUsageRate = projectedMonthExpense / totalBudget;
+  final status = projectedBudgetUsageRate >= 1.05
+      ? MonthlySpendPaceStatus.overspending
+      : projectedBudgetUsageRate >= 0.9
+          ? MonthlySpendPaceStatus.watch
+          : MonthlySpendPaceStatus.steady;
+
+  return MonthlySpendPace(
+    status: status,
+    elapsedDays: elapsedDays,
+    daysInMonth: daysInMonth,
+    projectedMonthExpense: projectedMonthExpense,
+    projectedBudgetUsageRate: projectedBudgetUsageRate,
   );
 }
 

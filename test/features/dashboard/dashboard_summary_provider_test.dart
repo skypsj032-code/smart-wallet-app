@@ -72,12 +72,53 @@ void main() {
 
     expect(summary.monthIncome, 3000000);
     expect(summary.monthExpense, 103000);
+    expect(summary.spendPace.status, MonthlySpendPaceStatus.steady);
+    expect(summary.spendPace.elapsedDays, 22);
+    expect(summary.spendPace.daysInMonth, 31);
+    expect(summary.spendPace.projectedMonthExpense, 145136);
     expect(summary.recurringSpendInsight.totalCurrentMonthAmount, 103000);
     expect(summary.recurringSpendInsight.groups, hasLength(2));
     expect(
       summary.recurringSpendInsight.groups.map((group) => group.kind),
       containsAll([RecurringSpendKind.fixed, RecurringSpendKind.subscription]),
     );
+  });
+
+  test('buildDashboardSummary marks pace as overspending when projection exceeds budget', () {
+    final now = DateTime(2026, 5, 10, 9);
+    final lookbackTransactions = [
+      _tx(
+        'groceries-may',
+        amount: 240000,
+        occurredAt: DateTime(2026, 5, 9, 20),
+        merchantName: 'Market',
+        categoryId: 'groceries',
+        accountId: 'card-1',
+      ),
+    ];
+
+    final summary = buildDashboardSummary(
+      lookbackTransactions: lookbackTransactions,
+      budgets: [
+        Budget(
+          localId: 'budget-1',
+          monthKey: '2026-05',
+          categoryId: null,
+          amountLimit: 500000,
+          alert50Enabled: true,
+          alert80Enabled: true,
+          alert100Enabled: true,
+          createdAt: now,
+          lastModifiedAt: now,
+        ),
+      ],
+      recentTransactions: lookbackTransactions,
+      now: now,
+    );
+
+    expect(summary.spendPace.status, MonthlySpendPaceStatus.overspending);
+    expect(summary.spendPace.projectedMonthExpense, 744000);
+    expect(summary.spendPace.projectedBudgetUsageRate, closeTo(1.488, 0.001));
   });
 
   test('buildDashboardSummary excludes recurring groups marked not recurring',

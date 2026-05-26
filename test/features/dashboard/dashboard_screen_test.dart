@@ -54,6 +54,40 @@ void main() {
     expect(find.text('새벽배송'), findsOneWidget);
   });
 
+  testWidgets('dashboard shows monthly spend pace reward card', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('monthly-spend-pace-card')));
+
+    expect(find.byKey(const Key('monthly-spend-pace-card')), findsOneWidget);
+    expect(find.text('이번 달 소비 페이스'), findsOneWidget);
+    expect(find.text('지금 속도면 이번 달도 무리 없이 가고 있어요'), findsOneWidget);
+    expect(find.textContaining('예산 대비 92% 예상'), findsOneWidget);
+    expect(find.textContaining('460,455'), findsOneWidget);
+  });
+
   testWidgets(
       'dashboard shows excluded recurring count hint when excluded groups exist',
       (tester) async {
@@ -240,6 +274,13 @@ void main() {
         groups: [],
         totalCurrentMonthAmount: 0,
         totalPreviousMonthAmount: 0,
+      ),
+      spendPace: const MonthlySpendPace(
+        status: MonthlySpendPaceStatus.noBudget,
+        elapsedDays: 22,
+        daysInMonth: 31,
+        projectedMonthExpense: 169091,
+        projectedBudgetUsageRate: null,
       ),
       excludedRecurringSpendGroups: const [],
     );
@@ -461,6 +502,13 @@ void main() {
         totalCurrentMonthAmount: 0,
         totalPreviousMonthAmount: 0,
       ),
+      spendPace: const MonthlySpendPace(
+        status: MonthlySpendPaceStatus.steady,
+        elapsedDays: 22,
+        daysInMonth: 31,
+        projectedMonthExpense: 606364,
+        projectedBudgetUsageRate: 1.213,
+      ),
       excludedRecurringSpendGroups: [excludedGroup],
     );
 
@@ -638,6 +686,13 @@ DashboardSummary _summaryWithRecurringGroups({
       ],
       totalCurrentMonthAmount: 127000,
       totalPreviousMonthAmount: 103000,
+    ),
+    spendPace: const MonthlySpendPace(
+      status: MonthlySpendPaceStatus.steady,
+      elapsedDays: 22,
+      daysInMonth: 31,
+      projectedMonthExpense: 460455,
+      projectedBudgetUsageRate: 0.921,
     ),
     excludedRecurringSpendGroups: excludedGroups,
   );
