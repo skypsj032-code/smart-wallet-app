@@ -229,6 +229,13 @@ void main() {
 
     expect(overrideStore.markedGroupKeys, ['insurance']);
     expect(find.text('반복지출에서 제외했어요.'), findsOneWidget);
+
+    final undoExcludeAction =
+        tester.widget<SnackBarAction>(find.byType(SnackBarAction));
+    undoExcludeAction.onPressed();
+    await tester.pumpAndSettle();
+
+    expect(overrideStore.restoredGroupKeys, ['insurance']);
   });
 
   testWidgets(
@@ -314,6 +321,13 @@ void main() {
       find.byKey(const Key('recurring-excluded-bottom-sheet')),
       findsNothing,
     );
+
+    final undoRestoreAction =
+        tester.widget<SnackBarAction>(find.byType(SnackBarAction));
+    undoRestoreAction.onPressed();
+    await tester.pumpAndSettle();
+
+    expect(overrideStore.markedGroupKeys, ['insurance']);
   });
 
   testWidgets(

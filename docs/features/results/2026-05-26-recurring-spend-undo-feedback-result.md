@@ -1,0 +1,5 @@
+- 실제 변경: `반복 아님` Snackbar와 `다시 포함` Snackbar에 모두 `실행 취소` action을 추가했다.
+- 실제 변경: action callback이 dispose된 widget의 `ref`를 읽지 않도록 override store를 먼저 캡처하게 정리했다.
+- 계획과 차이: 별도 undo 스택은 만들지 않고 마지막 액션 1회 취소만 지원한다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`
+- 다음: 실제 단말에서 Snackbar action이 충분히 눌리기 쉬운지 QA로 확인한다.

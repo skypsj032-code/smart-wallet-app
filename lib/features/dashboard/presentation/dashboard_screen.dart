@@ -970,6 +970,7 @@ class _ExcludedRecurringSpendTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final overrideStore = ref.read(recurringSpendOverrideStoreProvider);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1015,16 +1016,23 @@ class _ExcludedRecurringSpendTile extends ConsumerWidget {
             TextButton(
               key: Key('recurring-restore-button-${item.group.groupKey}'),
               onPressed: () async {
-                await ref
-                    .read(recurringSpendOverrideStoreProvider)
+                await overrideStore
                     .unmarkGroupNotRecurring(item.group.groupKey);
                 if (context.mounted) {
                   if (isLastItem) {
                     Navigator.of(context).pop();
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('다시 반복지출에 포함했어요.'),
+                    SnackBar(
+                      content: const Text('다시 반복지출에 포함했어요.'),
+                      action: SnackBarAction(
+                        label: '실행 취소',
+                        onPressed: () {
+                          overrideStore.markGroupNotRecurring(
+                            item.group.groupKey,
+                          );
+                        },
+                      ),
                     ),
                   );
                 }
@@ -1046,6 +1054,7 @@ class _RecurringSpendDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final overrideStore = ref.read(recurringSpendOverrideStoreProvider);
     final reasons = _recurringEvidenceBullets(item.group);
     final transactions = [...item.group.transactions]
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -1215,14 +1224,22 @@ class _RecurringSpendDetailSheet extends ConsumerWidget {
                         return;
                       }
 
-                      await ref
-                          .read(recurringSpendOverrideStoreProvider)
-                          .markGroupNotRecurring(item.group.groupKey);
+                      await overrideStore.markGroupNotRecurring(
+                        item.group.groupKey,
+                      );
                       if (context.mounted) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('반복지출에서 제외했어요.'),
+                          SnackBar(
+                            content: const Text('반복지출에서 제외했어요.'),
+                            action: SnackBarAction(
+                              label: '실행 취소',
+                              onPressed: () {
+                                overrideStore.unmarkGroupNotRecurring(
+                                  item.group.groupKey,
+                                );
+                              },
+                            ),
                           ),
                         );
                       }
