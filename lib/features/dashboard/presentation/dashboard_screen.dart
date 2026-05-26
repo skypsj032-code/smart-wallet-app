@@ -115,6 +115,7 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               _RecentTransactionsSection(
                 transactions: summary.recentTransactions,
+                onOpenTimeline: () => context.push('/timeline'),
               ),
               if (summary.repeatSuggestions.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -1536,9 +1537,13 @@ class _TodayLoopCard extends StatelessWidget {
 }
 
 class _RecentTransactionsSection extends StatelessWidget {
-  const _RecentTransactionsSection({required this.transactions});
+  const _RecentTransactionsSection({
+    required this.transactions,
+    required this.onOpenTimeline,
+  });
 
   final List<Transaction> transactions;
+  final VoidCallback onOpenTimeline;
 
   @override
   Widget build(BuildContext context) {
@@ -1546,14 +1551,26 @@ class _RecentTransactionsSection extends StatelessWidget {
       return const _EmptyRecentTransactions();
     }
 
+    final visibleTransactions = transactions.take(3).toList();
+
     return Card(
-      key: const Key('budget-status-card'),
+      key: const Key('recent-transactions-card'),
       child: Column(
         children: [
-          for (var index = 0; index < transactions.length; index++) ...[
-            _RecentTransactionTile(transaction: transactions[index]),
-            if (index != transactions.length - 1) const Divider(height: 1),
+          for (var index = 0; index < visibleTransactions.length; index++) ...[
+            _RecentTransactionTile(transaction: visibleTransactions[index]),
+            if (index != visibleTransactions.length - 1)
+              const Divider(height: 1),
           ],
+          const Divider(height: 1),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              key: const Key('recent-transactions-open-timeline-button'),
+              onPressed: onOpenTimeline,
+              child: const Text('전체 보기'),
+            ),
+          ),
         ],
       ),
     );
@@ -2110,6 +2127,7 @@ class _RecentTransactionTile extends StatelessWidget {
         : _typeLabel(transaction.type);
 
     return ListTile(
+      key: Key('recent-transaction-tile-${transaction.localId}'),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,

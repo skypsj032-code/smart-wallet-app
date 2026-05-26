@@ -225,6 +225,84 @@ void main() {
     expect(find.textContaining('86%'), findsWidgets);
   });
 
+  testWidgets('dashboard shows only three recent transactions on home',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026, 5, 22, 9);
+    final summary = DashboardSummary(
+      monthIncome: 3200000,
+      monthExpense: 430000,
+      todayExpense: 17000,
+      todayTransactionCount: 2,
+      remainingBudget: 70000,
+      totalBudget: 500000,
+      netCashflow: 2770000,
+      recentTransactions: [
+        _tx('tx-1', amount: 12000, occurredAt: now, merchantName: 'A'),
+        _tx('tx-2', amount: 15000, occurredAt: now, merchantName: 'B'),
+        _tx('tx-3', amount: 18000, occurredAt: now, merchantName: 'C'),
+        _tx('tx-4', amount: 21000, occurredAt: now, merchantName: 'D'),
+      ],
+      repeatSuggestions: const [],
+      recurringSpendInsight: const RecurringSpendInsight(
+        groups: [],
+        totalCurrentMonthAmount: 0,
+        totalPreviousMonthAmount: 0,
+      ),
+      spendPace: const MonthlySpendPace(
+        status: MonthlySpendPaceStatus.steady,
+        elapsedDays: 22,
+        daysInMonth: 31,
+        projectedMonthExpense: 460455,
+        projectedBudgetUsageRate: 0.921,
+      ),
+      excludedRecurringSpendGroups: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          budgetSummaryProvider.overrideWith(
+            (ref) => Stream.value(
+              const BudgetSummary(
+                monthKey: '2026-05',
+                totalBudget: 0,
+                totalSpent: 0,
+                remaining: 0,
+                items: [],
+              ),
+            ),
+          ),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('recent-transactions-card')));
+
+    expect(find.byKey(const Key('recent-transactions-card')), findsOneWidget);
+    expect(find.byKey(const Key('recent-transaction-tile-tx-1')), findsOneWidget);
+    expect(find.byKey(const Key('recent-transaction-tile-tx-2')), findsOneWidget);
+    expect(find.byKey(const Key('recent-transaction-tile-tx-3')), findsOneWidget);
+    expect(find.byKey(const Key('recent-transaction-tile-tx-4')), findsNothing);
+    expect(find.byKey(const Key('recent-transactions-open-timeline-button')),
+        findsOneWidget);
+  });
+
   testWidgets('dashboard hides upcoming recurring card when no scheduled groups exist',
       (tester) async {
     final summary = DashboardSummary(
