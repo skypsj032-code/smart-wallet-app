@@ -406,6 +406,7 @@ class _RecurringSpendInsightCard extends StatelessWidget {
         : ((insight.totalCurrentMonthAmount / summary.monthExpense) * 100)
             .round();
     final groups = insight.groups.take(3).toList();
+    final hiddenCount = summary.excludedRecurringSpendGroups.length;
 
     return InkWell(
       key: const Key('recurring-spend-insight-card'),
@@ -452,6 +453,15 @@ class _RecurringSpendInsightCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (hiddenCount > 0) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '숨긴 항목 $hiddenCount개',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               for (var index = 0; index < groups.length; index++) ...[
                 _RecurringSpendGroupTile(group: groups[index]),

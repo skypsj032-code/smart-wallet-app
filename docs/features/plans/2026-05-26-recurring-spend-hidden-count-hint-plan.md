@@ -1,0 +1,6 @@
+- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- 파일: `test/features/dashboard/dashboard_screen_test.dart`
+- 단계: 제외 항목이 있을 때 홈 반복지출 카드에 `숨긴 항목 1개`가 보이는 테스트를 먼저 추가한다.
+- 단계: 제외 항목이 없을 때는 힌트가 안 보이는 기존 카드 테스트도 유지한다.
+- 단계: 최소 구현으로 보조 힌트만 추가한다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`

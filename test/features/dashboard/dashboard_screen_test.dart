@@ -55,6 +55,71 @@ void main() {
   });
 
   testWidgets(
+      'dashboard shows hidden recurring count hint when excluded groups exist',
+      (tester) async {
+    final summary = _summaryWithRecurringGroups(
+      excludedGroups: [
+        RecurringSpendGroup(
+          groupKey: 'insurance-hidden',
+          displayName: 'KB Insurance',
+          kind: RecurringSpendKind.fixed,
+          score: 92,
+          confidence: RecurringSpendConfidence.high,
+          evidenceCodes: const [
+            RecurringSpendEvidenceCode.monthlyCadence,
+            RecurringSpendEvidenceCode.stableAmount,
+          ],
+          isVisibleOnHome: true,
+          currentMonthAmount: 86000,
+          previousMonthAmount: 86000,
+          transactions: [
+            _tx(
+              'insurance-hidden-apr',
+              amount: 86000,
+              occurredAt: DateTime(2026, 4, 5, 10),
+              merchantName: 'KB Insurance',
+              categoryId: 'insurance',
+              accountId: 'card-1',
+            ),
+            _tx(
+              'insurance-hidden-may',
+              amount: 86000,
+              occurredAt: DateTime(2026, 5, 5, 10),
+              merchantName: 'KB Insurance',
+              categoryId: 'insurance',
+              accountId: 'card-1',
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('recurring-spend-insight-card')),
+      findsOneWidget,
+    );
+    expect(find.text('숨긴 항목 1개'), findsOneWidget);
+  });
+
+  testWidgets(
       'dashboard opens recurring spend bottom sheet with new and upcoming sections',
       (
     tester,
