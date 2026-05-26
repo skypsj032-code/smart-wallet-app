@@ -1487,7 +1487,7 @@ class _TodayLoopCard extends StatelessWidget {
     final hasTodayEntry = summary.todayTransactionCount > 0;
 
     return Card(
-      key: const Key('budget-status-card'),
+      key: const Key('today-loop-card'),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -1547,6 +1547,7 @@ class _RecentTransactionsSection extends StatelessWidget {
     }
 
     return Card(
+      key: const Key('budget-status-card'),
       child: Column(
         children: [
           for (var index = 0; index < transactions.length; index++) ...[
@@ -2007,6 +2008,7 @@ class _BudgetStatusCard extends StatelessWidget {
                 : '예산 안에서 비교적 안정적으로 흐르고 있어요.';
 
     return Card(
+      key: const Key('budget-status-card'),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(

@@ -219,6 +219,7 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('budget-status-card')));
 
+    expect(find.byKey(const Key('today-loop-card')), findsOneWidget);
     expect(find.byKey(const Key('budget-status-card')), findsOneWidget);
     expect(find.textContaining('70,000'), findsWidgets);
     expect(find.textContaining('86%'), findsWidgets);
