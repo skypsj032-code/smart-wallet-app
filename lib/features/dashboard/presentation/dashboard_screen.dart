@@ -32,6 +32,7 @@ class DashboardScreen extends ConsumerWidget {
       body: summaryAsync.when(
         data: (summary) {
           final totalBalance = totalBalanceAsync.valueOrNull ?? 0;
+          final theme = Theme.of(context);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(
@@ -106,6 +107,34 @@ class DashboardScreen extends ConsumerWidget {
                         .loadTemplate(transaction);
                     context.push('/quick-entry');
                   },
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    key: const Key('recurring-hidden-count-button'),
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (context) =>
+                            _ExcludedRecurringSpendBottomSheet(
+                          initialSummary: summary,
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      '관리하기',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -459,6 +488,30 @@ class _RecurringSpendInsightCard extends StatelessWidget {
                   '숨긴 항목 $hiddenCount개',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                TextButton(
+                  key: const Key('recurring-hidden-count-button'),
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (context) => _ExcludedRecurringSpendBottomSheet(
+                        initialSummary: summary,
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    '관리하기',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
