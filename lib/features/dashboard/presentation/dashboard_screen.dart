@@ -485,7 +485,7 @@ class _RecurringSpendInsightCard extends StatelessWidget {
               if (hiddenCount > 0) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '숨긴 항목 $hiddenCount개',
+                  '제외한 항목 $hiddenCount개',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

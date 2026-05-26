@@ -55,7 +55,7 @@ void main() {
   });
 
   testWidgets(
-      'dashboard shows hidden recurring count hint when excluded groups exist',
+      'dashboard shows excluded recurring count hint when excluded groups exist',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 2200);
     tester.view.devicePixelRatio = 1.0;
@@ -121,7 +121,7 @@ void main() {
       find.byKey(const Key('recurring-spend-insight-card')),
       findsOneWidget,
     );
-    expect(find.text('숨긴 항목 1개'), findsOneWidget);
+    expect(find.text('제외한 항목 1개'), findsOneWidget);
     await tester.ensureVisible(
       find.byKey(const Key('recurring-hidden-count-button')),
     );

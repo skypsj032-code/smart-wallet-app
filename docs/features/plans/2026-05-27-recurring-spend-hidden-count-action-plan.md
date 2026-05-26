@@ -1,5 +1,7 @@
-- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
-- 파일: `test/features/dashboard/dashboard_screen_test.dart`
-- 단계: 숨긴 항목 힌트 버튼을 누르면 제외 항목 관리 시트가 열리는 테스트를 먼저 추가한다.
-- 단계: 힌트는 키 기반 버튼으로 만들고, 기존 제외 항목 관리 시트를 재사용한다.
-- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`
+﻿- ?�일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- ?�일: `test/features/dashboard/dashboard_screen_test.dart`
+- ?�계: ?�긴 ??�� ?�트 버튼???�르�??�외 ??�� 관�??�트가 ?�리???�스?��? 먼�? 추�??�다.
+- ?�계: ?�트????기반 버튼?�로 만들�? 기존 ?�외 ??�� 관�??�트�??�사?�한??
+- 검�? `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`
+
+
