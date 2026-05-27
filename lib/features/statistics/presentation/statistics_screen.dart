@@ -391,14 +391,14 @@ class _CategoryInsightPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${topCategory.label}이 전체 지출의 $topShare%로 가장 크게 보였어요.',
+              '$topShare% · ${topCategory.label}',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '많이 쓴 항목을 먼저 이해하면, 이번 기간이 왜 이렇게 느껴졌는지 훨씬 빨리 정리돼요.',
+              '가장 큰 지출 카테고리예요.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
               ),
@@ -683,12 +683,17 @@ class _MetricTile extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.62),
+                    ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: accent,
                       fontWeight: FontWeight.w800,
                     ),

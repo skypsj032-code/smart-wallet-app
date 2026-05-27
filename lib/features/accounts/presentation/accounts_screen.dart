@@ -214,13 +214,6 @@ class _NetWorthCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '총 순자산',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.65),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
               _formatCurrency(totalNetWorth),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w800,
@@ -228,6 +221,13 @@ class _NetWorthCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
+            Text(
+              '총 순자산',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               caption,
               style: theme.textTheme.bodySmall?.copyWith(
