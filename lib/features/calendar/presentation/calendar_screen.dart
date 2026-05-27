@@ -64,8 +64,8 @@ class CalendarScreen extends ConsumerWidget {
                 ),
                 child: AppLedgerAxisIntro(
                   label: '달력',
-                  headline: '날짜 흐름을 먼저 봐요',
-                  body: '주간, 월간, 연간으로 날짜 흐름을 바로 확인할 수 있어요.',
+                  headline: '날짜 흐름을 봐요',
+                  body: '주간, 월간, 연간으로 바로 볼 수 있어요.',
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -83,13 +83,13 @@ class CalendarScreen extends ConsumerWidget {
                       children: [
                         Text(
                           '기간을 고르세요',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          '주간, 월간, 연간으로 바꿔서 볼 수 있어요.',
+                          '주간, 월간, 연간으로 볼 수 있어요.',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context)

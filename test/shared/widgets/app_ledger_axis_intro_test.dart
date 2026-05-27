@@ -11,8 +11,8 @@ void main() {
         home: const Scaffold(
           body: AppLedgerAxisIntro(
             label: '달력',
-            headline: '날짜 흐름부터 차분하게 볼게요',
-            body: '주간, 월간, 연간으로 오가면서 지출이 몰린 날과 비어 있는 날을 먼저 확인할 수 있어요.',
+            headline: '날짜 흐름을 봐요',
+            body: '주간, 월간, 연간으로 바로 볼 수 있어요.',
           ),
         ),
       ),
@@ -20,9 +20,9 @@ void main() {
 
     expect(find.byKey(const Key('ledger-axis-intro-card')), findsOneWidget);
     expect(find.text('달력'), findsOneWidget);
-    expect(find.text('날짜 흐름부터 차분하게 볼게요'), findsOneWidget);
+    expect(find.text('날짜 흐름을 봐요'), findsOneWidget);
     expect(
-      find.text('주간, 월간, 연간으로 오가면서 지출이 몰린 날과 비어 있는 날을 먼저 확인할 수 있어요.'),
+      find.text('주간, 월간, 연간으로 바로 볼 수 있어요.'),
       findsOneWidget,
     );
   });

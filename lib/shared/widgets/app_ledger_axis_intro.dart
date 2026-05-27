@@ -30,20 +30,20 @@ class AppLedgerAxisIntro extends StatelessWidget {
               label: label,
               dotColor: theme.colorScheme.primary,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              headline,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                height: 1.25,
-              ),
-            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
+              headline,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
               body,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-                height: 1.45,
+                height: 1.35,
               ),
             ),
           ],

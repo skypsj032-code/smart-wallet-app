@@ -48,8 +48,8 @@ class StatisticsScreen extends ConsumerWidget {
             ),
             child: AppLedgerAxisIntro(
               label: '통계',
-              headline: '돈 흐름을 먼저 읽어요',
-              body: '이번 달, 최근 3개월, 전체를 바로 비교할 수 있어요.',
+              headline: '돈 흐름을 읽어요',
+              body: '이번 달, 최근 3개월, 전체를 바로 비교해요.',
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -142,13 +142,13 @@ class _RangePanel extends StatelessWidget {
           children: [
             Text(
               '기간을 고르세요',
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '이번 달, 최근 3개월, 전체로 바꿔서 볼 수 있어요.',
+              '이번 달, 최근 3개월, 전체로 볼 수 있어요.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
               ),
