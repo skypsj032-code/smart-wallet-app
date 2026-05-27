@@ -5,8 +5,10 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
+import 'package:go_router/go_router.dart';
 import '../application/accounts_provider.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -27,6 +29,13 @@ class AccountsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              AppLedgerAxisNavigation(
+                currentAxis: LedgerAxis.accounts,
+                onOpenCalendar: () => context.push('/calendar'),
+                onOpenStatistics: () => context.push('/statistics'),
+                onOpenAccounts: () {},
+              ),
+              const SizedBox(height: AppSpacing.lg),
               _NetWorthCard(
                 totalNetWorth: totalNetWorth,
                 accountCount: balances.length,

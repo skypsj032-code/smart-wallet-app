@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../application/statistics_provider.dart';
@@ -23,6 +24,21 @@ class StatisticsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: AppLedgerAxisNavigation(
+              currentAxis: LedgerAxis.statistics,
+              onOpenCalendar: () => context.push('/calendar'),
+              onOpenStatistics: () {},
+              onOpenAccounts: () => context.push('/accounts'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _RangePanel(
             range: range,
             currentMonth: currentMonth,

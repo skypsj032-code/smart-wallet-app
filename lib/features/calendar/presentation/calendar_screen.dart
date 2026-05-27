@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
@@ -39,6 +40,21 @@ class CalendarScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: AppLedgerAxisNavigation(
+                  currentAxis: LedgerAxis.calendar,
+                  onOpenCalendar: () {},
+                  onOpenStatistics: () => context.push('/statistics'),
+                  onOpenAccounts: () => context.push('/accounts'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               AppSection(
                 title: '보는 방식',
                 child: Card(
