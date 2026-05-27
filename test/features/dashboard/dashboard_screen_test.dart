@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/budgets/application/budget_provider.dart';
@@ -59,6 +60,77 @@ void main() {
     expect(find.text('삼성화재'), findsWidgets);
     expect(find.text('NETFLIX'), findsWidgets);
     expect(find.text('새벽배송'), findsWidgets);
+  });
+
+  testWidgets('dashboard shows ledger axis shortcuts and opens calendar',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups();
+    late final GoRouter router;
+    router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => ProviderScope(
+            overrides: [
+              dashboardSummaryProvider.overrideWith(
+                (ref) => Stream.value(summary),
+              ),
+              totalActiveAccountBalanceProvider.overrideWith(
+                (ref) => const AsyncData(4800000),
+              ),
+              recurringSpendOverrideStoreProvider.overrideWithValue(
+                overrideStore,
+              ),
+            ],
+            child: const DashboardScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/calendar',
+          builder: (context, state) => const Scaffold(
+            body: Center(child: Text('calendar-destination')),
+          ),
+        ),
+        GoRoute(
+          path: '/statistics',
+          builder: (context, state) => const Scaffold(
+            body: Center(child: Text('statistics-destination')),
+          ),
+        ),
+        GoRoute(
+          path: '/accounts',
+          builder: (context, state) => const Scaffold(
+            body: Center(child: Text('accounts-destination')),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp.router(
+        theme: AppTheme.light(),
+        routerConfig: router,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('ledger-axis-shortcuts-card')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-shortcut-calendar')), findsOneWidget);
+    expect(
+        find.byKey(const Key('dashboard-shortcut-statistics')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-shortcut-accounts')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('dashboard-shortcut-calendar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('calendar-destination'), findsOneWidget);
   });
 
   testWidgets('dashboard shows monthly spend pace reward card', (tester) async {
@@ -309,7 +381,9 @@ void main() {
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('recurring-spend-insight-card')));
 
-    final budgetTop =
+    final shortcutTop =
+        tester.getTopLeft(find.byKey(const Key('ledger-axis-shortcuts-card'))).dy;
+    final budgetSectionTop =
         tester.getTopLeft(find.byKey(const Key('budget-status-card'))).dy;
     final recentTop =
         tester.getTopLeft(find.byKey(const Key('recent-transactions-card'))).dy;
@@ -319,7 +393,8 @@ void main() {
         .getTopLeft(find.byKey(const Key('recurring-spend-insight-card')))
         .dy;
 
-    expect(budgetTop, lessThan(recentTop));
+    expect(shortcutTop, lessThan(budgetSectionTop));
+    expect(budgetSectionTop, lessThan(recentTop));
     expect(recentTop, lessThan(todayTop));
     expect(todayTop, lessThan(recurringTop));
   });

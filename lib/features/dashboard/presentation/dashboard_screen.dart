@@ -64,6 +64,16 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
+              const AppSectionIntro(
+                title: '가계부 둘러보기',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _LedgerAxisShortcutCard(
+                onOpenCalendar: () => context.push('/calendar'),
+                onOpenStatistics: () => context.push('/statistics'),
+                onOpenAccounts: () => context.push('/accounts'),
+              ),
+              const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
                 title: '예산 흐름',
               ),
@@ -1487,6 +1497,119 @@ class _TodayLoopCard extends StatelessWidget {
                   child: Text(hasTodayEntry ? '한 건 더 기록하기' : '지금 기록 시작하기'),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LedgerAxisShortcutCard extends StatelessWidget {
+  const _LedgerAxisShortcutCard({
+    required this.onOpenCalendar,
+    required this.onOpenStatistics,
+    required this.onOpenAccounts,
+  });
+
+  final VoidCallback onOpenCalendar;
+  final VoidCallback onOpenStatistics;
+  final VoidCallback onOpenAccounts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      key: const Key('ledger-axis-shortcuts-card'),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(
+              child: _LedgerAxisShortcutTile(
+                key: const Key('dashboard-shortcut-calendar'),
+                icon: Icons.calendar_month_rounded,
+                label: '달력',
+                caption: '월 흐름 보기',
+                onTap: onOpenCalendar,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _LedgerAxisShortcutTile(
+                key: const Key('dashboard-shortcut-statistics'),
+                icon: Icons.insert_chart_rounded,
+                label: '통계',
+                caption: '분류별 보기',
+                onTap: onOpenStatistics,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _LedgerAxisShortcutTile(
+                key: const Key('dashboard-shortcut-accounts'),
+                icon: Icons.account_balance_wallet_rounded,
+                label: '자산',
+                caption: '계좌 상태 보기',
+                onTap: onOpenAccounts,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LedgerAxisShortcutTile extends StatelessWidget {
+  const _LedgerAxisShortcutTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.caption,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String caption;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              caption,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
