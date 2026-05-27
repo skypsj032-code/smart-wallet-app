@@ -1,0 +1,8 @@
+- Why: `달력 / 통계 / 자산` 화면의 구조와 위계는 많이 정리됐지만, 카드 라운드와 리스트 행 질감은 아직 조금 부드럽고 둥글다. 편한가계부처럼 더 도구형으로 느껴지려면 시각 질감을 약간 더 단단하게 잡아야 한다.
+- Change: 세 화면의 주요 카드 라운드를 한 단계 낮추고, 자산 리스트 행 높이와 아바타 크기를 약간 더 조인다.
+- Scope:
+  - calendar insight/control cards
+  - statistics hero/metric/category/shortcut/charts cards
+  - accounts summary/empty/list cards
+  - account list row density
+- Out of scope: 색상 체계 변경, 정보 구조 변경, 상단/하단 내비게이션 변경.

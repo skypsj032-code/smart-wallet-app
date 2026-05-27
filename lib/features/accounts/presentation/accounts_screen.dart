@@ -208,6 +208,9 @@ class _NetWorthCard extends StatelessWidget {
         : '$accountCount개 계좌가 연결돼 있어요.';
 
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -251,6 +254,9 @@ class _EmptyStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -294,6 +300,9 @@ class _AccountsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: [
           for (var index = 0; index < balances.length; index++) ...[
@@ -326,15 +335,19 @@ class _AccountListTile extends StatelessWidget {
     const typeColor = AppColors.primary;
 
     return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        vertical: 0,
       ),
       leading: CircleAvatar(
+        radius: 20,
         backgroundColor: typeColor.withValues(alpha: 0.12),
         child: Icon(
           _typeIcon(balance.account.type),
           color: typeColor,
+          size: 20,
         ),
       ),
       title: Text(
