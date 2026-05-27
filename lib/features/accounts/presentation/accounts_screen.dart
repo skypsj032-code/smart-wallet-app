@@ -361,16 +361,16 @@ class _AccountListTile extends StatelessWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.sm,
         vertical: 0,
       ),
       leading: CircleAvatar(
-        radius: 18,
+        radius: 16,
         backgroundColor: typeColor.withValues(alpha: 0.12),
         child: Icon(
           _typeIcon(balance.account.type),
           color: typeColor,
-          size: 18,
+          size: 16,
         ),
       ),
       title: Text(
@@ -380,7 +380,7 @@ class _AccountListTile extends StatelessWidget {
             ),
       ),
       subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.only(top: 1),
         child: Text(
           _typeLabel(balance.account.type),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -401,7 +401,7 @@ class _AccountListTile extends StatelessWidget {
                 ),
           ),
           PopupMenuButton<String>(
-            iconSize: 18,
+            iconSize: 16,
             padding: EdgeInsets.zero,
             onSelected: (value) {
               if (value == 'edit') {

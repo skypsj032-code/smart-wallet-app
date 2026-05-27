@@ -735,12 +735,12 @@ class _CategoryRow extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${index + 1}',
@@ -750,7 +750,7 @@ class _CategoryRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
                 item.label,
@@ -767,17 +767,17 @@ class _CategoryRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: item.share.clamp(0, 1),
-            minHeight: 8,
+            minHeight: 6,
             backgroundColor: color.withValues(alpha: 0.10),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           '전체 지출의 ${(item.share * 100).toStringAsFixed(1)}%',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

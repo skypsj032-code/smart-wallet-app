@@ -1041,18 +1041,18 @@ class _EditableTransactionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 18,
+                radius: 16,
                 backgroundColor: accentColor.withValues(alpha: 0.12),
                 child: Icon(
                   icon,
-                  size: 18,
+                  size: 16,
                   color: accentColor,
                 ),
               ),
@@ -1067,7 +1067,7 @@ class _EditableTransactionRow extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: 2),
                     Text(
                       supportingParts.join(' · '),
                       style: Theme.of(context).textTheme.bodySmall,
@@ -1086,9 +1086,9 @@ class _EditableTransactionRow extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: 2),
                   Text(
-                    '눌러서 수정',
+                    '수정',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
