@@ -341,6 +341,62 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets(
+      'dashboard does not show recurring exclusion management under repeat suggestions',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final base = _summaryWithRecurringGroups();
+    final summary = DashboardSummary(
+      monthIncome: base.monthIncome,
+      monthExpense: base.monthExpense,
+      todayExpense: base.todayExpense,
+      todayTransactionCount: base.todayTransactionCount,
+      remainingBudget: base.remainingBudget,
+      totalBudget: base.totalBudget,
+      netCashflow: base.netCashflow,
+      recentTransactions: base.recentTransactions,
+      repeatSuggestions: [
+        _tx(
+          'repeat-1',
+          amount: 8900,
+          occurredAt: DateTime(2026, 5, 21, 8),
+          merchantName: '스타벅스',
+          categoryId: 'coffee',
+          accountId: 'card-1',
+        ),
+      ],
+      recurringSpendInsight: base.recurringSpendInsight,
+      spendPace: base.spendPace,
+      excludedRecurringSpendGroups: base.excludedRecurringSpendGroups,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('다시 기록하기'), findsOneWidget);
+    expect(find.byKey(const Key('recurring-hidden-count-button')), findsNothing);
+  });
+
   testWidgets('dashboard hides upcoming recurring card when no scheduled groups exist',
       (tester) async {
     final summary = DashboardSummary(

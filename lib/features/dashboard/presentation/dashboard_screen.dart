@@ -127,34 +127,6 @@ class DashboardScreen extends ConsumerWidget {
                     context.push('/quick-entry');
                   },
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const Key('recurring-hidden-count-button'),
-                    onPressed: () {
-                      showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (context) =>
-                            _ExcludedRecurringSpendBottomSheet(
-                          initialSummary: summary,
-                        ),
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      '관리하기',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
               ],
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
@@ -1673,9 +1645,12 @@ class _RepeatSuggestionTile extends StatelessWidget {
                 ],
               ),
             ),
-            OutlinedButton(
-              onPressed: onTap,
-              child: const Text('불러오기'),
+            SizedBox(
+              width: 96,
+              child: OutlinedButton(
+                onPressed: onTap,
+                child: const Text('불러오기'),
+              ),
             ),
           ],
         ),
