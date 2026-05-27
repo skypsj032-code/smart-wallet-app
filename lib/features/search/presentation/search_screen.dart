@@ -529,7 +529,7 @@ class _SearchResultTile extends StatelessWidget {
       label: searchResultSemanticLabel(transaction),
       child: GlassCard(
         blur: 12,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: 14,

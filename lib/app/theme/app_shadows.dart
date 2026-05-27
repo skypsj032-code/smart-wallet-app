@@ -136,6 +136,9 @@ abstract final class AppShadows {
 
   // ── Helpers ────────────────────────────────────────────
 
+  static List<BoxShadow> sm({required bool isDark}) =>
+      isDark ? smDark : smLight;
+
   /// brightness에 따라 적절한 md 그림자를 반환한다.
   static List<BoxShadow> md({required bool isDark}) =>
       isDark ? mdDark : mdLight;

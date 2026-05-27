@@ -171,7 +171,7 @@ class _ToolsTile extends StatelessWidget {
         title: Text(
           title,
           style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
         subtitle: subtitle != null

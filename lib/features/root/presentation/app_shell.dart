@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_motion.dart';
+import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
@@ -115,10 +118,10 @@ class _AppShellState extends ConsumerState<AppShell>
             children: [
               ClipRect(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  reverseDuration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
+                  duration: AppMotion.normal,
+                  reverseDuration: AppMotion.fast,
+                  switchInCurve: AppMotion.decelerate,
+                  switchOutCurve: AppMotion.accelerate,
                   layoutBuilder: (currentChild, previousChildren) {
                     return Stack(
                       fit: StackFit.expand,
@@ -131,8 +134,8 @@ class _AppShellState extends ConsumerState<AppShell>
                   transitionBuilder: (child, animation) {
                     final curved = CurvedAnimation(
                       parent: animation,
-                      curve: Curves.easeOutCubic,
-                      reverseCurve: Curves.easeInCubic,
+                      curve: AppMotion.decelerate,
+                      reverseCurve: AppMotion.accelerate,
                     );
 
                     return ColoredBox(
@@ -192,13 +195,13 @@ class _AppShellState extends ConsumerState<AppShell>
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.black.withValues(alpha: 0.16)
-                        : Colors.white.withValues(alpha: 0.54),
+                        ? Colors.black.withValues(alpha: AppOpacity.overlayHighlightDark)
+                        : Colors.white.withValues(alpha: AppOpacity.overlayUtilityLight),
                     border: Border(
                       top: BorderSide(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.10)
-                            : const Color(0xFFD4A843).withValues(alpha: 0.22),
+                            ? Colors.white.withValues(alpha: AppOpacity.borderGlass)
+                            : AppColors.primary.withValues(alpha: 0.22),
                       ),
                     ),
                   ),
@@ -209,19 +212,19 @@ class _AppShellState extends ConsumerState<AppShell>
                       children: [
                         if (!hideGlobalQuickPanel)
                           AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
+                            duration: AppMotion.normal,
+                            curve: AppMotion.decelerate,
                             padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? Colors.white.withValues(alpha: 0.08)
+                                    ? Colors.white.withValues(alpha: AppOpacity.glassDark)
                                     : Colors.white.withValues(alpha: 0.24),
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.xl),
                                 border: Border.all(
                                   color: Colors.white.withValues(
-                                    alpha: isDark ? 0.12 : 0.42,
+                                    alpha: isDark ? AppOpacity.focused : AppOpacity.borderGlassStrong,
                                   ),
                                 ),
                               ),
@@ -233,14 +236,14 @@ class _AppShellState extends ConsumerState<AppShell>
                                   Container(
                                     decoration: BoxDecoration(
                                       color: isDark
-                                          ? Colors.white.withValues(alpha: 0.06)
-                                          : Colors.white.withValues(alpha: 0.14),
+                                          ? Colors.white.withValues(alpha: AppOpacity.hovered)
+                                          : Colors.white.withValues(alpha: AppOpacity.chipSelected),
                                       borderRadius: BorderRadius.circular(
                                         AppRadius.md,
                                       ),
                                       border: Border.all(
                                         color: Colors.white.withValues(
-                                          alpha: isDark ? 0.10 : 0.34,
+                                          alpha: isDark ? AppOpacity.borderGlass : AppOpacity.borderGlassStrong,
                                         ),
                                       ),
                                     ),

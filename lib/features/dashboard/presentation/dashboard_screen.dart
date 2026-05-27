@@ -7,6 +7,7 @@ import '../../../app/theme/app_mood.dart';
 import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
+import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
@@ -773,38 +774,10 @@ class _EmptyRecentTransactions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onCard = theme.colorScheme.onSurface;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-      child: Column(
-        children: [
-          Icon(
-            Icons.auto_stories_outlined,
-            size: 30,
-            color: onCard.withValues(alpha: 0.50),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '아직 거래가 없어요',
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: onCard,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '첫 거래를 기록하면 오늘 내역이 시작돼요.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
+    return const AppEmptyState(
+      icon: Icons.auto_stories_outlined,
+      title: '아직 거래가 없어요',
+      subtitle: '첫 거래를 기록하면 오늘 내역이 시작돼요.',
     );
   }
 }

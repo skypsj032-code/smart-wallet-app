@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -86,11 +90,10 @@ class RecurringExpensesScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               if (items.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Text('아직 등록된 정기 거래가 없습니다.'),
-                  ),
+                const AppEmptyState(
+                  icon: Icons.event_repeat_rounded,
+                  title: '아직 등록된 정기 거래가 없어요',
+                  subtitle: '구독·월세 등 반복되는 거래를\n추가하면 자동으로 제안해드려요.',
                 )
               else
                 for (final item in items) ...[
@@ -173,11 +176,28 @@ class _RecurringExpenseTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isIncome = item.type == 'income';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isIncome ? AppColors.income : AppColors.expense;
+
     return Semantics(
       container: true,
       label: recurringExpenseItemSemanticLabel(item),
       child: Card(
         child: ListTile(
+          leading: Container(
+            width: AppSizes.avatarMD,
+            height: AppSizes.avatarMD,
+            decoration: BoxDecoration(
+              color: AppColors.transactionTint(isIncome: isIncome, isDark: isDark),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              Icons.event_repeat_rounded,
+              size: AppSizes.iconSM,
+              color: accentColor,
+            ),
+          ),
           title: Text(item.name),
           subtitle: Text(
             '${_typeLabel(item.type)} · ${_scheduleLabel(item)} · ${formatCurrency(item.amount)}',

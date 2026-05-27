@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/utils/currency_formatter.dart';
@@ -98,36 +99,10 @@ class _EmptyHistoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.notifications_none_rounded,
-              size: AppSizes.iconXXL,
-              color: theme.colorScheme.outlineVariant,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '수신된 알림이 없습니다',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '카드·은행 알림이 감지되면\n자동으로 이곳에 기록됩니다.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outlineVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const AppEmptyState(
+      icon: Icons.notifications_none_rounded,
+      title: '수신된 알림이 없습니다',
+      subtitle: '카드·은행 알림이 감지되면\n자동으로 이곳에 기록됩니다.',
     );
   }
 }
@@ -214,8 +189,8 @@ class _HistoryTile extends StatelessWidget {
                     Text(
                       item.merchant ??
                           (isExpense ? '지출' : '수입'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
