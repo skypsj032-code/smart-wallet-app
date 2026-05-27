@@ -759,12 +759,12 @@ class _CategoryRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: item.share.clamp(0, 1),
-            minHeight: 10,
+            minHeight: 8,
             backgroundColor: color.withValues(alpha: 0.10),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
@@ -815,7 +815,7 @@ class _LegendRow extends StatelessWidget {
                   color: Theme.of(context)
                       .colorScheme
                       .onSurface
-                      .withValues(alpha: 0.72),
+                      .withValues(alpha: 0.66),
                 ),
           ),
         ),
@@ -826,7 +826,7 @@ class _LegendRow extends StatelessWidget {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.62),
+                    .withValues(alpha: 0.56),
                 fontWeight: FontWeight.w700,
               ),
         ),

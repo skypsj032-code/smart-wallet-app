@@ -588,7 +588,7 @@ class _CalendarEmptyMessage extends StatelessWidget {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.60),
+                    .withValues(alpha: 0.52),
               ),
         ),
       ],

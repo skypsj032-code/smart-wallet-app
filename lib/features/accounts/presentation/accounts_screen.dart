@@ -349,12 +349,12 @@ class _AccountListTile extends StatelessWidget {
         vertical: 0,
       ),
       leading: CircleAvatar(
-        radius: 20,
+        radius: 18,
         backgroundColor: typeColor.withValues(alpha: 0.12),
         child: Icon(
           _typeIcon(balance.account.type),
           color: typeColor,
-          size: 20,
+          size: 18,
         ),
       ),
       title: Text(
@@ -371,7 +371,7 @@ class _AccountListTile extends StatelessWidget {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.56),
+                    .withValues(alpha: 0.50),
               ),
         ),
       ),
@@ -385,6 +385,8 @@ class _AccountListTile extends StatelessWidget {
                 ),
           ),
           PopupMenuButton<String>(
+            iconSize: 18,
+            padding: EdgeInsets.zero,
             onSelected: (value) {
               if (value == 'edit') {
                 onEdit();
