@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_radius.dart';
 import '../../core/constants/app_spacing.dart';
+import 'keyboard_aware_body.dart';
 
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
@@ -11,7 +12,12 @@ class AppScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomSheet,
     this.hideGlobalQuickPanel = false,
+    this.hideAppBar = false,
     this.actions,
+    this.contentPadding,
+    this.backgroundColor,
+    this.appBarBackgroundColor,
+    this.bottom,
   });
 
   final String title;
@@ -19,42 +25,49 @@ class AppScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final Widget? bottomSheet;
   final bool hideGlobalQuickPanel;
+  final bool hideAppBar;
   final List<Widget>? actions;
+  final EdgeInsetsGeometry? contentPadding;
+  final Color? backgroundColor;
+  final Color? appBarBackgroundColor;
+  /// AppBar 하단 위젯 (예: TabBar)
+  final PreferredSizeWidget? bottom;
 
   @override
   Widget build(BuildContext context) {
     return AppScaffoldScope(
       hideGlobalQuickPanel: hideGlobalQuickPanel,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(title),
-          actions: actions,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outline,
+        backgroundColor: backgroundColor,
+        appBar: hideAppBar
+            ? null
+            : AppBar(
+                title: Text(title),
+                actions: actions,
+                backgroundColor: appBarBackgroundColor,
+                bottom: bottom,
               ),
-            ),
-          ),
-        ),
         floatingActionButton: floatingActionButton,
         bottomSheet: bottomSheet,
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              0,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: KeyboardAwareBody(
+            child: ColoredBox(
+              color: backgroundColor ?? Colors.transparent,
+              child: Padding(
+                padding: contentPadding ??
+                    const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      0,
+                    ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: body,
+                ),
               ),
-              child: body,
             ),
           ),
         ),
@@ -81,4 +94,3 @@ class AppScaffoldScope extends InheritedWidget {
     return hideGlobalQuickPanel != oldWidget.hideGlobalQuickPanel;
   }
 }
-

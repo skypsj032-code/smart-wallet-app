@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../notifications/application/notification_provider.dart';
+import '../../notifications/data/notification_channel.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
@@ -20,7 +22,46 @@ import '../application/backup_service.dart';
 import '../application/settings_provider.dart';
 import '../../transactions/data/transaction_export_service.dart';
 import 'csv_export_options_dialog.dart';
+import 'csv_import_dialog.dart';
 import 'lock_setup_dialog.dart';
+
+/// 최근 30일간 감지된 알림 건수
+final _recentNotificationCountProvider = FutureProvider.autoDispose<int>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.countRecentNotificationHistories(dayRange: 30);
+});
+
+String settingsActionSemanticLabel({
+  required String title,
+  String? subtitle,
+}) {
+  final buffer = StringBuffer('Open $title.');
+  if (subtitle != null && subtitle.trim().isNotEmpty) {
+    buffer.write(' ${subtitle.trim()}');
+  }
+  return buffer.toString();
+}
+
+String appLockSemanticLabel({
+  required bool enabled,
+  required bool sessionUnlocked,
+}) {
+  if (!enabled) {
+    return 'App lock settings. Lock is off. Double tap to configure a 4-digit PIN lock.';
+  }
+  if (sessionUnlocked) {
+    return 'App lock settings. Lock is on and the current session is unlocked. Double tap to manage the PIN or lock now.';
+  }
+  return 'App lock settings. Lock is on and the current session is locked. Double tap to manage the PIN.';
+}
+
+String restoreActionSemanticLabel() {
+  return 'Restore from backup. This action will replace the current wallet data and create a safety backup before restoring.';
+}
+
+String themeModeSemanticLabel(String currentMode) {
+  return 'Theme mode settings. Current mode: $currentMode. Double tap to follow the device setting or switch between light and dark mode.';
+}
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -36,44 +77,6 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           const _SettingsHeroCard(),
-          const SizedBox(height: AppSpacing.lg),
-          const AppSectionIntro(
-            title: '일상 이동',
-            subtitle: '자주 쓰는 화면으로 조용하게 이동합니다.',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppUtilityGroup(
-            children: [
-              _SettingsActionTile(
-                icon: Icons.search_rounded,
-                color: AppColors.primary,
-                title: '거래 검색',
-                subtitle: '필요한 기록을 빠르게 찾습니다.',
-                onTap: () => context.go('/search'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.account_balance_wallet_outlined,
-                color: AppColors.primary,
-                title: '계좌 관리',
-                subtitle: '현금, 통장, 카드의 흐름을 정리합니다.',
-                onTap: () => context.go('/accounts'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.savings_outlined,
-                color: AppColors.primary,
-                title: '예산 관리',
-                subtitle: '이번 달 계획을 차분하게 점검합니다.',
-                onTap: () => context.go('/budgets'),
-              ),
-              _SettingsActionTile(
-                icon: Icons.document_scanner_outlined,
-                color: AppColors.primary,
-                title: '영수증 스캔',
-                subtitle: '영수증 내용을 바로 불러옵니다.',
-                onTap: () => context.go('/ocr-capture'),
-              ),
-            ],
-          ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '데이터 안전',
@@ -95,6 +98,13 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'CSV 내보내기',
                 subtitle: '거래 내역을 표 형식으로 공유합니다.',
                 onTap: () => _exportCsv(context, ref),
+              ),
+              _SettingsActionTile(
+                icon: Icons.upload_file_outlined,
+                color: AppColors.primary,
+                title: 'CSV 가져오기',
+                subtitle: '다른 앱에서 내보낸 CSV를 불러옵니다.',
+                onTap: () => _importCsv(context),
               ),
             ],
           ),
@@ -141,6 +151,29 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
+            title: '알림 자동 기록',
+            subtitle: '카드·은행 알림을 읽어 거래를 자동으로 제안합니다.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const _NotificationListenerCard(),
+          const SizedBox(height: AppSpacing.sm),
+          AppUtilityGroup(
+            children: [
+              _SettingsActionTile(
+                icon: Icons.history_rounded,
+                color: AppColors.primary,
+                title: '알림 수신 이력',
+                subtitle: ref.watch(_recentNotificationCountProvider).when(
+                      data: (count) => '지난 30일간 감지된 알림 $count건',
+                      loading: () => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                      error: (_, __) => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
+                    ),
+                onTap: () => context.go('/notification-history'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionIntro(
             title: '화면',
             subtitle: '앱의 분위기를 현재 환경에 맞게 조정합니다.',
           ),
@@ -162,6 +195,23 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             error: (error, stackTrace) => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionIntro(
+            title: '개발자',
+            subtitle: '디자인 시스템과 내부 도구를 확인합니다.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppUtilityGroup(
+            children: [
+              _SettingsActionTile(
+                icon: Icons.palette_outlined,
+                color: AppColors.info,
+                title: '디자인 시스템',
+                subtitle: '색상, 타이포그래피, 컴포넌트를 한눈에 확인합니다.',
+                onTap: () => context.go('/dev/design'),
+              ),
+            ],
           ),
         ],
       ),
@@ -265,6 +315,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _importCsv(BuildContext context) async {
+    await CsvImportDialog.show(context);
+  }
+
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
     final payload = await ref.read(backupServiceProvider).exportJsonBackup();
     final file = await ref.read(backupServiceProvider).saveBackupFile(payload);
@@ -294,7 +348,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     file,
-                    text: '공유용으로 만든 Smart Wallet 백업 파일입니다.',
+                    text: '공유용으로 만든 다정가계부 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -336,7 +390,7 @@ class SettingsScreen extends ConsumerWidget {
       final fileInfo = File(result.files.single.path!);
       final jsonStr = await fileInfo.readAsString();
       final backupService = ref.read(backupServiceProvider);
-      final preview = backupService.inspectJsonBackup(jsonStr);
+      final preview = await backupService.inspectJsonBackup(jsonStr);
 
       if (!context.mounted) {
         return;
@@ -484,7 +538,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: '복원 직전에 만든 Smart Wallet 안전 백업 파일입니다.',
+                    text: '복원 직전에 만든 다정가계부 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -524,7 +578,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(backupServiceProvider).shareBackupFile(
                     safetyBackup.file,
-                    text: 'Smart Wallet 복원 실패 시 보관한 안전 백업 파일입니다.',
+                    text: '다정가계부 복원 실패 시 보관한 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -578,7 +632,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               await ref.read(transactionExportServiceProvider).shareCsvFile(
                     file,
-                    text: '공유용으로 만든 Smart Wallet CSV 파일입니다.',
+                    text: '공유용으로 만든 다정가계부 CSV 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -638,8 +692,14 @@ class _AppLockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
+    return Semantics(
+      container: true,
+      label: appLockSemanticLabel(
+        enabled: enabled,
+        sessionUnlocked: sessionUnlocked,
+      ),
+      child: Card(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,6 +753,7 @@ class _AppLockCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -709,75 +770,79 @@ class _RestoreActionCard extends StatelessWidget {
     const color = AppColors.expense;
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.12),
-                  child: const Icon(Icons.restore_rounded, color: color),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '백업에서 복원',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '선택한 JSON 백업으로 현재 데이터를 교체합니다.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+    return Semantics(
+      container: true,
+      label: restoreActionSemanticLabel(),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withValues(alpha: 0.12),
+                    child: const Icon(Icons.restore_rounded, color: color),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                const AppStatusChip(
-                  label: '신중',
-                  dotColor: AppColors.warning,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '복원 전에 자동으로 안전 백업을 한 번 더 남기므로, 실수했을 때 되돌릴 여지를 확보합니다.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.md,
-                    horizontal: AppSpacing.md,
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '백업에서 복원',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '선택한 JSON 백업으로 현재 데이터를 교체합니다.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                onPressed: onTap,
-                icon: const Icon(Icons.file_download_outlined),
-                label: const Text('복원 시작'),
+                  const SizedBox(width: AppSpacing.sm),
+                  const AppStatusChip(
+                    label: '신중',
+                    dotColor: AppColors.warning,
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '복원 전에 자동으로 안전 백업을 한 번 더 남기므로, 실수했을 때 되돌릴 여지를 확보합니다.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                      horizontal: AppSpacing.md,
+                    ),
+                  ),
+                  onPressed: onTap,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('복원 시작'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -801,29 +866,33 @@ class _SettingsActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+    return Semantics(
+      button: true,
+      label: settingsActionSemanticLabel(title: title, subtitle: subtitle),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        subtitle: subtitle != null
+            ? Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(subtitle!),
+              )
+            : null,
+        trailing: const Icon(Icons.chevron_right_rounded),
       ),
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: 0.12),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      subtitle: subtitle != null
-          ? Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(subtitle!),
-            )
-          : null,
-      trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }
@@ -839,43 +908,47 @@ class _ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-        child: Icon(
-          currentMode == 'dark'
-              ? Icons.dark_mode_outlined
-              : currentMode == 'light'
-                  ? Icons.light_mode_outlined
-                  : Icons.brightness_auto_outlined,
-          color: AppColors.primary,
+    return Semantics(
+      container: true,
+      label: themeModeSemanticLabel(currentMode),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
         ),
-      ),
-      title: Text(
-        '화면 모드',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(_modeLabel(currentMode)),
-      ),
-      trailing: DropdownButton<String>(
-        value: currentMode,
-        underline: const SizedBox.shrink(),
-        items: const [
-          DropdownMenuItem(value: 'system', child: Text('시스템')),
-          DropdownMenuItem(value: 'light', child: Text('라이트')),
-          DropdownMenuItem(value: 'dark', child: Text('다크')),
-        ],
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+          child: Icon(
+            currentMode == 'dark'
+                ? Icons.dark_mode_outlined
+                : currentMode == 'light'
+                    ? Icons.light_mode_outlined
+                    : Icons.brightness_auto_outlined,
+            color: AppColors.primary,
+          ),
+        ),
+        title: Text(
+          '화면 모드',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_modeLabel(currentMode)),
+        ),
+        trailing: DropdownButton<String>(
+          value: currentMode,
+          underline: const SizedBox.shrink(),
+          items: const [
+            DropdownMenuItem(value: 'system', child: Text('시스템')),
+            DropdownMenuItem(value: 'light', child: Text('라이트')),
+            DropdownMenuItem(value: 'dark', child: Text('다크')),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(value);
+          },
+        ),
       ),
     );
   }
@@ -889,5 +962,252 @@ class _ThemeModeTile extends StatelessWidget {
       default:
         return '기기 설정에 따라 자동으로 맞춥니다.';
     }
+  }
+}
+
+// ── 알림 자동 기록 카드 ──────────────────────────────────────────────
+
+class _NotificationListenerCard extends ConsumerStatefulWidget {
+  const _NotificationListenerCard();
+
+  @override
+  ConsumerState<_NotificationListenerCard> createState() =>
+      _NotificationListenerCardState();
+}
+
+class _NotificationListenerCardState
+    extends ConsumerState<_NotificationListenerCard> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        // 앱 포그라운드 복귀 시 권한 상태 재확인
+        ref.invalidate(notificationPermissionGrantedProvider);
+        ref.invalidate(notificationBatteryOptimizationIgnoredProvider);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // iOS: 애플 정책상 3rd Party 알림 읽기 불가 → 안내 카드로 대체
+    if (Platform.isIOS) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.notifications_off_outlined, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '자동 결제 감지',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'iOS에서는 애플 정책으로 인해 카드/은행 알림 자동 파싱을 지원하지 않습니다. '
+                '빠른 입력 또는 영수증 OCR로 거래를 직접 기록해 주세요.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final enabled = ref.watch(notificationListenerEnabledProvider);
+    final permissionAsync = ref.watch(notificationPermissionGrantedProvider);
+    final batteryOptimizationAsync =
+        ref.watch(notificationBatteryOptimizationIgnoredProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: enabled,
+              onChanged: (value) async {
+                if (value) {
+                  // 권한 확인 후 활성화
+                  final granted = await NotificationChannel.isPermissionGranted();
+                  if (!granted && context.mounted) {
+                    await _showPermissionDialog(context);
+                    return;
+                  }
+                }
+                ref.read(notificationListenerEnabledProvider.notifier).toggle(value);
+              },
+              secondary: const Icon(Icons.notifications_active_outlined),
+              title: const Text('알림 자동 기록'),
+              subtitle: const Text('카드·은행 결제 알림을 읽어 거래를 자동 제안합니다.'),
+            ),
+            permissionAsync.when(
+              data: (granted) {
+                if (granted) {
+                  return _StatusLine(
+                    icon: Icons.check_circle_outline_rounded,
+                    color: AppColors.income,
+                    message: '알림 접근 권한이 허용되어 있습니다.',
+                    textStyle: theme.textTheme.bodySmall,
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '알림 접근 권한이 필요해요.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.warning,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: () => NotificationChannel.openPermissionSettings(),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: const Text('권한 설정 열기'),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            batteryOptimizationAsync.when(
+              data: (ignored) {
+                if (ignored) {
+                  return _StatusLine(
+                    icon: Icons.battery_saver_outlined,
+                    color: AppColors.income,
+                    message: '배터리 최적화 예외가 적용되어 백그라운드 감지가 안정적입니다.',
+                    textStyle: theme.textTheme.bodySmall,
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StatusLine(
+                      icon: Icons.battery_alert_outlined,
+                      color: AppColors.warning,
+                      message: '배터리 최적화가 켜져 있으면 며칠 뒤 자동 기록이 중단될 수 있어요.',
+                      textStyle: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '삼성/샤오미 등 일부 기기에서는 다정가계부을 절전 예외로 등록해야 알림 감지가 계속 유지됩니다.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed:
+                          NotificationChannel.openBatteryOptimizationSettings,
+                      icon: const Icon(
+                        Icons.battery_charging_full_rounded,
+                        size: 16,
+                      ),
+                      label: const Text('배터리 최적화 예외 설정'),
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPermissionDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('알림 접근 권한 필요'),
+        content: const Text(
+          '카드·은행 결제 알림을 읽으려면 "알림 접근" 권한이 필요해요.\n\n'
+          '설정 → 앱 → 알림 접근에서 다정가계부을 허용해 주세요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              NotificationChannel.openPermissionSettings();
+            },
+            child: const Text('설정 열기'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
+    required this.icon,
+    required this.color,
+    required this.message,
+    required this.textStyle,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String message;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            message,
+            style: textStyle?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
   }
 }

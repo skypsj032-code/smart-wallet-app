@@ -1,3 +1,4 @@
 @echo off
 setlocal
-"C:\dev\flutter\bin\flutter.bat" %*
+call "%~dp0..\flutterw.bat" %*
+exit /b %ERRORLEVEL%

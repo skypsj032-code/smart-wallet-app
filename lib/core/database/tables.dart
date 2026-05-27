@@ -1,5 +1,13 @@
 import 'package:drift/drift.dart';
 
+@TableIndex.sql('''
+  CREATE INDEX transactions_timeline_idx
+  ON transactions (deleted_at, occurred_at DESC, created_at DESC);
+''')
+@TableIndex.sql('''
+  CREATE INDEX transactions_category_timeline_idx
+  ON transactions (deleted_at, category_id, occurred_at DESC);
+''')
 class Transactions extends Table {
   TextColumn get localId => text()();
   TextColumn get type => text()();
@@ -42,9 +50,33 @@ class Budgets extends Table {
   TextColumn get monthKey => text()();
   TextColumn get categoryId => text().nullable()();
   IntColumn get amountLimit => integer()();
-  BoolColumn get alert50Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert80Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert100Enabled => boolean().withDefault(const Constant(true))();
+  BoolColumn get alert50Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert80Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert100Enabled =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastModifiedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {localId};
+}
+
+class RecurringExpenses extends Table {
+  TextColumn get localId => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()();
+  IntColumn get amount => integer()();
+  TextColumn get cadence => text()();
+  IntColumn get dayOfMonth => integer().nullable()();
+  IntColumn get weekday => integer().nullable()();
+  TextColumn get accountId => text()();
+  TextColumn get categoryId => text().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get lastSuggestedCycleKey => text().nullable()();
+  TextColumn get lastCompletedCycleKey => text().nullable()();
+  TextColumn get lastDismissedCycleKey => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get lastModifiedAt => dateTime()();
 
@@ -72,8 +104,12 @@ class AppSettings extends Table {
   TextColumn get currencyCode => text().withDefault(const Constant('KRW'))();
   TextColumn get weekStart => text().withDefault(const Constant('monday'))();
   TextColumn get themeMode => text().withDefault(const Constant('system'))();
-  BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
-  BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
+  IntColumn get defaultCategorySeedVersion =>
+      integer().withDefault(const Constant(0))();
+  BoolColumn get appLockEnabled =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get biometricEnabled =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get exportIncludeDeleted =>
       boolean().withDefault(const Constant(false))();
   TextColumn get pinCode => text().nullable()();
@@ -96,6 +132,16 @@ class BackupMetadata extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+class NotificationHistories extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get packageName => text()();
+  IntColumn get amount => integer()();
+  TextColumn get type => text()(); // 'expense' | 'income'
+  TextColumn get merchant => text().nullable()();
+  TextColumn get suggestedCategory => text().nullable()();
+  DateTimeColumn get detectedAt => dateTime()();
 }
 
 class OcrDrafts extends Table {

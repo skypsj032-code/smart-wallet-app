@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
 
 class AppStatusChip extends StatelessWidget {
@@ -19,16 +20,23 @@ class AppStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final resolvedBackground =
-        backgroundColor ?? theme.colorScheme.primary.withValues(alpha: 0.1);
-    final resolvedForeground = foregroundColor ?? theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+    final resolvedBackground = backgroundColor ??
+        (isDark
+            ? theme.colorScheme.primary.withValues(alpha: 0.1)
+            : theme.colorScheme.primary.withValues(alpha: 0.18));
+    final resolvedForeground = foregroundColor ??
+        (isDark ? theme.colorScheme.primary : AppColors.mutedInk);
+    final resolvedBorder = backgroundColor != null || foregroundColor != null
+        ? resolvedForeground.withValues(alpha: 0.22)
+        : theme.colorScheme.outline;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: resolvedBackground,
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: theme.colorScheme.outline),
+        border: Border.all(color: resolvedBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -48,6 +56,7 @@ class AppStatusChip extends StatelessWidget {
             label,
             style: theme.textTheme.labelLarge?.copyWith(
               color: resolvedForeground,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

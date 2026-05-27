@@ -6,12 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_motion.dart';
+import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../budgets/application/budget_alert_provider.dart';
+import '../../notifications/presentation/notification_transaction_banner.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({
+    super.key,
+    required this.child,
+  });
 
   final Widget child;
 
@@ -19,48 +29,69 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
   static const _exitGracePeriod = Duration(seconds: 2);
 
   late final TextEditingController _amountController;
   late final ScrollController _primaryScrollController;
   DateTime? _lastBackPressedAt;
+  bool _obscured = false; // 멀티태스킹/스위처 노출 방지
 
   @override
   void initState() {
     super.initState();
     _amountController = TextEditingController();
     _primaryScrollController = ScrollController();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _amountController.dispose();
     _primaryScrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final shouldObscure = state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused;
+    if (shouldObscure != _obscured) {
+      setState(() => _obscured = shouldObscure);
+    }
+  }
+
   int _locationToIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/timeline')) {
-      return 1;
-    }
-    if (location.startsWith('/settings') ||
-        location.startsWith('/calendar') ||
-        location.startsWith('/statistics') ||
-        location.startsWith('/search') ||
-        location.startsWith('/accounts') ||
-        location.startsWith('/budgets') ||
-        location.startsWith('/ocr')) {
-      return 2;
-    }
-    return 0;
+    return routeTabIndex(location);
   }
 
   @override
   Widget build(BuildContext context) {
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
+
+    // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
+    ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
+      if (event == null || !context.mounted) return;
+      final (icon, label) = switch (event.level) {
+        BudgetAlertLevel.half => ('⚠️', '${event.label} 예산 50% 소진됐어요.'),
+        BudgetAlertLevel.warning => ('🔶', '${event.label} 예산 80% 소진됐어요.'),
+        BudgetAlertLevel.exceeded => ('🚨', '${event.label} 예산을 초과했어요!'),
+      };
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('$icon $label'),
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    });
     final location = GoRouterState.of(context).uri.toString();
     final hideGlobalQuickPanel =
         location.startsWith('/quick-entry') || location.startsWith('/lock');
@@ -84,237 +115,298 @@ class _AppShellState extends ConsumerState<AppShell> {
           }
         },
         child: Scaffold(
-          body: ClipRect(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              reverseDuration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              transitionBuilder: (child, animation) {
-                final curved = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                  reverseCurve: Curves.easeInCubic,
-                );
+          body: Stack(
+            children: [
+              ClipRect(
+                child: AnimatedSwitcher(
+                  duration: AppMotion.normal,
+                  reverseDuration: AppMotion.fast,
+                  switchInCurve: AppMotion.decelerate,
+                  switchOutCurve: AppMotion.accelerate,
+                  layoutBuilder: (currentChild, previousChildren) {
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    );
+                  },
+                  transitionBuilder: (child, animation) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: AppMotion.decelerate,
+                      reverseCurve: AppMotion.accelerate,
+                    );
 
-                return ColoredBox(
-                  color: theme.scaffoldBackgroundColor,
-                  child: FadeTransition(
-                    opacity: curved,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.025, 0),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: child,
+                    return ColoredBox(
+                      color: theme.scaffoldBackgroundColor,
+                      child: FadeTransition(
+                        opacity: curved,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.025, 0),
+                            end: Offset.zero,
+                          ).animate(curved),
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(location),
+                    child: widget.child,
+                  ),
+                ),
+              ),
+              // 알림 감지 배너 — 화면 최상단에 오버레이
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: NotificationTransactionBanner(),
+              ),
+              // 멀티태스킹/앱 스위처 금융정보 노출 방지
+              // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
+              if (_obscured)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Center(
+                      child: Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: AppSizes.touchTarget,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.20),
+                      ),
                     ),
                   ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(location),
-                child: widget.child,
-              ),
-            ),
+                ),
+            ],
           ),
-          bottomNavigationBar: Listener(
+          bottomNavigationBar: RepaintBoundary(
+            child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerSignal: _forwardPointerScroll,
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.black.withValues(alpha: 0.30)
-                        : Colors.white.withValues(alpha: 0.40),
+                        ? Colors.black.withValues(alpha: AppOpacity.overlayHighlightDark)
+                        : Colors.white.withValues(alpha: AppOpacity.overlayUtilityLight),
                     border: Border(
                       top: BorderSide(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.white.withValues(alpha: 0.65),
+                            ? Colors.white.withValues(alpha: AppOpacity.borderGlass)
+                            : AppColors.primary.withValues(alpha: 0.22),
                       ),
                     ),
                   ),
                   child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!hideGlobalQuickPanel)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(AppRadius.xl),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(
-                                  alpha: isDark ? 0.12 : 0.04,
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!hideGlobalQuickPanel)
+                          AnimatedContainer(
+                            duration: AppMotion.normal,
+                            curve: AppMotion.decelerate,
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: AppOpacity.glassDark)
+                                    : Colors.white.withValues(alpha: 0.24),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.xl),
+                                border: Border.all(
+                                  color: Colors.white.withValues(
+                                    alpha: isDark ? AppOpacity.focused : AppOpacity.borderGlassStrong,
+                                  ),
                                 ),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
                               ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.sm),
-                            child: Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.surfaceContainerHigh,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
+                              padding: const EdgeInsets.all(AppSpacing.sm),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 지출 / 수입 토글 — 타입 선택용, 최대한 작게
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: AppOpacity.hovered)
+                                          : Colors.white.withValues(alpha: AppOpacity.chipSelected),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.md,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: isDark ? AppOpacity.borderGlass : AppOpacity.borderGlassStrong,
+                                        ),
+                                      ),
                                     ),
-                                    border: Border.all(
-                                      color: theme.colorScheme.outline,
+                                    child: ToggleButtons(
+                                      isSelected: [
+                                        form.type ==
+                                            TransactionEntryType.expense,
+                                        form.type ==
+                                            TransactionEntryType.income,
+                                      ],
+                                      onPressed: (index) {
+                                        ref
+                                            .read(
+                                              quickEntryFormProvider.notifier,
+                                            )
+                                            .setType(
+                                              index == 0
+                                                  ? TransactionEntryType.expense
+                                                  : TransactionEntryType.income,
+                                            );
+                                      },
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.md,
+                                      ),
+                                      selectedColor:
+                                          theme.colorScheme.onPrimary,
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant,
+                                      fillColor: theme.colorScheme.primary,
+                                      borderColor: Colors.transparent,
+                                      selectedBorderColor: Colors.transparent,
+                                      constraints: const BoxConstraints(
+                                        minHeight: 30,
+                                        minWidth: 38,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      children: const [
+                                        Text('지출'),
+                                        Text('수입'),
+                                      ],
                                     ),
                                   ),
-                                  child: ToggleButtons(
-                                    isSelected: [
-                                      form.type == TransactionEntryType.expense,
-                                      form.type == TransactionEntryType.income,
-                                    ],
-                                    onPressed: (index) {
-                                      ref
-                                          .read(quickEntryFormProvider.notifier)
-                                          .setType(
-                                            index == 0
-                                                ? TransactionEntryType.expense
-                                                : TransactionEntryType.income,
-                                          );
-                                    },
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
-                                    ),
-                                    selectedColor: theme.colorScheme.onPrimary,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    fillColor: theme.colorScheme.primary,
-                                    borderColor: Colors.transparent,
-                                    selectedBorderColor: Colors.transparent,
-                                    constraints: const BoxConstraints(
-                                      minHeight: 34,
-                                      minWidth: 48,
-                                    ),
-                                    children: const [
-                                      Text('지출'),
-                                      Text('수입'),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  flex: 3,
-                                  child: SizedBox(
-                                    height: 38,
+                                  const SizedBox(width: AppSpacing.sm),
+                                  // 금액 입력 — 주인공, 최대한 넓게 + 세로 가운데 정렬
+                                  Expanded(
                                     child: TextField(
                                       controller: _amountController,
                                       onChanged: ref
-                                          .read(quickEntryFormProvider.notifier)
+                                          .read(
+                                            quickEntryFormProvider.notifier,
+                                          )
                                           .setAmount,
+                                      textAlignVertical:
+                                          TextAlignVertical.center,
                                       decoration: const InputDecoration(
                                         hintText: '금액',
-                                        prefixText: '₩ ',
+                                        prefixText: '₩',
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
                                           horizontal: 12,
-                                          vertical: 8,
+                                          vertical: 10,
                                         ),
                                       ),
-                                      style: theme.textTheme.titleMedium?.copyWith(
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: theme.colorScheme.onSurface,
                                       ),
                                       keyboardType: TextInputType.number,
+                                      maxLength: 12,
+                                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
                                       ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                SizedBox(
-                                  width: 78,
-                                  height: 38,
-                                  child: FilledButton(
-                                    onPressed: form.amount.trim().isNotEmpty
-                                        ? () => _submit(context, form)
-                                        : null,
-                                    style: FilledButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadius.md,
+                                  const SizedBox(width: AppSpacing.sm),
+                                  // 기록 버튼 — 작게
+                                  SizedBox(
+                                    width: 48,
+                                    height: 34,
+                                    child: FilledButton(
+                                      onPressed: form.amount.trim().isNotEmpty
+                                          ? () => _submit(context, form)
+                                          : null,
+                                      style: FilledButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.md,
+                                          ),
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
+                                      child: const Text('기록'),
                                     ),
-                                    child: const Text('기록'),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    NavigationBar(
-                      selectedIndex: currentIndex,
-                      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                      onDestinationSelected: (index) {
-                        switch (index) {
-                          case 0:
-                            context.go('/');
-                            return;
-                          case 1:
-                            context.go('/timeline');
-                            return;
-                          case 2:
-                            context.go('/settings');
-                            return;
-                        }
-                      },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined, size: 26),
-                          selectedIcon: Icon(Icons.home_rounded, size: 26),
-                          label: '홈',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.receipt_long_outlined, size: 26),
-                          selectedIcon: Icon(Icons.receipt_long_rounded, size: 26),
-                          label: '내역',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.menu_outlined, size: 26),
-                          selectedIcon: Icon(Icons.menu_rounded, size: 26),
-                          label: '전체',
+                        NavigationBar(
+                          selectedIndex: currentIndex,
+                          labelBehavior:
+                              NavigationDestinationLabelBehavior.alwaysShow,
+                          onDestinationSelected: (index) {
+                            switch (index) {
+                              case 0:
+                                context.go('/');
+                                return;
+                              case 1:
+                                context.go('/timeline');
+                                return;
+                              case 2:
+                                context.go('/tools');
+                                return;
+                              case 3:
+                                context.go('/settings');
+                                return;
+                            }
+                          },
+                          destinations: const [
+                            NavigationDestination(
+                              icon: Icon(Icons.home_outlined, size: AppSizes.iconMD),
+                              selectedIcon: Icon(Icons.home_rounded, size: AppSizes.iconMD),
+                              label: '홈',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.receipt_long_outlined, size: AppSizes.iconMD),
+                              selectedIcon:
+                                  Icon(Icons.receipt_long_rounded, size: AppSizes.iconMD),
+                              label: '내역',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.menu_outlined, size: AppSizes.iconMD),
+                              selectedIcon: Icon(Icons.menu_rounded, size: AppSizes.iconMD),
+                              label: '도구',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.settings_outlined, size: AppSizes.iconMD),
+                              selectedIcon:
+                                  Icon(Icons.settings_rounded, size: AppSizes.iconMD),
+                              label: '설정',
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          ),
+        ), // RepaintBoundary
       ),
-    ),
-  ),
     );
   }
 
@@ -356,7 +448,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     notifier.reset();
     notifier.setType(form.type);
     notifier.setAmount(form.amount);
-    context.go('/quick-entry');
+    // push: 현재 화면 위에 하단 슬라이드로 진입 (화면 이탈 없음)
+    context.push('/quick-entry');
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
@@ -367,7 +460,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       return false;
     }
 
-    if (location != '/') {
+    if (!_isHomeLocation(location)) {
+      _lastBackPressedAt = null;
       context.go('/');
       return false;
     }
@@ -386,10 +480,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('뒤로가기를 한 번 더 누르면 종료됩니다.'),
+          content: Text('뒤로가기를 한 번 더 누르면 앱이 종료됩니다.'),
           duration: _exitGracePeriod,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     return false;
+  }
+
+  bool _isHomeLocation(String location) {
+    return location == '/' || location.startsWith('/?');
   }
 }

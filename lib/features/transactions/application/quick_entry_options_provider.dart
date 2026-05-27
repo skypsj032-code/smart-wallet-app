@@ -25,8 +25,9 @@ class QuickEntryCategoryOption {
   final String type;
 }
 
+/// QuickEntry 화면이 닫히면 DB 스트림 구독 자동 해제 (autoDispose).
 final quickEntryAccountsProvider =
-    StreamProvider<List<QuickEntryAccountOption>>((ref) {
+    StreamProvider.autoDispose<List<QuickEntryAccountOption>>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return (database.select(database.accounts)
         ..where((tbl) => tbl.isActive.equals(true))
@@ -39,8 +40,9 @@ final quickEntryAccountsProvider =
       );
 });
 
+/// 타입별 카테고리 목록 — 화면 종료 시 자동 구독 해제.
 final quickEntryCategoriesProvider =
-    StreamProvider.family<List<QuickEntryCategoryOption>, String>((ref, type) {
+    StreamProvider.autoDispose.family<List<QuickEntryCategoryOption>, String>((ref, type) {
   final database = ref.watch(appDatabaseProvider);
   return (database.select(database.categories)
         ..where((tbl) => tbl.isActive.equals(true) & tbl.type.equals(type))

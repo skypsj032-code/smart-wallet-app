@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 
 import '../../features/budgets/application/budget_provider.dart';
@@ -13,20 +14,28 @@ part 'app_database.g.dart';
     Transactions,
     Categories,
     Budgets,
+    RecurringExpenses,
     Accounts,
     AppSettings,
     BackupMetadata,
     OcrDrafts,
+    NotificationHistories,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
+  AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        beforeOpen: (details) async {
+          // WAL 모드: 동시 읽기/쓰기 시 DB Lock 마비 방지 (Read ↔ Write 비블로킹)
+          await customStatement('PRAGMA journal_mode=WAL;');
+          await customStatement('PRAGMA foreign_keys = ON;');
+        },
         onCreate: (Migrator m) async {
           await m.createAll();
         },
@@ -39,10 +48,101 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'ALTER TABLE app_settings DROP COLUMN onboarding_completed;',
               );
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              debugPrint(
+                'Skipping onboarding_completed drop during migration: '
+                '$error\n$stackTrace',
+              );
+            }
             try {
               await customStatement('DROP TABLE IF EXISTS local_user_profile;');
-            } catch (_) {}
+            } catch (error, stackTrace) {
+              debugPrint(
+                'Skipping local_user_profile drop during migration: '
+                '$error\n$stackTrace',
+              );
+            }
+          }
+          if (from < 4) {
+            await m.createTable(recurringExpenses);
+          }
+          if (from < 5) {
+            await m.addColumn(
+              appSettings,
+              appSettings.defaultCategorySeedVersion,
+            );
+          }
+          if (from >= 4 && from < 6) {
+            await transaction(() async {
+              await customStatement('''
+                CREATE TABLE recurring_expenses_new (
+                  local_id TEXT NOT NULL PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  type TEXT NOT NULL,
+                  amount INTEGER NOT NULL,
+                  cadence TEXT NOT NULL,
+                  day_of_month INTEGER NULL,
+                  weekday INTEGER NULL,
+                  account_id TEXT NOT NULL,
+                  category_id TEXT NULL,
+                  is_active INTEGER NOT NULL DEFAULT 1,
+                  last_suggested_cycle_key TEXT NULL,
+                  last_completed_cycle_key TEXT NULL,
+                  last_dismissed_cycle_key TEXT NULL,
+                  created_at INTEGER NOT NULL,
+                  last_modified_at INTEGER NOT NULL
+                );
+              ''');
+              await customStatement('''
+                INSERT INTO recurring_expenses_new (
+                  local_id,
+                  name,
+                  type,
+                  amount,
+                  cadence,
+                  day_of_month,
+                  weekday,
+                  account_id,
+                  category_id,
+                  is_active,
+                  last_completed_cycle_key,
+                  created_at,
+                  last_modified_at
+                )
+                SELECT
+                  local_id,
+                  name,
+                  'expense',
+                  amount,
+                  'monthly',
+                  day_of_month,
+                  NULL,
+                  account_id,
+                  category_id,
+                  is_active,
+                  last_created_month_key,
+                  created_at,
+                  last_modified_at
+                FROM recurring_expenses;
+              ''');
+              await customStatement('DROP TABLE recurring_expenses;');
+              await customStatement(
+                'ALTER TABLE recurring_expenses_new RENAME TO recurring_expenses;',
+              );
+            });
+          }
+          if (from < 7) {
+            await m.createTable(notificationHistories);
+          }
+          if (from < 8) {
+            await customStatement('''
+              CREATE INDEX IF NOT EXISTS transactions_timeline_idx
+              ON transactions (deleted_at, occurred_at DESC, created_at DESC);
+            ''');
+            await customStatement('''
+              CREATE INDEX IF NOT EXISTS transactions_category_timeline_idx
+              ON transactions (deleted_at, category_id, occurred_at DESC);
+            ''');
           }
         },
       );
@@ -70,7 +170,8 @@ class AppDatabase extends _$AppDatabase {
         (select(categories)..where((c) => c.isActive.equals(true))).watch();
 
     return monthlyBudgets.combineLatest(
-      monthlyExpenses.combineLatest(activeCategories, (txs, cats) => (txs, cats)),
+      monthlyExpenses.combineLatest(
+          activeCategories, (txs, cats) => (txs, cats)),
       (bgs, payload) {
         final txs = payload.$1;
         final cats = payload.$2;
@@ -106,17 +207,95 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // ── 타임라인 ────────────────────────────────────────────────────────────────
-  Stream<List<Transaction>> watchTimelineTransactions() {
-    return (select(transactions)
-          ..where((t) => t.deletedAt.isNull())
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.occurredAt),
-            (t) => OrderingTerm.desc(t.createdAt),
-          ]))
+  // ── 알림 이력 ───────────────────────────────────────────────────────────────
+  Future<void> insertNotificationHistory({
+    required String packageName,
+    required int amount,
+    required String type,
+    String? merchant,
+    String? suggestedCategory,
+    required DateTime detectedAt,
+  }) {
+    return into(notificationHistories).insert(
+      NotificationHistoriesCompanion.insert(
+        packageName: packageName,
+        amount: amount,
+        type: type,
+        merchant: Value(merchant),
+        suggestedCategory: Value(suggestedCategory),
+        detectedAt: detectedAt,
+      ),
+    );
+  }
+
+  Stream<List<NotificationHistory>> watchNotificationHistories(
+      {int limit = 100}) {
+    return (select(notificationHistories)
+          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)])
+          ..limit(limit))
         .watch();
   }
 
+  Future<void> deleteOldNotificationHistories({int keepCount = 200}) async {
+    final all = await (select(notificationHistories)
+          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]))
+        .get();
+    if (all.length <= keepCount) return;
+    final toDelete = all.sublist(keepCount).map((h) => h.id).toList();
+    await (delete(notificationHistories)..where((h) => h.id.isIn(toDelete)))
+        .go();
+  }
+
+  /// 최근 [dayRange]일간 감지된 알림 건수를 반환한다.
+  Future<int> countRecentNotificationHistories({int dayRange = 30}) async {
+    final since = DateTime.now().subtract(Duration(days: dayRange));
+    final countExpr = notificationHistories.id.count();
+    final query = selectOnly(notificationHistories)
+      ..addColumns([countExpr])
+      ..where(notificationHistories.detectedAt.isBiggerThanValue(since));
+    final row = await query.getSingle();
+    return row.read(countExpr) ?? 0;
+  }
+
+  // ── 타임라인 ────────────────────────────────────────────────────────────────
+  Stream<int> watchTimelineTransactionCount({String? typeFilter}) {
+    final countExpression = transactions.localId.count();
+    final query = selectOnly(transactions)
+      ..addColumns([countExpression])
+      ..where(_timelineFilterExpression(transactions, typeFilter));
+
+    return query.watchSingle().map((row) => row.read(countExpression) ?? 0);
+  }
+
+  Stream<List<Transaction>> watchTimelineTransactions({
+    required int limit,
+    String? typeFilter,
+  }) {
+    return (select(transactions)
+          ..where((table) => _timelineFilterExpression(table, typeFilter))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.occurredAt),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ])
+          ..limit(limit))
+        .watch();
+  }
+
+  Expression<bool> _timelineFilterExpression(
+    $TransactionsTable table,
+    String? typeFilter,
+  ) {
+    final activeRows = table.deletedAt.isNull();
+    if (typeFilter == null) {
+      return activeRows;
+    }
+    if (typeFilter == 'transfer') {
+      return activeRows &
+          (table.type.equals('transfer') |
+              table.type.equals('transfer_reserved'));
+    }
+    return activeRows & table.type.equals(typeFilter);
+  }
 }
 
 // ── StreamCombineLatest 유틸 ──────────────────────────────────────────────────

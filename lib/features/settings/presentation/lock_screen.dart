@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,8 +10,10 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_mood.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/widgets/app_brand_mark.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../application/pin_security.dart';
 import '../application/settings_provider.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
@@ -32,6 +32,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   Timer? _cooldownTimer;
   bool _unlockScheduled = false;
   late final FocusNode _keyboardFocusNode;
+
+  // 보안 랜덤 키패드: 0~9를 무작위 배치
+  List<int> _shuffledDigits = [];
 
   bool get _isCoolingDown =>
       _cooldownUntil != null && DateTime.now().isBefore(_cooldownUntil!);
@@ -52,6 +55,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   void initState() {
     super.initState();
     _keyboardFocusNode = FocusNode(debugLabel: 'lock_screen_keyboard');
+    _shuffledDigits = List<int>.generate(10, (i) => i)..shuffle();
   }
 
   @override
@@ -66,13 +70,16 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       return;
     }
 
+    final newInput = _input + digit;
+    final digits = List<int>.generate(10, (i) => i)..shuffle();
     setState(() {
-      _input += digit;
+      _input = newInput;
+      _shuffledDigits = digits;
       _message = null;
       _messageIsError = false;
     });
 
-    if (_input.length == 4) {
+    if (newInput.length == 4) {
       _verify();
     }
   }
@@ -82,8 +89,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       return;
     }
 
+    final digits = List<int>.generate(10, (i) => i)..shuffle();
     setState(() {
       _input = _input.substring(0, _input.length - 1);
+      _shuffledDigits = digits;
       _message = null;
       _messageIsError = false;
     });
@@ -94,8 +103,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       return;
     }
 
+    final digits = List<int>.generate(10, (i) => i)..shuffle();
     setState(() {
       _input = '';
+      _shuffledDigits = digits;
       _message = null;
       _messageIsError = false;
     });
@@ -134,7 +145,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         timer.cancel();
         setState(() {
           _cooldownUntil = null;
-          _message = '다시 입력할 수 있어요.';
+          _message = '다시 입력하세요.';
           _messageIsError = false;
         });
         return;
@@ -144,12 +155,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
   }
 
-  String _hashPin(String pin) {
-    final bytes = utf8.encode(pin);
-    return sha256.convert(bytes).toString();
-  }
-
-  void _verify() {
+  Future<void> _verify() async {
     final settings = ref.read(appSettingsProvider).asData?.value;
     final pinCode = settings?.pinCode;
 
@@ -158,9 +164,17 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       return;
     }
 
-    if (pinCode == _hashPin(_input)) {
+    final verification = verifyStoredPin(_input, pinCode);
+    if (verification.isValid) {
       _cooldownTimer?.cancel();
       ref.read(sessionUnlockedProvider.notifier).state = true;
+      if (verification.needsUpgrade) {
+        await migrateLegacyPinHash(
+          database: ref.read(appDatabaseProvider),
+          pin: _input,
+          previousHash: pinCode,
+        );
+      }
       return;
     }
 
@@ -173,12 +187,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       cooldownDuration = const Duration(seconds: 10);
     }
 
+    final digits = List<int>.generate(10, (i) => i)..shuffle();
     setState(() {
       _failedAttempts = failedAttempts;
       _input = '';
-      _message = cooldownDuration == null
-          ? 'PIN이 올바르지 않습니다. 다시 시도해 주세요.'
-          : '시도 횟수가 너무 많아요. 잠시 후 다시 시도해 주세요.';
+      _shuffledDigits = digits;
+      _message = cooldownDuration == null ? 'PIN이 맞지 않습니다.' : '잠시 후 다시 시도하세요.';
       _messageIsError = true;
     });
 
@@ -224,13 +238,17 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   Widget build(BuildContext context) {
     final appSettingsAsync = ref.watch(appSettingsProvider);
+    final theme = Theme.of(context);
     final mood = Theme.of(context).extension<AppMood>()!;
     final helperText = _isCoolingDown
-        ? '시도 제한 중입니다. $_cooldownSecondsRemaining초 후 다시 입력할 수 있어요.'
-        : (_message ?? '앱을 다시 열려면 PIN 4자리를 입력해 주세요.');
-    final helperStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: _messageIsError ? AppColors.expense : Theme.of(context).colorScheme.onSurfaceVariant,
-        );
+        ? '$_cooldownSecondsRemaining초 후 다시 시도하세요.'
+        : (_message ?? 'PIN 4자리를 입력해 주세요.');
+    final helperStyle = theme.textTheme.bodySmall?.copyWith(
+      color: _messageIsError
+          ? AppColors.expense
+          : theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_keyboardFocusNode.hasFocus) {
@@ -244,167 +262,241 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         autofocus: true,
         onKeyEvent: _handleKeyEvent,
         child: SafeArea(
-        child: appSettingsAsync.when(
-          data: (settings) {
-            if (!settings.appLockEnabled || settings.pinCode == null) {
-              _scheduleUnlock();
+          child: appSettingsAsync.when(
+            data: (settings) {
+              if (!settings.appLockEnabled || settings.pinCode == null) {
+                _scheduleUnlock();
 
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: AppSpacing.md),
-                    Text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
-                  ],
-                ),
-              );
-            }
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: AppSpacing.md),
+                      Text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
+                    ],
+                  ),
+                );
+              }
 
-            return Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  AppStatusChip(
-                    label: 'LOCKED SESSION',
-                    dotColor: mood.lockedAccent,
+              final screenSize = MediaQuery.sizeOf(context);
+              final isCompactHeight = screenSize.height < 700;
+
+              return Align(
+                alignment: Alignment.topCenter,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: isCompactHeight ? AppSpacing.xs : AppSpacing.md,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    width: 124,
-                    height: 124,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                      border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    ),
-                    child: const Center(
-                      child: AppBrandMark(size: 76, withBadge: true),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(
-                    '지갑을 다시 여는 중입니다',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    '오늘의 기록과 잔액 흐름을 보호하기 위해 짧은 확인이 필요해요.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      final isFilled = index < _input.length;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: isFilled ? mood.lockedAccent : Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _messageIsError ? AppColors.expense : mood.lockedAccent,
-                            width: 2,
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    height: 44,
-                    child: Center(
-                      child: Text(
-                        helperText,
-                        style: helperStyle,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  if (_failedAttempts > 0)
-                    Text(
-                      '이번 세션의 실패 횟수: $_failedAttempts회',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 280,
-                    child: GridView.count(
-                      shrinkWrap: true,
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 1.2,
-                      physics: const NeverScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (var i = 1; i <= 9; i++)
-                          _LockKey(
-                            label: i.toString(),
-                            enabled: !_isCoolingDown,
-                            onTap: () => _onDigit(i.toString()),
-                          ),
-                        const SizedBox.shrink(),
-                        _LockKey(
-                          label: '0',
-                          enabled: !_isCoolingDown,
-                          onTap: () => _onDigit('0'),
+                        AppStatusChip(
+                          label: 'SAFE WALLET',
+                          dotColor: mood.lockedAccent,
                         ),
-                        InkWell(
-                          onTap: _isCoolingDown ? null : _onDelete,
-                          borderRadius: BorderRadius.circular(40),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
+                        Container(
+                          width: isCompactHeight ? 56 : 72,
+                          height: isCompactHeight ? 56 : 72,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface
+                                .withValues(alpha: 0.96),
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
+                            border:
+                                Border.all(color: theme.colorScheme.outline),
+                          ),
                           child: Center(
-                            child: Icon(
-                              Icons.backspace_outlined,
-                              size: 28,
-                              color: _isCoolingDown
-                                  ? Theme.of(context).disabledColor
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            child: AppBrandMark(
+                              size: isCompactHeight ? 34 : 44,
+                              withBadge: true,
                             ),
                           ),
+                        ),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
+                        Text(
+                          '지갑 열기',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'PIN으로 잠금을 해제해 주세요.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.sm
+                                : AppSpacing.md),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(4, (index) {
+                            final isFilled = index < _input.length;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: isFilled
+                                    ? mood.lockedAccent
+                                    : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _messageIsError
+                                      ? AppColors.expense
+                                      : mood.lockedAccent,
+                                  width: 2,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        SizedBox(
+                          height: 28,
+                          child: Center(
+                            child: Text(
+                              helperText,
+                              style: helperStyle,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        if (_failedAttempts > 0)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: AppSpacing.xs),
+                            child: Text(
+                              '이번 세션의 실패 횟수: $_failedAttempts회',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        SizedBox(
+                            height: isCompactHeight
+                                ? AppSpacing.xs
+                                : AppSpacing.sm),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            // 키패드 너비: 가용 너비 기준으로 최대 260px로 제한
+                            final keypadWidth = math.min(
+                              constraints.maxWidth,
+                              260.0,
+                            );
+                            const gap = 10.0;
+                            const cols = 3;
+                            final btnWidth =
+                                (keypadWidth - gap * (cols - 1)) / cols;
+                            final btnHeight = btnWidth * 0.75;
+
+                            return SizedBox(
+                              width: keypadWidth,
+                              child: GridView.count(
+                                shrinkWrap: true,
+                                crossAxisCount: cols,
+                                mainAxisSpacing: gap,
+                                crossAxisSpacing: gap,
+                                childAspectRatio: btnWidth / btnHeight,
+                                physics: const NeverScrollableScrollPhysics(),
+                                children: [
+                                  // 0~8번 슬롯: 셔플된 10개 숫자 중 앞 9개
+                                  for (var i = 0; i < 9; i++)
+                                    _LockKey(
+                                      label: _shuffledDigits[i].toString(),
+                                      enabled: !_isCoolingDown,
+                                      onTap: () => _onDigit(
+                                        _shuffledDigits[i].toString(),
+                                      ),
+                                    ),
+                                  // 빈 슬롯 (왼쪽 하단)
+                                  const SizedBox.shrink(),
+                                  // 9번 슬롯: 셔플된 마지막 숫자
+                                  _LockKey(
+                                    label: _shuffledDigits[9].toString(),
+                                    enabled: !_isCoolingDown,
+                                    onTap: () => _onDigit(
+                                      _shuffledDigits[9].toString(),
+                                    ),
+                                  ),
+                                  // 백스페이스 (오른쪽 하단 고정)
+                                  InkWell(
+                                    onTap: _isCoolingDown ? null : _onDelete,
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.lg),
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.backspace_outlined,
+                                        size: 22,
+                                        color: _isCoolingDown
+                                            ? theme.disabledColor
+                                            : theme
+                                                .colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextButton(
+                          onPressed: _isCoolingDown ? null : _clearInput,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 32),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                          ),
+                          child: const Text('모두 지우기'),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextButton(
-                    onPressed: _isCoolingDown ? null : _clearInput,
-                    child: const Text('모두 지우기'),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
-              ),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '잠금 설정을 불러오지 못했습니다.\n$error',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: () => ref.invalidate(appSettingsProvider),
-                    child: const Text('다시 시도'),
-                  ),
-                ],
+                ),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '잠금 설정을 불러오지 못했습니다.\n$error',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton(
+                      onPressed: () => ref.invalidate(appSettingsProvider),
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -426,23 +518,31 @@ class _LockKey extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: theme.colorScheme.outline),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: enabled
-                  ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurfaceVariant,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant,
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: enabled
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
+                fontSize: 20,
+              ),
             ),
           ),
         ),

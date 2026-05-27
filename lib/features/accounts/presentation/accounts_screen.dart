@@ -2,12 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../application/accounts_provider.dart';
+
+String accountNetWorthSemanticLabel({
+  required int totalNetWorth,
+  required int accountCount,
+}) {
+  return 'Net worth summary. Total net worth ${formatCurrency(totalNetWorth)} across $accountCount accounts.';
+}
+
+String accountItemSemanticLabel(AccountBalance balance) {
+  return 'Account item. ${balance.account.name}. Type ${_accountTypeSemanticLabel(balance.account.type)}. Balance ${formatCurrency(balance.balance)}.';
+}
+
+String _accountTypeSemanticLabel(String type) {
+  switch (type) {
+    case 'bank':
+      return 'bank account';
+    case 'card':
+      return 'card';
+    case 'savings':
+      return 'savings';
+    case 'investment':
+      return 'investment';
+    case 'wallet':
+      return 'digital wallet';
+    default:
+      return 'cash';
+  }
+}
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -34,10 +66,12 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               AppSection(
                 title: '계좌',
-                action: FilledButton.icon(
-                  onPressed: () => _showAccountDialog(context, ref, null),
-                  icon: const Icon(Icons.add),
-                  label: const Text('추가'),
+                action: IntrinsicWidth(
+                  child: FilledButton.icon(
+                    onPressed: () => _showAccountDialog(context, ref, null),
+                    icon: const Icon(Icons.add),
+                    label: const Text('추가'),
+                  ),
                 ),
                 child: balances.isEmpty
                     ? _EmptyStateCard(
@@ -100,9 +134,16 @@ class AccountsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return SingleChildScrollView(
+              child: AlertDialog(
               title: Text(account == null ? '계좌 추가' : '계좌 수정'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -164,8 +205,10 @@ class AccountsScreen extends ConsumerWidget {
                   child: Text(account == null ? '추가' : '저장'),
                 ),
               ],
+              ),
             );
           },
+          ),
         );
       },
     );
@@ -187,38 +230,43 @@ class _NetWorthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     const amountColor = AppColors.primary;
-    final caption = accountCount == 0
-        ? '계좌를 연결하면 자산이 한눈에 들어와요.'
-        : '$accountCount개의 계좌가 연결되어 있어요.';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '총 순자산',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.65),
+    return Semantics(
+      container: true,
+      label: accountNetWorthSemanticLabel(
+        totalNetWorth: totalNetWorth,
+        accountCount: accountCount,
+      ),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '총 순자산',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.65),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _formatCurrency(totalNetWorth),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: amountColor,
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _formatCurrency(totalNetWorth),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: amountColor,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              caption,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
+              if (accountCount > 0) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '$accountCount개 계좌',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -234,31 +282,14 @@ class _EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '아직 등록한 계좌가 없어요',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '현금, 은행 계좌, 카드처럼 자주 쓰는 자산부터 추가해 보세요.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: onAddPressed,
-              icon: const Icon(Icons.add),
-              label: const Text('계좌 추가'),
-            ),
-          ],
-        ),
+    return AppEmptyState(
+      icon: Icons.account_balance_wallet_outlined,
+      title: '아직 등록한 계좌가 없어요',
+      subtitle: '현금·카드·예금 계좌를 추가하면\n잔고를 한눈에 볼 수 있어요.',
+      action: OutlinedButton.icon(
+        onPressed: onAddPressed,
+        icon: const Icon(Icons.add),
+        label: const Text('계좌 추가'),
       ),
     );
   }
@@ -309,57 +340,68 @@ class _AccountListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     const typeColor = AppColors.primary;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: CircleAvatar(
-        backgroundColor: typeColor.withValues(alpha: 0.12),
-        child: Icon(
-          _typeIcon(balance.account.type),
-          color: typeColor,
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      label: accountItemSemanticLabel(balance),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
         ),
-      ),
-      title: Text(
-        balance.account.name,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+        leading: Container(
+          width: AppSizes.avatarMD,
+          height: AppSizes.avatarMD,
+          decoration: BoxDecoration(
+            color: typeColor.withValues(alpha: AppOpacity.focused),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Icon(
+            _typeIcon(balance.account.type),
+            color: typeColor,
+            size: AppSizes.iconMD,
+          ),
+        ),
+        title: Text(
+          balance.account.name,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(_typeLabel(balance.account.type)),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              formatCurrency(balance.balance),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Text(_typeLabel(balance.account.type)),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatCurrency(balance.balance),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  onEdit();
+                } else if (value == 'delete') {
+                  onDelete();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  child: Text('수정'),
                 ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                onEdit();
-              } else if (value == 'delete') {
-                onDelete();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem<String>(
-                value: 'edit',
-                child: Text('수정'),
-              ),
-              PopupMenuItem<String>(
-                value: 'delete',
-                child: Text('삭제'),
-              ),
-            ],
-          ),
-        ],
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Text('삭제'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,8 +6,11 @@ import '../../features/accounts/presentation/accounts_screen.dart';
 import '../../features/budgets/presentation/budget_screen.dart';
 import '../../features/calendar/presentation/calendar_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/dev/presentation/design_system_screen.dart';
+import '../../features/notifications/presentation/notification_history_screen.dart';
 import '../../features/ocr/presentation/ocr_capture_screen.dart';
 import '../../features/ocr/presentation/ocr_review_screen.dart';
+import '../../features/recurring_expenses/presentation/recurring_expenses_screen.dart';
 import '../../features/root/presentation/app_shell.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/settings/application/settings_provider.dart';
@@ -16,8 +19,37 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
 import '../../features/transactions/presentation/quick_entry_screen.dart';
+import '../../features/tools/presentation/tools_screen.dart';
 
 final sessionUnlockedProvider = StateProvider<bool>((ref) => false);
+
+/// 경로 → 탭 인덱스 정적 매핑.
+/// 새 라우트를 추가할 때 이 맵만 업데이트하면 AppShell이 자동 반영된다.
+const _kRouteTabIndex = <String, int>{
+  '/': 0,
+  '/quick-entry': 0, // 모달 — 탭 변경 없음
+  '/timeline': 1,
+  '/tools': 2,
+  '/calendar': 2,
+  '/statistics': 2,
+  '/search': 2,
+  '/accounts': 2,
+  '/budgets': 2,
+  '/ocr-capture': 2,
+  '/ocr-review': 2,
+  '/recurring-expenses': 2,
+  '/notification-history': 2,
+  '/settings': 3,
+  '/dev/design': 3, // 디자인 시스템 — 설정 탭에서 진입
+  '/lock': 0, // 잠금화면 — 탭 무관
+};
+
+/// 현재 경로 문자열로부터 BottomNavigationBar 탭 인덱스를 반환한다.
+/// 쿼리 파라미터는 무시한다.
+int routeTabIndex(String location) {
+  final path = location.split('?').first;
+  return _kRouteTabIndex[path] ?? 0;
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final appSettings = ref.watch(appSettingsProvider).asData?.value;
@@ -28,7 +60,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isLockRoute = state.matchedLocation == '/lock';
 
-      if (appSettings != null && appSettings.appLockEnabled && !isSessionUnlocked) {
+      if (appSettings != null &&
+          appSettings.appLockEnabled &&
+          !isSessionUnlocked) {
         return isLockRoute ? null : '/lock';
       }
 
@@ -58,7 +92,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/quick-entry',
             name: 'quick-entry',
             pageBuilder: (context, state) =>
-                _buildShellPage(state: state, child: const QuickEntryScreen()),
+                _buildModalPage(state: state, child: const QuickEntryScreen()),
           ),
           GoRoute(
             path: '/calendar',
@@ -83,6 +117,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'accounts',
             pageBuilder: (context, state) =>
                 _buildShellPage(state: state, child: const AccountsScreen()),
+          ),
+          GoRoute(
+            path: '/tools',
+            name: 'tools',
+            pageBuilder: (context, state) =>
+                _buildShellPage(state: state, child: const ToolsScreen()),
           ),
           GoRoute(
             path: '/settings',
@@ -114,6 +154,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) =>
                 _buildShellPage(state: state, child: const BudgetScreen()),
           ),
+          GoRoute(
+            path: '/recurring-expenses',
+            name: 'recurring-expenses',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const RecurringExpensesScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/notification-history',
+            name: 'notification-history',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const NotificationHistoryScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dev/design',
+            name: 'dev-design',
+            pageBuilder: (context, state) => _buildShellPage(
+              state: state,
+              child: const DesignSystemScreen(),
+            ),
+          ),
         ],
       ),
     ],
@@ -139,5 +203,32 @@ NoTransitionPage<void> _buildTransitionPage({
   return NoTransitionPage<void>(
     key: state.pageKey,
     child: child,
+  );
+}
+
+/// 하단에서 슬라이드 올라오는 모달 스타일 페이지 (퀵 입력 전용)
+CustomTransitionPage<void> _buildModalPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
   );
 }

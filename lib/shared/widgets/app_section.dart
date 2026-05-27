@@ -19,6 +19,9 @@ class AppSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brightness = theme.brightness;
+    final isDark = brightness == Brightness.dark;
+    final foreground = isDark ? Colors.white : theme.colorScheme.onSurface;
+    final markerColor = isDark ? Colors.white : theme.colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,17 +34,17 @@ class AppSection extends StatelessWidget {
               height: 26,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(
-                  alpha: brightness == Brightness.dark ? 0.16 : 0.10,
-                ),
+                color: markerColor.withValues(alpha: isDark ? 0.10 : 0.14),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: theme.colorScheme.outline),
+                border: Border.all(
+                  color: markerColor.withValues(alpha: isDark ? 0.32 : 0.38),
+                ),
               ),
               child: Container(
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
+                  color: markerColor,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
               ),
@@ -51,6 +54,7 @@ class AppSection extends StatelessWidget {
               child: Text(
                 title,
                 style: theme.textTheme.titleMedium?.copyWith(
+                  color: foreground,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -64,4 +68,3 @@ class AppSection extends StatelessWidget {
     );
   }
 }
-

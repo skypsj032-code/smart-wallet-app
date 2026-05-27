@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/ocr_draft_repository.dart';
@@ -79,9 +83,18 @@ class OcrDraftState {
   }
 }
 
-class OcrCaptureController extends Notifier<OcrDraftState> {
+class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
+  String? _trackedImagePath;
+
   @override
-  OcrDraftState build() => const OcrDraftState();
+  OcrDraftState build() {
+    ref.onDispose(() {
+      final imagePath = _trackedImagePath;
+      _trackedImagePath = null;
+      unawaited(_deleteCapturedImage(imagePath));
+    });
+    return const OcrDraftState();
+  }
 
   Future<void> runCaptureFlow() async {
     await simulateCapture();
@@ -98,6 +111,7 @@ class OcrCaptureController extends Notifier<OcrDraftState> {
   }
 
   Future<void> simulateCapture() async {
+    final previousImagePath = state.imagePath;
     state = const OcrDraftState(status: OcrFlowStatus.capturing);
 
     try {
@@ -112,6 +126,10 @@ class OcrCaptureController extends Notifier<OcrDraftState> {
         status: OcrFlowStatus.capturing,
         imagePath: imagePath,
       );
+      _trackedImagePath = imagePath;
+      if (previousImagePath != null && previousImagePath != imagePath) {
+        await _deleteCapturedImage(previousImagePath);
+      }
     } catch (error) {
       await fail('Could not capture the receipt. $error');
     }
@@ -304,8 +322,11 @@ class OcrCaptureController extends Notifier<OcrDraftState> {
     );
   }
 
-  void reset() {
+  Future<void> reset() async {
+    final previousImagePath = _trackedImagePath ?? state.imagePath;
+    _trackedImagePath = null;
     state = const OcrDraftState();
+    await _deleteCapturedImage(previousImagePath);
   }
 
   Future<void> _persistState({
@@ -337,8 +358,28 @@ class OcrCaptureController extends Notifier<OcrDraftState> {
 
     return int.tryParse(digitsOnly);
   }
+
+  Future<void> _deleteCapturedImage(String? imagePath) async {
+    final normalizedPath = imagePath?.trim();
+    if (normalizedPath == null || normalizedPath.isEmpty) {
+      return;
+    }
+
+    final file = File(normalizedPath);
+    if (!await file.exists()) {
+      return;
+    }
+
+    try {
+      await file.delete();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to delete OCR temp image: $error\n$stackTrace');
+    }
+  }
 }
 
-final ocrCaptureProvider = NotifierProvider<OcrCaptureController, OcrDraftState>(
+/// OCR 화면 종료 시 draft 상태 자동 해제 (DB에 이미 영속화되므로 안전).
+final ocrCaptureProvider =
+    NotifierProvider.autoDispose<OcrCaptureController, OcrDraftState>(
   OcrCaptureController.new,
 );

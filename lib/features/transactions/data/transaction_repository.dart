@@ -1,12 +1,16 @@
 import 'package:drift/drift.dart';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../application/quick_entry_form_provider.dart';
+import 'transaction_repository_interface.dart';
 
-class TransactionRepository {
+const _uuid = Uuid();
+
+class TransactionRepository implements ITransactionRepository {
   TransactionRepository(this._database);
 
   final AppDatabase _database;
@@ -40,7 +44,7 @@ class TransactionRepository {
 
       await _database.into(_database.transactions).insert(
             TransactionsCompanion.insert(
-              localId: 'tx_${now.microsecondsSinceEpoch}',
+              localId: 'tx_${_uuid.v4()}',
               type: _mapType(form.type),
               amount: amount,
               occurredAt: occurredAt,
@@ -67,7 +71,7 @@ class TransactionRepository {
 
     await _database.into(_database.transactions).insert(
           TransactionsCompanion.insert(
-            localId: 'tx_${now.microsecondsSinceEpoch}',
+            localId: 'tx_${_uuid.v4()}',
             type: _mapType(form.type),
             amount: amount,
             occurredAt: occurredAt,
@@ -154,8 +158,29 @@ class TransactionRepository {
     );
   }
 
-  Future<void> softDeleteTransaction(String localId) async {
+  Future<void> undoDeleteTransaction(String localId) async {
     final now = DateTime.now();
+    await (_database.update(_database.transactions)
+          ..where((tbl) => tbl.localId.equals(localId)))
+        .write(
+          TransactionsCompanion(
+            deletedAt: const Value(null),
+            lastModifiedAt: Value(now),
+          ),
+        );
+  }
+
+  Future<void> softDeleteTransaction(String localId) async {
+    final existing = await (_database.select(_database.transactions)
+          ..where((tbl) => tbl.localId.equals(localId)))
+        .getSingleOrNull();
+    final rawNow = DateTime.now();
+    final minimumNextModifiedAt =
+        existing?.lastModifiedAt.add(const Duration(seconds: 1));
+    final now = minimumNextModifiedAt != null &&
+            !rawNow.isAfter(minimumNextModifiedAt)
+        ? minimumNextModifiedAt
+        : rawNow;
 
     await (_database.update(_database.transactions)
           ..where((tbl) => tbl.localId.equals(localId)))
@@ -179,7 +204,9 @@ class TransactionRepository {
   }
 }
 
-final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
+/// Provider는 인터페이스 타입으로 노출 — 테스트에서 override 가능.
+final transactionRepositoryProvider =
+    Provider<ITransactionRepository>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return TransactionRepository(database);
 });

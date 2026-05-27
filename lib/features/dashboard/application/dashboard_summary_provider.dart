@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+import 'dashboard_narrative.dart';
 
 class DashboardSummary {
   const DashboardSummary({
@@ -16,7 +17,7 @@ class DashboardSummary {
     required this.totalBudget,
     required this.netCashflow,
     required this.recentTransactions,
-    required this.repeatSuggestions,
+    required this.narrative,
   });
 
   final int monthIncome;
@@ -27,7 +28,7 @@ class DashboardSummary {
   final int totalBudget;
   final int netCashflow;
   final List<Transaction> recentTransactions;
-  final List<Transaction> repeatSuggestions;
+  final DashboardNarrativeSnapshot narrative;
 
   double get budgetUsageRate {
     if (totalBudget <= 0) {
@@ -57,6 +58,10 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         ..where((b) => b.monthKey.equals(monthKey)))
       .watch();
 
+  final activeCategories = (database.select(database.categories)
+        ..where((c) => c.isActive.equals(true)))
+      .watch();
+
   final recentTransactions = (database.select(database.transactions)
         ..where((t) => t.deletedAt.isNull())
         ..orderBy([
@@ -66,11 +71,12 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         ..limit(12))
       .watch();
 
-  return _combine3(
+  return _combine4(
     monthlyTransactions,
     monthlyBudgets,
+    activeCategories,
     recentTransactions,
-    (txs, budgets, recent) {
+    (txs, budgets, categories, recent) {
       final income = txs
           .where((tx) => tx.type == 'income')
           .fold<int>(0, (sum, tx) => sum + tx.amount);
@@ -87,28 +93,14 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
       final todayExpense = todayTransactions
           .where((tx) => tx.type == 'expense')
           .fold<int>(0, (sum, tx) => sum + tx.amount);
-      final totalBudget = budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
-      final repeatSuggestions = <Transaction>[];
-      final seenKeys = <String>{};
-
-      for (final tx in recent) {
-        if (tx.type == 'transfer') {
-          continue;
-        }
-
-        final key =
-            '${tx.type}|${tx.accountId ?? ''}|${tx.categoryId ?? ''}|${tx.memo ?? tx.merchantName ?? ''}|${tx.amount}';
-        if (seenKeys.contains(key)) {
-          continue;
-        }
-
-        seenKeys.add(key);
-        repeatSuggestions.add(tx);
-
-        if (repeatSuggestions.length >= 3) {
-          break;
-        }
-      }
+      final totalBudget =
+          budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
+      final narrative = buildDashboardNarrativeSnapshot(
+        monthlyTransactions: txs,
+        categories: categories,
+        totalBudget: totalBudget,
+        today: today,
+      );
 
       return DashboardSummary(
         monthIncome: income,
@@ -119,33 +111,37 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
         totalBudget: totalBudget,
         netCashflow: income - expense,
         recentTransactions: recent.take(5).toList(),
-        repeatSuggestions: repeatSuggestions,
+        narrative: narrative,
       );
     },
   );
 });
 
-Stream<R> _combine3<A, B, C, R>(
+Stream<R> _combine4<A, B, C, D, R>(
   Stream<A> a,
   Stream<B> b,
   Stream<C> c,
-  R Function(A a, B b, C c) combiner,
+  Stream<D> d,
+  R Function(A a, B b, C c, D d) combiner,
 ) {
   late A latestA;
   late B latestB;
   late C latestC;
+  late D latestD;
   var hasA = false;
   var hasB = false;
   var hasC = false;
+  var hasD = false;
 
   final controller = StreamController<R>.broadcast();
   late StreamSubscription<A> subA;
   late StreamSubscription<B> subB;
   late StreamSubscription<C> subC;
+  late StreamSubscription<D> subD;
 
   void emitIfReady() {
-    if (hasA && hasB && hasC) {
-      controller.add(combiner(latestA, latestB, latestC));
+    if (hasA && hasB && hasC && hasD) {
+      controller.add(combiner(latestA, latestB, latestC, latestD));
     }
   }
 
@@ -176,10 +172,20 @@ Stream<R> _combine3<A, B, C, R>(
     onError: controller.addError,
   );
 
+  subD = d.listen(
+    (value) {
+      latestD = value;
+      hasD = true;
+      emitIfReady();
+    },
+    onError: controller.addError,
+  );
+
   controller.onCancel = () async {
     await subA.cancel();
     await subB.cancel();
     await subC.cancel();
+    await subD.cancel();
   };
 
   return controller.stream;

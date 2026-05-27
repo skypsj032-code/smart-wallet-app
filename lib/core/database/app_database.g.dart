@@ -1760,6 +1760,768 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   }
 }
 
+class $RecurringExpensesTable extends RecurringExpenses
+    with TableInfo<$RecurringExpensesTable, RecurringExpense> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringExpensesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localIdMeta =
+      const VerificationMeta('localId');
+  @override
+  late final GeneratedColumn<String> localId = GeneratedColumn<String>(
+      'local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _cadenceMeta =
+      const VerificationMeta('cadence');
+  @override
+  late final GeneratedColumn<String> cadence = GeneratedColumn<String>(
+      'cadence', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dayOfMonthMeta =
+      const VerificationMeta('dayOfMonth');
+  @override
+  late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
+      'day_of_month', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _weekdayMeta =
+      const VerificationMeta('weekday');
+  @override
+  late final GeneratedColumn<int> weekday = GeneratedColumn<int>(
+      'weekday', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _accountIdMeta =
+      const VerificationMeta('accountId');
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+      'account_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+      'category_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _lastSuggestedCycleKeyMeta =
+      const VerificationMeta('lastSuggestedCycleKey');
+  @override
+  late final GeneratedColumn<String> lastSuggestedCycleKey =
+      GeneratedColumn<String>('last_suggested_cycle_key', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastCompletedCycleKeyMeta =
+      const VerificationMeta('lastCompletedCycleKey');
+  @override
+  late final GeneratedColumn<String> lastCompletedCycleKey =
+      GeneratedColumn<String>('last_completed_cycle_key', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastDismissedCycleKeyMeta =
+      const VerificationMeta('lastDismissedCycleKey');
+  @override
+  late final GeneratedColumn<String> lastDismissedCycleKey =
+      GeneratedColumn<String>('last_dismissed_cycle_key', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _lastModifiedAtMeta =
+      const VerificationMeta('lastModifiedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastModifiedAt =
+      GeneratedColumn<DateTime>('last_modified_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        localId,
+        name,
+        type,
+        amount,
+        cadence,
+        dayOfMonth,
+        weekday,
+        accountId,
+        categoryId,
+        isActive,
+        lastSuggestedCycleKey,
+        lastCompletedCycleKey,
+        lastDismissedCycleKey,
+        createdAt,
+        lastModifiedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_expenses';
+  @override
+  VerificationContext validateIntegrity(Insertable<RecurringExpense> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_id')) {
+      context.handle(_localIdMeta,
+          localId.isAcceptableOrUnknown(data['local_id']!, _localIdMeta));
+    } else if (isInserting) {
+      context.missing(_localIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('cadence')) {
+      context.handle(_cadenceMeta,
+          cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta));
+    } else if (isInserting) {
+      context.missing(_cadenceMeta);
+    }
+    if (data.containsKey('day_of_month')) {
+      context.handle(
+          _dayOfMonthMeta,
+          dayOfMonth.isAcceptableOrUnknown(
+              data['day_of_month']!, _dayOfMonthMeta));
+    }
+    if (data.containsKey('weekday')) {
+      context.handle(_weekdayMeta,
+          weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta));
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(_accountIdMeta,
+          accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta));
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+          _categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(
+              data['category_id']!, _categoryIdMeta));
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
+    if (data.containsKey('last_suggested_cycle_key')) {
+      context.handle(
+          _lastSuggestedCycleKeyMeta,
+          lastSuggestedCycleKey.isAcceptableOrUnknown(
+              data['last_suggested_cycle_key']!, _lastSuggestedCycleKeyMeta));
+    }
+    if (data.containsKey('last_completed_cycle_key')) {
+      context.handle(
+          _lastCompletedCycleKeyMeta,
+          lastCompletedCycleKey.isAcceptableOrUnknown(
+              data['last_completed_cycle_key']!, _lastCompletedCycleKeyMeta));
+    }
+    if (data.containsKey('last_dismissed_cycle_key')) {
+      context.handle(
+          _lastDismissedCycleKeyMeta,
+          lastDismissedCycleKey.isAcceptableOrUnknown(
+              data['last_dismissed_cycle_key']!, _lastDismissedCycleKeyMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('last_modified_at')) {
+      context.handle(
+          _lastModifiedAtMeta,
+          lastModifiedAt.isAcceptableOrUnknown(
+              data['last_modified_at']!, _lastModifiedAtMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localId};
+  @override
+  RecurringExpense map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringExpense(
+      localId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      cadence: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cadence'])!,
+      dayOfMonth: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day_of_month']),
+      weekday: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}weekday']),
+      accountId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}account_id'])!,
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+      lastSuggestedCycleKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_suggested_cycle_key']),
+      lastCompletedCycleKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_completed_cycle_key']),
+      lastDismissedCycleKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_dismissed_cycle_key']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      lastModifiedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_modified_at'])!,
+    );
+  }
+
+  @override
+  $RecurringExpensesTable createAlias(String alias) {
+    return $RecurringExpensesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringExpense extends DataClass
+    implements Insertable<RecurringExpense> {
+  final String localId;
+  final String name;
+  final String type;
+  final int amount;
+  final String cadence;
+  final int? dayOfMonth;
+  final int? weekday;
+  final String accountId;
+  final String? categoryId;
+  final bool isActive;
+  final String? lastSuggestedCycleKey;
+  final String? lastCompletedCycleKey;
+  final String? lastDismissedCycleKey;
+  final DateTime createdAt;
+  final DateTime lastModifiedAt;
+  const RecurringExpense(
+      {required this.localId,
+      required this.name,
+      required this.type,
+      required this.amount,
+      required this.cadence,
+      this.dayOfMonth,
+      this.weekday,
+      required this.accountId,
+      this.categoryId,
+      required this.isActive,
+      this.lastSuggestedCycleKey,
+      this.lastCompletedCycleKey,
+      this.lastDismissedCycleKey,
+      required this.createdAt,
+      required this.lastModifiedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_id'] = Variable<String>(localId);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['amount'] = Variable<int>(amount);
+    map['cadence'] = Variable<String>(cadence);
+    if (!nullToAbsent || dayOfMonth != null) {
+      map['day_of_month'] = Variable<int>(dayOfMonth);
+    }
+    if (!nullToAbsent || weekday != null) {
+      map['weekday'] = Variable<int>(weekday);
+    }
+    map['account_id'] = Variable<String>(accountId);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || lastSuggestedCycleKey != null) {
+      map['last_suggested_cycle_key'] = Variable<String>(lastSuggestedCycleKey);
+    }
+    if (!nullToAbsent || lastCompletedCycleKey != null) {
+      map['last_completed_cycle_key'] = Variable<String>(lastCompletedCycleKey);
+    }
+    if (!nullToAbsent || lastDismissedCycleKey != null) {
+      map['last_dismissed_cycle_key'] = Variable<String>(lastDismissedCycleKey);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['last_modified_at'] = Variable<DateTime>(lastModifiedAt);
+    return map;
+  }
+
+  RecurringExpensesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringExpensesCompanion(
+      localId: Value(localId),
+      name: Value(name),
+      type: Value(type),
+      amount: Value(amount),
+      cadence: Value(cadence),
+      dayOfMonth: dayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfMonth),
+      weekday: weekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekday),
+      accountId: Value(accountId),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      isActive: Value(isActive),
+      lastSuggestedCycleKey: lastSuggestedCycleKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSuggestedCycleKey),
+      lastCompletedCycleKey: lastCompletedCycleKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastCompletedCycleKey),
+      lastDismissedCycleKey: lastDismissedCycleKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDismissedCycleKey),
+      createdAt: Value(createdAt),
+      lastModifiedAt: Value(lastModifiedAt),
+    );
+  }
+
+  factory RecurringExpense.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringExpense(
+      localId: serializer.fromJson<String>(json['localId']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      amount: serializer.fromJson<int>(json['amount']),
+      cadence: serializer.fromJson<String>(json['cadence']),
+      dayOfMonth: serializer.fromJson<int?>(json['dayOfMonth']),
+      weekday: serializer.fromJson<int?>(json['weekday']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      lastSuggestedCycleKey:
+          serializer.fromJson<String?>(json['lastSuggestedCycleKey']),
+      lastCompletedCycleKey:
+          serializer.fromJson<String?>(json['lastCompletedCycleKey']),
+      lastDismissedCycleKey:
+          serializer.fromJson<String?>(json['lastDismissedCycleKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastModifiedAt: serializer.fromJson<DateTime>(json['lastModifiedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localId': serializer.toJson<String>(localId),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'amount': serializer.toJson<int>(amount),
+      'cadence': serializer.toJson<String>(cadence),
+      'dayOfMonth': serializer.toJson<int?>(dayOfMonth),
+      'weekday': serializer.toJson<int?>(weekday),
+      'accountId': serializer.toJson<String>(accountId),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'isActive': serializer.toJson<bool>(isActive),
+      'lastSuggestedCycleKey':
+          serializer.toJson<String?>(lastSuggestedCycleKey),
+      'lastCompletedCycleKey':
+          serializer.toJson<String?>(lastCompletedCycleKey),
+      'lastDismissedCycleKey':
+          serializer.toJson<String?>(lastDismissedCycleKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastModifiedAt': serializer.toJson<DateTime>(lastModifiedAt),
+    };
+  }
+
+  RecurringExpense copyWith(
+          {String? localId,
+          String? name,
+          String? type,
+          int? amount,
+          String? cadence,
+          Value<int?> dayOfMonth = const Value.absent(),
+          Value<int?> weekday = const Value.absent(),
+          String? accountId,
+          Value<String?> categoryId = const Value.absent(),
+          bool? isActive,
+          Value<String?> lastSuggestedCycleKey = const Value.absent(),
+          Value<String?> lastCompletedCycleKey = const Value.absent(),
+          Value<String?> lastDismissedCycleKey = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? lastModifiedAt}) =>
+      RecurringExpense(
+        localId: localId ?? this.localId,
+        name: name ?? this.name,
+        type: type ?? this.type,
+        amount: amount ?? this.amount,
+        cadence: cadence ?? this.cadence,
+        dayOfMonth: dayOfMonth.present ? dayOfMonth.value : this.dayOfMonth,
+        weekday: weekday.present ? weekday.value : this.weekday,
+        accountId: accountId ?? this.accountId,
+        categoryId: categoryId.present ? categoryId.value : this.categoryId,
+        isActive: isActive ?? this.isActive,
+        lastSuggestedCycleKey: lastSuggestedCycleKey.present
+            ? lastSuggestedCycleKey.value
+            : this.lastSuggestedCycleKey,
+        lastCompletedCycleKey: lastCompletedCycleKey.present
+            ? lastCompletedCycleKey.value
+            : this.lastCompletedCycleKey,
+        lastDismissedCycleKey: lastDismissedCycleKey.present
+            ? lastDismissedCycleKey.value
+            : this.lastDismissedCycleKey,
+        createdAt: createdAt ?? this.createdAt,
+        lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
+      );
+  RecurringExpense copyWithCompanion(RecurringExpensesCompanion data) {
+    return RecurringExpense(
+      localId: data.localId.present ? data.localId.value : this.localId,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
+      dayOfMonth:
+          data.dayOfMonth.present ? data.dayOfMonth.value : this.dayOfMonth,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      lastSuggestedCycleKey: data.lastSuggestedCycleKey.present
+          ? data.lastSuggestedCycleKey.value
+          : this.lastSuggestedCycleKey,
+      lastCompletedCycleKey: data.lastCompletedCycleKey.present
+          ? data.lastCompletedCycleKey.value
+          : this.lastCompletedCycleKey,
+      lastDismissedCycleKey: data.lastDismissedCycleKey.present
+          ? data.lastDismissedCycleKey.value
+          : this.lastDismissedCycleKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastModifiedAt: data.lastModifiedAt.present
+          ? data.lastModifiedAt.value
+          : this.lastModifiedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringExpense(')
+          ..write('localId: $localId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('weekday: $weekday, ')
+          ..write('accountId: $accountId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('isActive: $isActive, ')
+          ..write('lastSuggestedCycleKey: $lastSuggestedCycleKey, ')
+          ..write('lastCompletedCycleKey: $lastCompletedCycleKey, ')
+          ..write('lastDismissedCycleKey: $lastDismissedCycleKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastModifiedAt: $lastModifiedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      localId,
+      name,
+      type,
+      amount,
+      cadence,
+      dayOfMonth,
+      weekday,
+      accountId,
+      categoryId,
+      isActive,
+      lastSuggestedCycleKey,
+      lastCompletedCycleKey,
+      lastDismissedCycleKey,
+      createdAt,
+      lastModifiedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringExpense &&
+          other.localId == this.localId &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.amount == this.amount &&
+          other.cadence == this.cadence &&
+          other.dayOfMonth == this.dayOfMonth &&
+          other.weekday == this.weekday &&
+          other.accountId == this.accountId &&
+          other.categoryId == this.categoryId &&
+          other.isActive == this.isActive &&
+          other.lastSuggestedCycleKey == this.lastSuggestedCycleKey &&
+          other.lastCompletedCycleKey == this.lastCompletedCycleKey &&
+          other.lastDismissedCycleKey == this.lastDismissedCycleKey &&
+          other.createdAt == this.createdAt &&
+          other.lastModifiedAt == this.lastModifiedAt);
+}
+
+class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
+  final Value<String> localId;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<int> amount;
+  final Value<String> cadence;
+  final Value<int?> dayOfMonth;
+  final Value<int?> weekday;
+  final Value<String> accountId;
+  final Value<String?> categoryId;
+  final Value<bool> isActive;
+  final Value<String?> lastSuggestedCycleKey;
+  final Value<String?> lastCompletedCycleKey;
+  final Value<String?> lastDismissedCycleKey;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> lastModifiedAt;
+  final Value<int> rowid;
+  const RecurringExpensesCompanion({
+    this.localId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.cadence = const Value.absent(),
+    this.dayOfMonth = const Value.absent(),
+    this.weekday = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.lastSuggestedCycleKey = const Value.absent(),
+    this.lastCompletedCycleKey = const Value.absent(),
+    this.lastDismissedCycleKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastModifiedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringExpensesCompanion.insert({
+    required String localId,
+    required String name,
+    required String type,
+    required int amount,
+    required String cadence,
+    this.dayOfMonth = const Value.absent(),
+    this.weekday = const Value.absent(),
+    required String accountId,
+    this.categoryId = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.lastSuggestedCycleKey = const Value.absent(),
+    this.lastCompletedCycleKey = const Value.absent(),
+    this.lastDismissedCycleKey = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime lastModifiedAt,
+    this.rowid = const Value.absent(),
+  })  : localId = Value(localId),
+        name = Value(name),
+        type = Value(type),
+        amount = Value(amount),
+        cadence = Value(cadence),
+        accountId = Value(accountId),
+        createdAt = Value(createdAt),
+        lastModifiedAt = Value(lastModifiedAt);
+  static Insertable<RecurringExpense> custom({
+    Expression<String>? localId,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<int>? amount,
+    Expression<String>? cadence,
+    Expression<int>? dayOfMonth,
+    Expression<int>? weekday,
+    Expression<String>? accountId,
+    Expression<String>? categoryId,
+    Expression<bool>? isActive,
+    Expression<String>? lastSuggestedCycleKey,
+    Expression<String>? lastCompletedCycleKey,
+    Expression<String>? lastDismissedCycleKey,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastModifiedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (localId != null) 'local_id': localId,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (amount != null) 'amount': amount,
+      if (cadence != null) 'cadence': cadence,
+      if (dayOfMonth != null) 'day_of_month': dayOfMonth,
+      if (weekday != null) 'weekday': weekday,
+      if (accountId != null) 'account_id': accountId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (isActive != null) 'is_active': isActive,
+      if (lastSuggestedCycleKey != null)
+        'last_suggested_cycle_key': lastSuggestedCycleKey,
+      if (lastCompletedCycleKey != null)
+        'last_completed_cycle_key': lastCompletedCycleKey,
+      if (lastDismissedCycleKey != null)
+        'last_dismissed_cycle_key': lastDismissedCycleKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastModifiedAt != null) 'last_modified_at': lastModifiedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringExpensesCompanion copyWith(
+      {Value<String>? localId,
+      Value<String>? name,
+      Value<String>? type,
+      Value<int>? amount,
+      Value<String>? cadence,
+      Value<int?>? dayOfMonth,
+      Value<int?>? weekday,
+      Value<String>? accountId,
+      Value<String?>? categoryId,
+      Value<bool>? isActive,
+      Value<String?>? lastSuggestedCycleKey,
+      Value<String?>? lastCompletedCycleKey,
+      Value<String?>? lastDismissedCycleKey,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? lastModifiedAt,
+      Value<int>? rowid}) {
+    return RecurringExpensesCompanion(
+      localId: localId ?? this.localId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      cadence: cadence ?? this.cadence,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      weekday: weekday ?? this.weekday,
+      accountId: accountId ?? this.accountId,
+      categoryId: categoryId ?? this.categoryId,
+      isActive: isActive ?? this.isActive,
+      lastSuggestedCycleKey:
+          lastSuggestedCycleKey ?? this.lastSuggestedCycleKey,
+      lastCompletedCycleKey:
+          lastCompletedCycleKey ?? this.lastCompletedCycleKey,
+      lastDismissedCycleKey:
+          lastDismissedCycleKey ?? this.lastDismissedCycleKey,
+      createdAt: createdAt ?? this.createdAt,
+      lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localId.present) {
+      map['local_id'] = Variable<String>(localId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (cadence.present) {
+      map['cadence'] = Variable<String>(cadence.value);
+    }
+    if (dayOfMonth.present) {
+      map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    }
+    if (weekday.present) {
+      map['weekday'] = Variable<int>(weekday.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (lastSuggestedCycleKey.present) {
+      map['last_suggested_cycle_key'] =
+          Variable<String>(lastSuggestedCycleKey.value);
+    }
+    if (lastCompletedCycleKey.present) {
+      map['last_completed_cycle_key'] =
+          Variable<String>(lastCompletedCycleKey.value);
+    }
+    if (lastDismissedCycleKey.present) {
+      map['last_dismissed_cycle_key'] =
+          Variable<String>(lastDismissedCycleKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastModifiedAt.present) {
+      map['last_modified_at'] = Variable<DateTime>(lastModifiedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringExpensesCompanion(')
+          ..write('localId: $localId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('cadence: $cadence, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('weekday: $weekday, ')
+          ..write('accountId: $accountId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('isActive: $isActive, ')
+          ..write('lastSuggestedCycleKey: $lastSuggestedCycleKey, ')
+          ..write('lastCompletedCycleKey: $lastCompletedCycleKey, ')
+          ..write('lastDismissedCycleKey: $lastDismissedCycleKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastModifiedAt: $lastModifiedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -2236,6 +2998,14 @@ class $AppSettingsTable extends AppSettings
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('system'));
+  static const VerificationMeta _defaultCategorySeedVersionMeta =
+      const VerificationMeta('defaultCategorySeedVersion');
+  @override
+  late final GeneratedColumn<int> defaultCategorySeedVersion =
+      GeneratedColumn<int>('default_category_seed_version', aliasedName, false,
+          type: DriftSqlType.int,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(0));
   static const VerificationMeta _appLockEnabledMeta =
       const VerificationMeta('appLockEnabled');
   @override
@@ -2290,6 +3060,7 @@ class $AppSettingsTable extends AppSettings
         currencyCode,
         weekStart,
         themeMode,
+        defaultCategorySeedVersion,
         appLockEnabled,
         biometricEnabled,
         exportIncludeDeleted,
@@ -2323,6 +3094,13 @@ class $AppSettingsTable extends AppSettings
     if (data.containsKey('theme_mode')) {
       context.handle(_themeModeMeta,
           themeMode.isAcceptableOrUnknown(data['theme_mode']!, _themeModeMeta));
+    }
+    if (data.containsKey('default_category_seed_version')) {
+      context.handle(
+          _defaultCategorySeedVersionMeta,
+          defaultCategorySeedVersion.isAcceptableOrUnknown(
+              data['default_category_seed_version']!,
+              _defaultCategorySeedVersionMeta));
     }
     if (data.containsKey('app_lock_enabled')) {
       context.handle(
@@ -2377,6 +3155,9 @@ class $AppSettingsTable extends AppSettings
           .read(DriftSqlType.string, data['${effectivePrefix}week_start'])!,
       themeMode: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}theme_mode'])!,
+      defaultCategorySeedVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}default_category_seed_version'])!,
       appLockEnabled: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}app_lock_enabled'])!,
       biometricEnabled: attachedDatabase.typeMapping.read(
@@ -2403,6 +3184,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String currencyCode;
   final String weekStart;
   final String themeMode;
+  final int defaultCategorySeedVersion;
   final bool appLockEnabled;
   final bool biometricEnabled;
   final bool exportIncludeDeleted;
@@ -2414,6 +3196,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       required this.currencyCode,
       required this.weekStart,
       required this.themeMode,
+      required this.defaultCategorySeedVersion,
       required this.appLockEnabled,
       required this.biometricEnabled,
       required this.exportIncludeDeleted,
@@ -2427,6 +3210,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['currency_code'] = Variable<String>(currencyCode);
     map['week_start'] = Variable<String>(weekStart);
     map['theme_mode'] = Variable<String>(themeMode);
+    map['default_category_seed_version'] =
+        Variable<int>(defaultCategorySeedVersion);
     map['app_lock_enabled'] = Variable<bool>(appLockEnabled);
     map['biometric_enabled'] = Variable<bool>(biometricEnabled);
     map['export_include_deleted'] = Variable<bool>(exportIncludeDeleted);
@@ -2444,6 +3229,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       currencyCode: Value(currencyCode),
       weekStart: Value(weekStart),
       themeMode: Value(themeMode),
+      defaultCategorySeedVersion: Value(defaultCategorySeedVersion),
       appLockEnabled: Value(appLockEnabled),
       biometricEnabled: Value(biometricEnabled),
       exportIncludeDeleted: Value(exportIncludeDeleted),
@@ -2463,6 +3249,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       weekStart: serializer.fromJson<String>(json['weekStart']),
       themeMode: serializer.fromJson<String>(json['themeMode']),
+      defaultCategorySeedVersion:
+          serializer.fromJson<int>(json['defaultCategorySeedVersion']),
       appLockEnabled: serializer.fromJson<bool>(json['appLockEnabled']),
       biometricEnabled: serializer.fromJson<bool>(json['biometricEnabled']),
       exportIncludeDeleted:
@@ -2480,6 +3268,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'currencyCode': serializer.toJson<String>(currencyCode),
       'weekStart': serializer.toJson<String>(weekStart),
       'themeMode': serializer.toJson<String>(themeMode),
+      'defaultCategorySeedVersion':
+          serializer.toJson<int>(defaultCategorySeedVersion),
       'appLockEnabled': serializer.toJson<bool>(appLockEnabled),
       'biometricEnabled': serializer.toJson<bool>(biometricEnabled),
       'exportIncludeDeleted': serializer.toJson<bool>(exportIncludeDeleted),
@@ -2494,6 +3284,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           String? currencyCode,
           String? weekStart,
           String? themeMode,
+          int? defaultCategorySeedVersion,
           bool? appLockEnabled,
           bool? biometricEnabled,
           bool? exportIncludeDeleted,
@@ -2505,6 +3296,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         currencyCode: currencyCode ?? this.currencyCode,
         weekStart: weekStart ?? this.weekStart,
         themeMode: themeMode ?? this.themeMode,
+        defaultCategorySeedVersion:
+            defaultCategorySeedVersion ?? this.defaultCategorySeedVersion,
         appLockEnabled: appLockEnabled ?? this.appLockEnabled,
         biometricEnabled: biometricEnabled ?? this.biometricEnabled,
         exportIncludeDeleted: exportIncludeDeleted ?? this.exportIncludeDeleted,
@@ -2520,6 +3313,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           : this.currencyCode,
       weekStart: data.weekStart.present ? data.weekStart.value : this.weekStart,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
+      defaultCategorySeedVersion: data.defaultCategorySeedVersion.present
+          ? data.defaultCategorySeedVersion.value
+          : this.defaultCategorySeedVersion,
       appLockEnabled: data.appLockEnabled.present
           ? data.appLockEnabled.value
           : this.appLockEnabled,
@@ -2544,6 +3340,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('currencyCode: $currencyCode, ')
           ..write('weekStart: $weekStart, ')
           ..write('themeMode: $themeMode, ')
+          ..write('defaultCategorySeedVersion: $defaultCategorySeedVersion, ')
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('biometricEnabled: $biometricEnabled, ')
           ..write('exportIncludeDeleted: $exportIncludeDeleted, ')
@@ -2560,6 +3357,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       currencyCode,
       weekStart,
       themeMode,
+      defaultCategorySeedVersion,
       appLockEnabled,
       biometricEnabled,
       exportIncludeDeleted,
@@ -2574,6 +3372,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.currencyCode == this.currencyCode &&
           other.weekStart == this.weekStart &&
           other.themeMode == this.themeMode &&
+          other.defaultCategorySeedVersion == this.defaultCategorySeedVersion &&
           other.appLockEnabled == this.appLockEnabled &&
           other.biometricEnabled == this.biometricEnabled &&
           other.exportIncludeDeleted == this.exportIncludeDeleted &&
@@ -2587,6 +3386,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String> currencyCode;
   final Value<String> weekStart;
   final Value<String> themeMode;
+  final Value<int> defaultCategorySeedVersion;
   final Value<bool> appLockEnabled;
   final Value<bool> biometricEnabled;
   final Value<bool> exportIncludeDeleted;
@@ -2598,6 +3398,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.currencyCode = const Value.absent(),
     this.weekStart = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.defaultCategorySeedVersion = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
     this.biometricEnabled = const Value.absent(),
     this.exportIncludeDeleted = const Value.absent(),
@@ -2610,6 +3411,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.currencyCode = const Value.absent(),
     this.weekStart = const Value.absent(),
     this.themeMode = const Value.absent(),
+    this.defaultCategorySeedVersion = const Value.absent(),
     this.appLockEnabled = const Value.absent(),
     this.biometricEnabled = const Value.absent(),
     this.exportIncludeDeleted = const Value.absent(),
@@ -2623,6 +3425,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? currencyCode,
     Expression<String>? weekStart,
     Expression<String>? themeMode,
+    Expression<int>? defaultCategorySeedVersion,
     Expression<bool>? appLockEnabled,
     Expression<bool>? biometricEnabled,
     Expression<bool>? exportIncludeDeleted,
@@ -2635,6 +3438,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (currencyCode != null) 'currency_code': currencyCode,
       if (weekStart != null) 'week_start': weekStart,
       if (themeMode != null) 'theme_mode': themeMode,
+      if (defaultCategorySeedVersion != null)
+        'default_category_seed_version': defaultCategorySeedVersion,
       if (appLockEnabled != null) 'app_lock_enabled': appLockEnabled,
       if (biometricEnabled != null) 'biometric_enabled': biometricEnabled,
       if (exportIncludeDeleted != null)
@@ -2650,6 +3455,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       Value<String>? currencyCode,
       Value<String>? weekStart,
       Value<String>? themeMode,
+      Value<int>? defaultCategorySeedVersion,
       Value<bool>? appLockEnabled,
       Value<bool>? biometricEnabled,
       Value<bool>? exportIncludeDeleted,
@@ -2661,6 +3467,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       currencyCode: currencyCode ?? this.currencyCode,
       weekStart: weekStart ?? this.weekStart,
       themeMode: themeMode ?? this.themeMode,
+      defaultCategorySeedVersion:
+          defaultCategorySeedVersion ?? this.defaultCategorySeedVersion,
       appLockEnabled: appLockEnabled ?? this.appLockEnabled,
       biometricEnabled: biometricEnabled ?? this.biometricEnabled,
       exportIncludeDeleted: exportIncludeDeleted ?? this.exportIncludeDeleted,
@@ -2684,6 +3492,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     }
     if (themeMode.present) {
       map['theme_mode'] = Variable<String>(themeMode.value);
+    }
+    if (defaultCategorySeedVersion.present) {
+      map['default_category_seed_version'] =
+          Variable<int>(defaultCategorySeedVersion.value);
     }
     if (appLockEnabled.present) {
       map['app_lock_enabled'] = Variable<bool>(appLockEnabled.value);
@@ -2714,6 +3526,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('currencyCode: $currencyCode, ')
           ..write('weekStart: $weekStart, ')
           ..write('themeMode: $themeMode, ')
+          ..write('defaultCategorySeedVersion: $defaultCategorySeedVersion, ')
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('biometricEnabled: $biometricEnabled, ')
           ..write('exportIncludeDeleted: $exportIncludeDeleted, ')
@@ -3848,16 +4661,415 @@ class OcrDraftsCompanion extends UpdateCompanion<OcrDraft> {
   }
 }
 
+class $NotificationHistoriesTable extends NotificationHistories
+    with TableInfo<$NotificationHistoriesTable, NotificationHistory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationHistoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _packageNameMeta =
+      const VerificationMeta('packageName');
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+      'package_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _merchantMeta =
+      const VerificationMeta('merchant');
+  @override
+  late final GeneratedColumn<String> merchant = GeneratedColumn<String>(
+      'merchant', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _suggestedCategoryMeta =
+      const VerificationMeta('suggestedCategory');
+  @override
+  late final GeneratedColumn<String> suggestedCategory =
+      GeneratedColumn<String>('suggested_category', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _detectedAtMeta =
+      const VerificationMeta('detectedAt');
+  @override
+  late final GeneratedColumn<DateTime> detectedAt = GeneratedColumn<DateTime>(
+      'detected_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, packageName, amount, type, merchant, suggestedCategory, detectedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notification_histories';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<NotificationHistory> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+          _packageNameMeta,
+          packageName.isAcceptableOrUnknown(
+              data['package_name']!, _packageNameMeta));
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('merchant')) {
+      context.handle(_merchantMeta,
+          merchant.isAcceptableOrUnknown(data['merchant']!, _merchantMeta));
+    }
+    if (data.containsKey('suggested_category')) {
+      context.handle(
+          _suggestedCategoryMeta,
+          suggestedCategory.isAcceptableOrUnknown(
+              data['suggested_category']!, _suggestedCategoryMeta));
+    }
+    if (data.containsKey('detected_at')) {
+      context.handle(
+          _detectedAtMeta,
+          detectedAt.isAcceptableOrUnknown(
+              data['detected_at']!, _detectedAtMeta));
+    } else if (isInserting) {
+      context.missing(_detectedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NotificationHistory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NotificationHistory(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      packageName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}package_name'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}amount'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      merchant: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}merchant']),
+      suggestedCategory: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}suggested_category']),
+      detectedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}detected_at'])!,
+    );
+  }
+
+  @override
+  $NotificationHistoriesTable createAlias(String alias) {
+    return $NotificationHistoriesTable(attachedDatabase, alias);
+  }
+}
+
+class NotificationHistory extends DataClass
+    implements Insertable<NotificationHistory> {
+  final int id;
+  final String packageName;
+  final int amount;
+  final String type;
+  final String? merchant;
+  final String? suggestedCategory;
+  final DateTime detectedAt;
+  const NotificationHistory(
+      {required this.id,
+      required this.packageName,
+      required this.amount,
+      required this.type,
+      this.merchant,
+      this.suggestedCategory,
+      required this.detectedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['package_name'] = Variable<String>(packageName);
+    map['amount'] = Variable<int>(amount);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || merchant != null) {
+      map['merchant'] = Variable<String>(merchant);
+    }
+    if (!nullToAbsent || suggestedCategory != null) {
+      map['suggested_category'] = Variable<String>(suggestedCategory);
+    }
+    map['detected_at'] = Variable<DateTime>(detectedAt);
+    return map;
+  }
+
+  NotificationHistoriesCompanion toCompanion(bool nullToAbsent) {
+    return NotificationHistoriesCompanion(
+      id: Value(id),
+      packageName: Value(packageName),
+      amount: Value(amount),
+      type: Value(type),
+      merchant: merchant == null && nullToAbsent
+          ? const Value.absent()
+          : Value(merchant),
+      suggestedCategory: suggestedCategory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedCategory),
+      detectedAt: Value(detectedAt),
+    );
+  }
+
+  factory NotificationHistory.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NotificationHistory(
+      id: serializer.fromJson<int>(json['id']),
+      packageName: serializer.fromJson<String>(json['packageName']),
+      amount: serializer.fromJson<int>(json['amount']),
+      type: serializer.fromJson<String>(json['type']),
+      merchant: serializer.fromJson<String?>(json['merchant']),
+      suggestedCategory:
+          serializer.fromJson<String?>(json['suggestedCategory']),
+      detectedAt: serializer.fromJson<DateTime>(json['detectedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'packageName': serializer.toJson<String>(packageName),
+      'amount': serializer.toJson<int>(amount),
+      'type': serializer.toJson<String>(type),
+      'merchant': serializer.toJson<String?>(merchant),
+      'suggestedCategory': serializer.toJson<String?>(suggestedCategory),
+      'detectedAt': serializer.toJson<DateTime>(detectedAt),
+    };
+  }
+
+  NotificationHistory copyWith(
+          {int? id,
+          String? packageName,
+          int? amount,
+          String? type,
+          Value<String?> merchant = const Value.absent(),
+          Value<String?> suggestedCategory = const Value.absent(),
+          DateTime? detectedAt}) =>
+      NotificationHistory(
+        id: id ?? this.id,
+        packageName: packageName ?? this.packageName,
+        amount: amount ?? this.amount,
+        type: type ?? this.type,
+        merchant: merchant.present ? merchant.value : this.merchant,
+        suggestedCategory: suggestedCategory.present
+            ? suggestedCategory.value
+            : this.suggestedCategory,
+        detectedAt: detectedAt ?? this.detectedAt,
+      );
+  NotificationHistory copyWithCompanion(NotificationHistoriesCompanion data) {
+    return NotificationHistory(
+      id: data.id.present ? data.id.value : this.id,
+      packageName:
+          data.packageName.present ? data.packageName.value : this.packageName,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      type: data.type.present ? data.type.value : this.type,
+      merchant: data.merchant.present ? data.merchant.value : this.merchant,
+      suggestedCategory: data.suggestedCategory.present
+          ? data.suggestedCategory.value
+          : this.suggestedCategory,
+      detectedAt:
+          data.detectedAt.present ? data.detectedAt.value : this.detectedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationHistory(')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('amount: $amount, ')
+          ..write('type: $type, ')
+          ..write('merchant: $merchant, ')
+          ..write('suggestedCategory: $suggestedCategory, ')
+          ..write('detectedAt: $detectedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, packageName, amount, type, merchant, suggestedCategory, detectedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NotificationHistory &&
+          other.id == this.id &&
+          other.packageName == this.packageName &&
+          other.amount == this.amount &&
+          other.type == this.type &&
+          other.merchant == this.merchant &&
+          other.suggestedCategory == this.suggestedCategory &&
+          other.detectedAt == this.detectedAt);
+}
+
+class NotificationHistoriesCompanion
+    extends UpdateCompanion<NotificationHistory> {
+  final Value<int> id;
+  final Value<String> packageName;
+  final Value<int> amount;
+  final Value<String> type;
+  final Value<String?> merchant;
+  final Value<String?> suggestedCategory;
+  final Value<DateTime> detectedAt;
+  const NotificationHistoriesCompanion({
+    this.id = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.type = const Value.absent(),
+    this.merchant = const Value.absent(),
+    this.suggestedCategory = const Value.absent(),
+    this.detectedAt = const Value.absent(),
+  });
+  NotificationHistoriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String packageName,
+    required int amount,
+    required String type,
+    this.merchant = const Value.absent(),
+    this.suggestedCategory = const Value.absent(),
+    required DateTime detectedAt,
+  })  : packageName = Value(packageName),
+        amount = Value(amount),
+        type = Value(type),
+        detectedAt = Value(detectedAt);
+  static Insertable<NotificationHistory> custom({
+    Expression<int>? id,
+    Expression<String>? packageName,
+    Expression<int>? amount,
+    Expression<String>? type,
+    Expression<String>? merchant,
+    Expression<String>? suggestedCategory,
+    Expression<DateTime>? detectedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (packageName != null) 'package_name': packageName,
+      if (amount != null) 'amount': amount,
+      if (type != null) 'type': type,
+      if (merchant != null) 'merchant': merchant,
+      if (suggestedCategory != null) 'suggested_category': suggestedCategory,
+      if (detectedAt != null) 'detected_at': detectedAt,
+    });
+  }
+
+  NotificationHistoriesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? packageName,
+      Value<int>? amount,
+      Value<String>? type,
+      Value<String?>? merchant,
+      Value<String?>? suggestedCategory,
+      Value<DateTime>? detectedAt}) {
+    return NotificationHistoriesCompanion(
+      id: id ?? this.id,
+      packageName: packageName ?? this.packageName,
+      amount: amount ?? this.amount,
+      type: type ?? this.type,
+      merchant: merchant ?? this.merchant,
+      suggestedCategory: suggestedCategory ?? this.suggestedCategory,
+      detectedAt: detectedAt ?? this.detectedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (merchant.present) {
+      map['merchant'] = Variable<String>(merchant.value);
+    }
+    if (suggestedCategory.present) {
+      map['suggested_category'] = Variable<String>(suggestedCategory.value);
+    }
+    if (detectedAt.present) {
+      map['detected_at'] = Variable<DateTime>(detectedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationHistoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('amount: $amount, ')
+          ..write('type: $type, ')
+          ..write('merchant: $merchant, ')
+          ..write('suggestedCategory: $suggestedCategory, ')
+          ..write('detectedAt: $detectedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
+  late final $RecurringExpensesTable recurringExpenses =
+      $RecurringExpensesTable(this);
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $BackupMetadataTable backupMetadata = $BackupMetadataTable(this);
   late final $OcrDraftsTable ocrDrafts = $OcrDraftsTable(this);
+  late final $NotificationHistoriesTable notificationHistories =
+      $NotificationHistoriesTable(this);
+  late final Index transactionsTimelineIdx = Index('transactions_timeline_idx',
+      'CREATE INDEX transactions_timeline_idx ON transactions (deleted_at, occurred_at DESC, created_at DESC)');
+  late final Index transactionsCategoryTimelineIdx = Index(
+      'transactions_category_timeline_idx',
+      'CREATE INDEX transactions_category_timeline_idx ON transactions (deleted_at, category_id, occurred_at DESC)');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3866,10 +5078,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         transactions,
         categories,
         budgets,
+        recurringExpenses,
         accounts,
         appSettings,
         backupMetadata,
-        ocrDrafts
+        ocrDrafts,
+        notificationHistories,
+        transactionsTimelineIdx,
+        transactionsCategoryTimelineIdx
       ];
 }
 
@@ -4617,6 +5833,319 @@ typedef $$BudgetsTableProcessedTableManager = ProcessedTableManager<
     (Budget, BaseReferences<_$AppDatabase, $BudgetsTable, Budget>),
     Budget,
     PrefetchHooks Function()>;
+typedef $$RecurringExpensesTableCreateCompanionBuilder
+    = RecurringExpensesCompanion Function({
+  required String localId,
+  required String name,
+  required String type,
+  required int amount,
+  required String cadence,
+  Value<int?> dayOfMonth,
+  Value<int?> weekday,
+  required String accountId,
+  Value<String?> categoryId,
+  Value<bool> isActive,
+  Value<String?> lastSuggestedCycleKey,
+  Value<String?> lastCompletedCycleKey,
+  Value<String?> lastDismissedCycleKey,
+  required DateTime createdAt,
+  required DateTime lastModifiedAt,
+  Value<int> rowid,
+});
+typedef $$RecurringExpensesTableUpdateCompanionBuilder
+    = RecurringExpensesCompanion Function({
+  Value<String> localId,
+  Value<String> name,
+  Value<String> type,
+  Value<int> amount,
+  Value<String> cadence,
+  Value<int?> dayOfMonth,
+  Value<int?> weekday,
+  Value<String> accountId,
+  Value<String?> categoryId,
+  Value<bool> isActive,
+  Value<String?> lastSuggestedCycleKey,
+  Value<String?> lastCompletedCycleKey,
+  Value<String?> lastDismissedCycleKey,
+  Value<DateTime> createdAt,
+  Value<DateTime> lastModifiedAt,
+  Value<int> rowid,
+});
+
+class $$RecurringExpensesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $RecurringExpensesTable> {
+  $$RecurringExpensesTableFilterComposer(super.$state);
+  ColumnFilters<String> get localId => $state.composableBuilder(
+      column: $state.table.localId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get cadence => $state.composableBuilder(
+      column: $state.table.cadence,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get dayOfMonth => $state.composableBuilder(
+      column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get weekday => $state.composableBuilder(
+      column: $state.table.weekday,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get accountId => $state.composableBuilder(
+      column: $state.table.accountId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get categoryId => $state.composableBuilder(
+      column: $state.table.categoryId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get isActive => $state.composableBuilder(
+      column: $state.table.isActive,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get lastSuggestedCycleKey => $state.composableBuilder(
+      column: $state.table.lastSuggestedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get lastCompletedCycleKey => $state.composableBuilder(
+      column: $state.table.lastCompletedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get lastDismissedCycleKey => $state.composableBuilder(
+      column: $state.table.lastDismissedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastModifiedAt => $state.composableBuilder(
+      column: $state.table.lastModifiedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$RecurringExpensesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $RecurringExpensesTable> {
+  $$RecurringExpensesTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get localId => $state.composableBuilder(
+      column: $state.table.localId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get name => $state.composableBuilder(
+      column: $state.table.name,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get cadence => $state.composableBuilder(
+      column: $state.table.cadence,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get dayOfMonth => $state.composableBuilder(
+      column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get weekday => $state.composableBuilder(
+      column: $state.table.weekday,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get accountId => $state.composableBuilder(
+      column: $state.table.accountId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get categoryId => $state.composableBuilder(
+      column: $state.table.categoryId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get isActive => $state.composableBuilder(
+      column: $state.table.isActive,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get lastSuggestedCycleKey => $state.composableBuilder(
+      column: $state.table.lastSuggestedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get lastCompletedCycleKey => $state.composableBuilder(
+      column: $state.table.lastCompletedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get lastDismissedCycleKey => $state.composableBuilder(
+      column: $state.table.lastDismissedCycleKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastModifiedAt => $state.composableBuilder(
+      column: $state.table.lastModifiedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+class $$RecurringExpensesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RecurringExpensesTable,
+    RecurringExpense,
+    $$RecurringExpensesTableFilterComposer,
+    $$RecurringExpensesTableOrderingComposer,
+    $$RecurringExpensesTableCreateCompanionBuilder,
+    $$RecurringExpensesTableUpdateCompanionBuilder,
+    (
+      RecurringExpense,
+      BaseReferences<_$AppDatabase, $RecurringExpensesTable, RecurringExpense>
+    ),
+    RecurringExpense,
+    PrefetchHooks Function()> {
+  $$RecurringExpensesTableTableManager(
+      _$AppDatabase db, $RecurringExpensesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$RecurringExpensesTableFilterComposer(ComposerState(db, table)),
+          orderingComposer: $$RecurringExpensesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> localId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int> amount = const Value.absent(),
+            Value<String> cadence = const Value.absent(),
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<int?> weekday = const Value.absent(),
+            Value<String> accountId = const Value.absent(),
+            Value<String?> categoryId = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<String?> lastSuggestedCycleKey = const Value.absent(),
+            Value<String?> lastCompletedCycleKey = const Value.absent(),
+            Value<String?> lastDismissedCycleKey = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> lastModifiedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringExpensesCompanion(
+            localId: localId,
+            name: name,
+            type: type,
+            amount: amount,
+            cadence: cadence,
+            dayOfMonth: dayOfMonth,
+            weekday: weekday,
+            accountId: accountId,
+            categoryId: categoryId,
+            isActive: isActive,
+            lastSuggestedCycleKey: lastSuggestedCycleKey,
+            lastCompletedCycleKey: lastCompletedCycleKey,
+            lastDismissedCycleKey: lastDismissedCycleKey,
+            createdAt: createdAt,
+            lastModifiedAt: lastModifiedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String localId,
+            required String name,
+            required String type,
+            required int amount,
+            required String cadence,
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<int?> weekday = const Value.absent(),
+            required String accountId,
+            Value<String?> categoryId = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<String?> lastSuggestedCycleKey = const Value.absent(),
+            Value<String?> lastCompletedCycleKey = const Value.absent(),
+            Value<String?> lastDismissedCycleKey = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime lastModifiedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringExpensesCompanion.insert(
+            localId: localId,
+            name: name,
+            type: type,
+            amount: amount,
+            cadence: cadence,
+            dayOfMonth: dayOfMonth,
+            weekday: weekday,
+            accountId: accountId,
+            categoryId: categoryId,
+            isActive: isActive,
+            lastSuggestedCycleKey: lastSuggestedCycleKey,
+            lastCompletedCycleKey: lastCompletedCycleKey,
+            lastDismissedCycleKey: lastDismissedCycleKey,
+            createdAt: createdAt,
+            lastModifiedAt: lastModifiedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RecurringExpensesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RecurringExpensesTable,
+    RecurringExpense,
+    $$RecurringExpensesTableFilterComposer,
+    $$RecurringExpensesTableOrderingComposer,
+    $$RecurringExpensesTableCreateCompanionBuilder,
+    $$RecurringExpensesTableUpdateCompanionBuilder,
+    (
+      RecurringExpense,
+      BaseReferences<_$AppDatabase, $RecurringExpensesTable, RecurringExpense>
+    ),
+    RecurringExpense,
+    PrefetchHooks Function()>;
 typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required String localId,
   required String name,
@@ -4815,6 +6344,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder = AppSettingsCompanion
   Value<String> currencyCode,
   Value<String> weekStart,
   Value<String> themeMode,
+  Value<int> defaultCategorySeedVersion,
   Value<bool> appLockEnabled,
   Value<bool> biometricEnabled,
   Value<bool> exportIncludeDeleted,
@@ -4828,6 +6358,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder = AppSettingsCompanion
   Value<String> currencyCode,
   Value<String> weekStart,
   Value<String> themeMode,
+  Value<int> defaultCategorySeedVersion,
   Value<bool> appLockEnabled,
   Value<bool> biometricEnabled,
   Value<bool> exportIncludeDeleted,
@@ -4856,6 +6387,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get themeMode => $state.composableBuilder(
       column: $state.table.themeMode,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get defaultCategorySeedVersion => $state.composableBuilder(
+      column: $state.table.defaultCategorySeedVersion,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -4913,6 +6449,12 @@ class $$AppSettingsTableOrderingComposer
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
+  ColumnOrderings<int> get defaultCategorySeedVersion =>
+      $state.composableBuilder(
+          column: $state.table.defaultCategorySeedVersion,
+          builder: (column, joinBuilders) =>
+              ColumnOrderings(column, joinBuilders: joinBuilders));
+
   ColumnOrderings<bool> get appLockEnabled => $state.composableBuilder(
       column: $state.table.appLockEnabled,
       builder: (column, joinBuilders) =>
@@ -4968,6 +6510,7 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             Value<String> currencyCode = const Value.absent(),
             Value<String> weekStart = const Value.absent(),
             Value<String> themeMode = const Value.absent(),
+            Value<int> defaultCategorySeedVersion = const Value.absent(),
             Value<bool> appLockEnabled = const Value.absent(),
             Value<bool> biometricEnabled = const Value.absent(),
             Value<bool> exportIncludeDeleted = const Value.absent(),
@@ -4980,6 +6523,7 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             currencyCode: currencyCode,
             weekStart: weekStart,
             themeMode: themeMode,
+            defaultCategorySeedVersion: defaultCategorySeedVersion,
             appLockEnabled: appLockEnabled,
             biometricEnabled: biometricEnabled,
             exportIncludeDeleted: exportIncludeDeleted,
@@ -4992,6 +6536,7 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             Value<String> currencyCode = const Value.absent(),
             Value<String> weekStart = const Value.absent(),
             Value<String> themeMode = const Value.absent(),
+            Value<int> defaultCategorySeedVersion = const Value.absent(),
             Value<bool> appLockEnabled = const Value.absent(),
             Value<bool> biometricEnabled = const Value.absent(),
             Value<bool> exportIncludeDeleted = const Value.absent(),
@@ -5004,6 +6549,7 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             currencyCode: currencyCode,
             weekStart: weekStart,
             themeMode: themeMode,
+            defaultCategorySeedVersion: defaultCategorySeedVersion,
             appLockEnabled: appLockEnabled,
             biometricEnabled: biometricEnabled,
             exportIncludeDeleted: exportIncludeDeleted,
@@ -5481,6 +7027,188 @@ typedef $$OcrDraftsTableProcessedTableManager = ProcessedTableManager<
     (OcrDraft, BaseReferences<_$AppDatabase, $OcrDraftsTable, OcrDraft>),
     OcrDraft,
     PrefetchHooks Function()>;
+typedef $$NotificationHistoriesTableCreateCompanionBuilder
+    = NotificationHistoriesCompanion Function({
+  Value<int> id,
+  required String packageName,
+  required int amount,
+  required String type,
+  Value<String?> merchant,
+  Value<String?> suggestedCategory,
+  required DateTime detectedAt,
+});
+typedef $$NotificationHistoriesTableUpdateCompanionBuilder
+    = NotificationHistoriesCompanion Function({
+  Value<int> id,
+  Value<String> packageName,
+  Value<int> amount,
+  Value<String> type,
+  Value<String?> merchant,
+  Value<String?> suggestedCategory,
+  Value<DateTime> detectedAt,
+});
+
+class $$NotificationHistoriesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $NotificationHistoriesTable> {
+  $$NotificationHistoriesTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get packageName => $state.composableBuilder(
+      column: $state.table.packageName,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get merchant => $state.composableBuilder(
+      column: $state.table.merchant,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get suggestedCategory => $state.composableBuilder(
+      column: $state.table.suggestedCategory,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get detectedAt => $state.composableBuilder(
+      column: $state.table.detectedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$NotificationHistoriesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $NotificationHistoriesTable> {
+  $$NotificationHistoriesTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get packageName => $state.composableBuilder(
+      column: $state.table.packageName,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get amount => $state.composableBuilder(
+      column: $state.table.amount,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get merchant => $state.composableBuilder(
+      column: $state.table.merchant,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get suggestedCategory => $state.composableBuilder(
+      column: $state.table.suggestedCategory,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get detectedAt => $state.composableBuilder(
+      column: $state.table.detectedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+class $$NotificationHistoriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $NotificationHistoriesTable,
+    NotificationHistory,
+    $$NotificationHistoriesTableFilterComposer,
+    $$NotificationHistoriesTableOrderingComposer,
+    $$NotificationHistoriesTableCreateCompanionBuilder,
+    $$NotificationHistoriesTableUpdateCompanionBuilder,
+    (
+      NotificationHistory,
+      BaseReferences<_$AppDatabase, $NotificationHistoriesTable,
+          NotificationHistory>
+    ),
+    NotificationHistory,
+    PrefetchHooks Function()> {
+  $$NotificationHistoriesTableTableManager(
+      _$AppDatabase db, $NotificationHistoriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer: $$NotificationHistoriesTableFilterComposer(
+              ComposerState(db, table)),
+          orderingComposer: $$NotificationHistoriesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> packageName = const Value.absent(),
+            Value<int> amount = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> suggestedCategory = const Value.absent(),
+            Value<DateTime> detectedAt = const Value.absent(),
+          }) =>
+              NotificationHistoriesCompanion(
+            id: id,
+            packageName: packageName,
+            amount: amount,
+            type: type,
+            merchant: merchant,
+            suggestedCategory: suggestedCategory,
+            detectedAt: detectedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String packageName,
+            required int amount,
+            required String type,
+            Value<String?> merchant = const Value.absent(),
+            Value<String?> suggestedCategory = const Value.absent(),
+            required DateTime detectedAt,
+          }) =>
+              NotificationHistoriesCompanion.insert(
+            id: id,
+            packageName: packageName,
+            amount: amount,
+            type: type,
+            merchant: merchant,
+            suggestedCategory: suggestedCategory,
+            detectedAt: detectedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$NotificationHistoriesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $NotificationHistoriesTable,
+        NotificationHistory,
+        $$NotificationHistoriesTableFilterComposer,
+        $$NotificationHistoriesTableOrderingComposer,
+        $$NotificationHistoriesTableCreateCompanionBuilder,
+        $$NotificationHistoriesTableUpdateCompanionBuilder,
+        (
+          NotificationHistory,
+          BaseReferences<_$AppDatabase, $NotificationHistoriesTable,
+              NotificationHistory>
+        ),
+        NotificationHistory,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5491,6 +7219,8 @@ class $AppDatabaseManager {
       $$CategoriesTableTableManager(_db, _db.categories);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
+  $$RecurringExpensesTableTableManager get recurringExpenses =>
+      $$RecurringExpensesTableTableManager(_db, _db.recurringExpenses);
   $$AccountsTableTableManager get accounts =>
       $$AccountsTableTableManager(_db, _db.accounts);
   $$AppSettingsTableTableManager get appSettings =>
@@ -5499,4 +7229,6 @@ class $AppDatabaseManager {
       $$BackupMetadataTableTableManager(_db, _db.backupMetadata);
   $$OcrDraftsTableTableManager get ocrDrafts =>
       $$OcrDraftsTableTableManager(_db, _db.ocrDrafts);
+  $$NotificationHistoriesTableTableManager get notificationHistories =>
+      $$NotificationHistoriesTableTableManager(_db, _db.notificationHistories);
 }

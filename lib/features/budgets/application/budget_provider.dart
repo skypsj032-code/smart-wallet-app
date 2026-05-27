@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+import '../data/budget_repository_interface.dart';
 
 class BudgetSummary {
   const BudgetSummary({
@@ -66,7 +67,7 @@ final budgetCategoryOptionsProvider = StreamProvider<List<BudgetCategoryOption>>
       );
 });
 
-class BudgetEditorService {
+class BudgetEditorService implements IBudgetRepository {
   BudgetEditorService(this._database);
 
   final AppDatabase _database;
@@ -132,7 +133,8 @@ class BudgetEditorService {
   }
 }
 
-final budgetEditorServiceProvider = Provider<BudgetEditorService>((ref) {
+/// Provider는 인터페이스 타입으로 노출 — 테스트에서 override 가능.
+final budgetEditorServiceProvider = Provider<IBudgetRepository>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return BudgetEditorService(database);
 });

@@ -23,3 +23,7 @@ Notes:
 - Active Flutter SDK: `C:\dev\flutter`
 - Avoid `flutter doctor -v` inside Codex when possible. It scans external tools and can stall in wrapped shells.
 - Prefer direct task commands such as `test`, `run`, `pub get`, and `dart analyze`.
+
+Documentation:
+
+- See [`docs/README.md`](./docs/README.md) for implementation and runtime notes.

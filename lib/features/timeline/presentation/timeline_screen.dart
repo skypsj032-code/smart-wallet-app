@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
@@ -21,24 +25,24 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  String? _selectedType;
-
   @override
   Widget build(BuildContext context) {
     final timelineAsync = ref.watch(timelineTransactionsProvider);
+    final selectedType = ref.watch(timelineSelectedTypeProvider);
 
     return AppScaffold(
       title: '내역',
       body: timelineAsync.when(
-        data: (items) {
-          final filteredItems = _selectedType == null
-              ? items
-              : items.where((tx) {
-                  if (_selectedType == 'transfer') {
-                    return tx.type == 'transfer' || tx.type == 'transfer_reserved';
-                  }
-                  return tx.type == _selectedType;
-                }).toList();
+        data: (snapshot) {
+          final items = snapshot.items;
+
+          // 필터된 항목의 수입/지출 합계
+          int totalIncome = 0;
+          int totalExpense = 0;
+          for (final tx in items) {
+            if (tx.type == 'income') totalIncome += tx.amount;
+            if (tx.type == 'expense') totalExpense += tx.amount;
+          }
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(
@@ -49,42 +53,59 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             children: [
               _TimelineSummaryCard(
-                totalCount: items.length,
-                visibleCount: filteredItems.length,
-                selectedType: _selectedType,
+                totalCount: snapshot.totalCount,
+                visibleCount: items.length,
+                selectedType: selectedType,
+                totalIncome: totalIncome,
+                totalExpense: totalExpense,
               ),
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
                 title: '필터',
-                subtitle: '보고 싶은 흐름만 골라서 훑으면 더 빨리 확인할 수 있어요.',
-                trailing: filteredItems.isEmpty
+                trailing: items.isEmpty
                     ? null
                     : AppStatusChip(
-                        label: '${filteredItems.length}건',
+                        label: '${items.length}건',
                         dotColor: AppColors.primary,
                       ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              _TypeFilterBar(
-                selectedType: _selectedType,
-                onSelected: (type) => setState(() => _selectedType = type),
+              Semantics(
+                container: true,
+                label: 'Timeline filters',
+                hint: 'Choose a transaction type filter',
+                child: _TypeFilterBar(
+                  selectedType: selectedType,
+                  onSelected: (type) =>
+                      ref.read(timelineControllerProvider.notifier).selectType(type),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
-                title: '최근 흐름',
-                subtitle: '상호명과 메모를 먼저 읽고, 금액과 시간으로 빠르게 교차 확인하세요.',
+                title: '최근 내역',
               ),
               const SizedBox(height: AppSpacing.sm),
-              filteredItems.isEmpty
-                  ? _TimelineEmptyState(selectedType: _selectedType)
+              items.isEmpty
+                  ? _TimelineEmptyState(selectedType: selectedType)
                   : _TimelineList(
-                      items: filteredItems,
+                      items: items,
                       onEdit: (tx) {
-                        ref.read(quickEntryFormProvider.notifier).loadTransaction(tx);
+                        ref
+                            .read(quickEntryFormProvider.notifier)
+                            .loadTransaction(tx);
                         context.pushNamed('quick-entry');
                       },
                       onDelete: (tx) => _deleteTransaction(context, tx),
                     ),
+              if (snapshot.hasMore) ...[
+                const SizedBox(height: AppSpacing.md),
+                _TimelineLoadMoreButton(
+                  loadedCount: items.length,
+                  totalCount: snapshot.totalCount,
+                  onPressed: () =>
+                      ref.read(timelineControllerProvider.notifier).loadMore(),
+                ),
+              ],
             ],
           );
         },
@@ -105,7 +126,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('거래를 숨길까요?'),
-          content: const Text('이 거래는 타임라인에서 사라지지만, 필요하면 다시 복원할 수 있습니다.'),
+          content: const Text('이 거래를 숨기겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -124,15 +145,26 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       return;
     }
 
-    await ref.read(transactionRepositoryProvider).softDeleteTransaction(tx.localId);
+    final repo = ref.read(transactionRepositoryProvider);
+    await repo.softDeleteTransaction(tx.localId);
 
     if (!context.mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('거래를 타임라인에서 숨겼습니다.')),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('거래를 숨겼습니다.'),
+          action: SnackBarAction(
+            label: '되돌리기',
+            onPressed: () => repo.undoDeleteTransaction(tx.localId),
+          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 }
 
@@ -141,20 +173,34 @@ class _TimelineSummaryCard extends StatelessWidget {
     required this.totalCount,
     required this.visibleCount,
     required this.selectedType,
+    required this.totalIncome,
+    required this.totalExpense,
   });
 
   final int totalCount;
   final int visibleCount;
   final String? selectedType;
+  final int totalIncome;
+  final int totalExpense;
 
   @override
   Widget build(BuildContext context) {
-    final helperText = selectedType == null
-        ? '최신 거래를 시간 순서대로 정리해 보여줍니다.'
-        : '${_typeLabel(selectedType!)}만 골라서 보고 있어요.';
+    final theme = Theme.of(context);
+    final net = totalIncome - totalExpense;
+    final netColor = net >= 0 ? AppColors.income : AppColors.expense;
 
-    return Card(
-      child: Padding(
+    return Semantics(
+      container: true,
+      label: _timelineSummarySemanticLabel(
+        totalCount: totalCount,
+        visibleCount: visibleCount,
+        selectedType: selectedType,
+        totalIncome: totalIncome,
+        totalExpense: totalExpense,
+        net: net,
+      ),
+      child: Card(
+        child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,38 +210,59 @@ class _TimelineSummaryCard extends StatelessWidget {
               dotColor: AppColors.primary,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              '빠르게 훑고 바로 고칠 수 있는 기록 화면',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              helperText,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
                   child: AppMetricStrip(
-                    label: '전체',
-                    value: '$totalCount건',
+                    label: '수입',
+                    value: '+${formatCurrency(totalIncome)}',
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppMetricStrip(
-                    label: '현재 보기',
-                    value: '$visibleCount건',
-                    emphasize: true,
+                    label: '지출',
+                    value: '-${formatCurrency(totalExpense)}',
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '순수익',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${net >= 0 ? '+' : ''}${formatCurrency(net)}',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: netColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              selectedType == null
+                  ? '전체 $totalCount건'
+                  : '$visibleCount건 표시 중 (전체 $totalCount건)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -236,7 +303,8 @@ class _TypeFilterBar extends StatelessWidget {
           const SizedBox(width: 8),
           _FilterChipButton(
             label: '이체',
-            selected: selectedType == 'transfer' || selectedType == 'transfer_reserved',
+            selected: selectedType == 'transfer' ||
+                selectedType == 'transfer_reserved',
             onTap: () => onSelected('transfer'),
           ),
         ],
@@ -264,10 +332,10 @@ class _FilterChipButton extends StatelessWidget {
       label: Text(label),
       selected: selected,
       showCheckmark: false,
-      selectedColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      selectedColor: theme.colorScheme.primary.withValues(alpha: AppOpacity.focused),
       side: BorderSide(
         color: selected
-            ? theme.colorScheme.primary.withValues(alpha: 0.2)
+            ? theme.colorScheme.primary.withValues(alpha: AppOpacity.dragged)
             : theme.dividerColor,
       ),
       labelStyle: theme.textTheme.bodyMedium?.copyWith(
@@ -301,18 +369,10 @@ class _TimelineEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              isFiltered ? '선택한 조건에 맞는 거래가 아직 없어요' : '기록이 쌓이면 여기서 흐름이 보이기 시작해요',
+              isFiltered ? '조건에 맞는 거래가 없어요' : '거래 내역이 없어요',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              isFiltered
-                  ? '필터를 바꾸면 다른 흐름이 바로 보일 수 있어요.'
-                  : '첫 기록 몇 건만 쌓여도 생활의 리듬이 생각보다 빨리 드러납니다.',
-              style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
           ],
@@ -335,44 +395,48 @@ class _TimelineList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 날짜별 그룹화 (순서 유지)
     final groupedItems = <String, List<dynamic>>{};
     for (final tx in items) {
       final key = _dateKey(tx.occurredAt);
       groupedItems.putIfAbsent(key, () => []).add(tx);
     }
-
     final dateKeys = groupedItems.keys.toList();
 
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: dateKeys.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, groupIndex) {
-          final key = dateKeys[groupIndex];
-          final transactions = groupedItems[key]!;
+    return Column(
+      children: List.generate(dateKeys.length, (groupIndex) {
+        final key = dateKeys[groupIndex];
+        final transactions = groupedItems[key]!;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
+        // 일간 소계 계산 (이체 제외)
+        int dayIncome = 0;
+        int dayExpense = 0;
+        for (final tx in transactions) {
+          if (tx.type == 'income') dayIncome += tx.amount as int;
+          if (tx.type == 'expense') dayExpense += tx.amount as int;
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(
+              bottom: groupIndex < dateKeys.length - 1 ? AppSpacing.sm : 0),
+          child: Card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _sectionDateLabel(transactions.first.occurredAt),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                // 날짜 헤더 + 일간 소계
+                _DayGroupHeader(
+                  date: transactions.first.occurredAt as DateTime,
+                  dayIncome: dayIncome,
+                  dayExpense: dayExpense,
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const Divider(height: 1),
+                // 거래 목록
                 ...List.generate(transactions.length, (index) {
                   final tx = transactions[index];
                   return Column(
                     children: [
-                      _TimelineTile(
+                      _SwipeableTile(
+                        key: ValueKey(tx.localId),
                         transaction: tx,
                         onEdit: () => onEdit(tx),
                         onDelete: () => onDelete(tx),
@@ -384,8 +448,185 @@ class _TimelineList extends StatelessWidget {
                 }),
               ],
             ),
-          );
-        },
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _TimelineLoadMoreButton extends StatelessWidget {
+  const _TimelineLoadMoreButton({
+    required this.loadedCount,
+    required this.totalCount,
+    required this.onPressed,
+  });
+
+  final int loadedCount;
+  final int totalCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: true,
+      label: 'Load more timeline items',
+      value: '$loadedCount of $totalCount items loaded',
+      hint: 'Double tap to load more transactions',
+      child: Card(
+        child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          children: [
+            Text(
+              '$loadedCount / $totalCount',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton(
+              key: const Key('timeline-load-more-button'),
+              onPressed: onPressed,
+              child: const Text('더 보기'),
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+class _DayGroupHeader extends StatelessWidget {
+  const _DayGroupHeader({
+    required this.date,
+    required this.dayIncome,
+    required this.dayExpense,
+  });
+
+  final DateTime date;
+  final int dayIncome;
+  final int dayExpense;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      header: true,
+      label: _dayGroupSemanticLabel(date, dayIncome, dayExpense),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 10,
+      ),
+      child: Row(
+        children: [
+          // 날짜 레이블
+          Text(
+            _sectionDateLabel(date),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const Spacer(),
+          // 수입 소계
+          if (dayIncome > 0) ...[
+            Text(
+              '+${formatCurrency(dayIncome)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.income,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          // 지출 소계
+          if (dayExpense > 0) ...[
+            if (dayIncome > 0) const SizedBox(width: 8),
+            Text(
+              '-${formatCurrency(dayExpense)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.expense,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+      ),
+    );
+  }
+}
+
+// ── 스와이프 래퍼 ─────────────────────────────────────────────────────────
+
+class _SwipeableTile extends StatelessWidget {
+  const _SwipeableTile({
+    super.key,
+    required this.transaction,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final dynamic transaction;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label: _transactionSemanticLabel(transaction),
+      hint: 'Swipe left to delete. Use the menu for more actions.',
+      child: Dismissible(
+        key: ValueKey('dismissible_${transaction.localId}'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppSpacing.lg),
+        color: theme.colorScheme.errorContainer,
+        child: Icon(
+          Icons.delete_outline_rounded,
+          color: theme.colorScheme.onErrorContainer,
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        HapticFeedback.mediumImpact();
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('거래 숨기기'),
+            content: const Text('이 거래를 목록에서 숨길까요?\n설정에서 복원할 수 있습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                ),
+                child: const Text('숨기기'),
+              ),
+            ],
+          ),
+        );
+        return confirmed ?? false;
+      },
+      onDismissed: (_) {
+        HapticFeedback.lightImpact();
+        onDelete();
+      },
+        child: _TimelineTile(
+          transaction: transaction,
+          onEdit: onEdit,
+          onDelete: onDelete,
+        ),
       ),
     );
   }
@@ -404,7 +645,9 @@ class _TimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTransfer = transaction.type == 'transfer' || transaction.type == 'transfer_reserved';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTransfer = transaction.type == 'transfer' ||
+        transaction.type == 'transfer_reserved';
     final accentColor = isTransfer
         ? AppColors.primary
         : transaction.type == 'expense'
@@ -416,12 +659,23 @@ class _TimelineTile extends StatelessWidget {
             ? Icons.arrow_downward_rounded
             : Icons.arrow_upward_rounded;
 
+    final iconBg = isTransfer
+        ? AppColors.primary.withValues(alpha: AppOpacity.hovered)
+        : AppColors.transactionTint(
+            isIncome: transaction.type == 'income',
+            isDark: isDark,
+          );
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: accentColor.withValues(alpha: 0.12),
-        child: Icon(icon, size: 18, color: accentColor),
+      leading: Container(
+        width: AppSizes.avatarMD,
+        height: AppSizes.avatarMD,
+        decoration: BoxDecoration(
+          color: iconBg,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Icon(icon, size: AppSizes.iconSM, color: accentColor),
       ),
       title: Text(
         _primaryLabel(transaction),
@@ -468,7 +722,7 @@ class _TimelineTile extends StatelessWidget {
               ),
             ),
             PopupMenuButton<String>(
-              tooltip: '더보기',
+              tooltip: 'More actions',
               onSelected: (value) {
                 if (value == 'edit') {
                   onEdit();
@@ -492,6 +746,35 @@ class _TimelineTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _timelineSummarySemanticLabel({
+  required int totalCount,
+  required int visibleCount,
+  required String? selectedType,
+  required int totalIncome,
+  required int totalExpense,
+  required int net,
+}) {
+  final filterLabel =
+      selectedType == null ? 'all transactions' : 'filtered transactions';
+  return 'Timeline summary. Showing $visibleCount of $totalCount items for '
+      '$filterLabel. Income ${formatCurrency(totalIncome)}. Expense '
+      '${formatCurrency(totalExpense)}. Net ${formatCurrency(net)}.';
+}
+
+String _dayGroupSemanticLabel(DateTime date, int dayIncome, int dayExpense) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return 'Transactions for ${date.year}-$month-$day. Income '
+      '${formatCurrency(dayIncome)}. Expense ${formatCurrency(dayExpense)}.';
+}
+
+String _transactionSemanticLabel(dynamic tx) {
+  final label = _primaryLabel(tx);
+  final amount = _formatAmount(tx.type as String, tx.amount as int);
+  final time = _timeLabel(tx.occurredAt as DateTime);
+  return 'Transaction. $label. Amount $amount. Time $time.';
 }
 
 String _typeLabel(String type) {

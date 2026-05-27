@@ -93,7 +93,7 @@ class QuickEntryFormState {
   }
 }
 
-class QuickEntryFormController extends Notifier<QuickEntryFormState> {
+class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> {
   @override
   QuickEntryFormState build() {
     return const QuickEntryFormState();
@@ -195,9 +195,12 @@ class QuickEntryFormController extends Notifier<QuickEntryFormState> {
   }
 }
 
-final quickEntrySubmitStateProvider = StateProvider<bool>((ref) => false);
+/// 제출 진행 중 플래그 — QuickEntryScreen 생명주기와 동기화.
+/// autoDispose: 화면이 닫히면 자동으로 false로 초기화 (좀비 상태 방지).
+final quickEntrySubmitStateProvider =
+    StateProvider.autoDispose<bool>((ref) => false);
 
 final quickEntryFormProvider =
-    NotifierProvider<QuickEntryFormController, QuickEntryFormState>(
+    NotifierProvider.autoDispose<QuickEntryFormController, QuickEntryFormState>(
   QuickEntryFormController.new,
 );
