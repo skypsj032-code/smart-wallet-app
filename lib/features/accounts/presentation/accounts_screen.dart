@@ -279,22 +279,22 @@ class _EmptyStateCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '현금, 은행 계좌, 카드처럼 자주 쓰는 자산부터 추가해 보세요.',
+              '현금, 계좌, 카드부터 추가해요.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
               onPressed: onAddPressed,
               icon: const Icon(Icons.add),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 10,
-                    ),
-                  ),
-                  label: const Text('계좌 추가'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 10,
+                ),
+              ),
+              label: const Text('계좌 추가'),
             ),
           ],
         ),

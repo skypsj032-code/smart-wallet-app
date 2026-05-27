@@ -268,8 +268,8 @@ class CalendarScreen extends ConsumerWidget {
                         data: (transactions) {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
-                              title: '날짜를 고르면 하루가 열려요.',
-                              body: '수입, 지출, 거래를 봐요.',
+                              title: '날짜를 고르세요.',
+                              body: '거래를 봐요.',
                             );
                           }
 
@@ -1084,13 +1084,6 @@ class _EditableTransactionRow extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '수정',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
