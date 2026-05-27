@@ -1,0 +1,2 @@
+- Changed: Several top and mid-home section intros now show title only, relying on card content instead of duplicated helper sentences.
+- Result: The dashboard reads faster and feels less over-explained while keeping the same information hierarchy.

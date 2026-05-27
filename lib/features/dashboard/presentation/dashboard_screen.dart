@@ -48,7 +48,6 @@ class DashboardScreen extends ConsumerWidget {
               if (summary.recurringSpendInsight.groups.isNotEmpty) ...[
                 const AppSectionIntro(
                   title: '반복적으로 나가는 돈',
-                  subtitle: '이번 달에도 이어지는 고정비와 구독, 생활 반복 소비를 먼저 보여드려요.',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _RecurringSpendInsightCard(summary: summary),
@@ -64,7 +63,6 @@ class DashboardScreen extends ConsumerWidget {
               ],
               const AppSectionIntro(
                 title: '이번 달 소비 페이스',
-                subtitle: '지금 속도로 보면 월말쯤 어디에 도착할지 먼저 읽어드릴게요.',
               ),
               const SizedBox(height: AppSpacing.sm),
               _MonthlySpendPaceCard(summary: summary),
@@ -72,7 +70,6 @@ class DashboardScreen extends ConsumerWidget {
               if (_homeUpcomingRecurringGroups(summary).isNotEmpty) ...[
                 const AppSectionIntro(
                   title: '곧 나갈 돈',
-                  subtitle: '다음 결제 흐름을 먼저 확인해둘게요.',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _UpcomingRecurringCard(summary: summary),
@@ -1559,7 +1556,6 @@ class _RepeatSuggestionSection extends StatelessWidget {
       children: [
         const AppSectionIntro(
           title: '다시 기록하기',
-          subtitle: '반복되는 흐름은 한 번 더 입력하는 것만으로도 충분히 이어집니다.',
         ),
         const SizedBox(height: AppSpacing.sm),
         Card(
@@ -1867,7 +1863,6 @@ class _CategoryPressureSection extends ConsumerWidget {
       children: [
         const AppSectionIntro(
           title: '카테고리 압박',
-          subtitle: '이번 달엔 어디를 조금 더 자주 보게 될지 먼저 짚어드릴게요.',
         ),
         const SizedBox(height: AppSpacing.sm),
         _CategoryPressureCard(insight: insight),
