@@ -39,8 +39,8 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               const AppLedgerAxisIntro(
                 label: '자산',
-                headline: '계좌 상태를 봐요',
-                body: '순자산과 잔액을 확인해요.',
+                headline: '계좌 상태',
+                body: '순자산·잔액',
               ),
               const SizedBox(height: AppSpacing.md),
               _NetWorthCard(
@@ -211,9 +211,7 @@ class _NetWorthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     const amountColor = AppColors.primary;
-    final caption = accountCount == 0
-        ? '계좌를 추가해 보세요.'
-        : '$accountCount개 계좌가 연결돼 있어요.';
+    final caption = accountCount == 0 ? '계좌 추가' : '$accountCount개 연결';
 
     return Card(
       color: theme.colorScheme.surfaceContainerLow,

@@ -1,0 +1,5 @@
+- Changed: 자산 화면 intro와 순자산 요약 caption을 더 짧은 명사형으로 줄여 계좌/잔액 정보가 먼저 들어오게 했다.
+- Changed: 달력 화면 intro와 insight title/body를 더 짧게 줄여 날짜 선택과 하루 상태가 더 도구형으로 읽히게 했다.
+- Changed: 통계 화면 intro와 핵심 insight 문구를 더 압축해, 장문 해석보다 숫자와 상태명이 먼저 보이게 했다.
+- Difference: 기능과 구조는 그대로 두고, 최종 톤만 더 `편한가계부식 도구 화면` 쪽으로 밀었다.
+- Verify: `./flutterw.bat analyze lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

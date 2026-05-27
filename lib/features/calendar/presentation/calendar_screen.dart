@@ -64,8 +64,8 @@ class CalendarScreen extends ConsumerWidget {
                 ),
                 child: AppLedgerAxisIntro(
                   label: '달력',
-                  headline: '날짜 흐름을 봐요',
-                  body: '주간, 월간, 연간으로 봐요.',
+                  headline: '날짜 흐름',
+                  body: '주·월·연 보기',
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -539,14 +539,14 @@ class _CalendarInsightCard extends StatelessWidget {
 
   String _title() {
     if (viewMode == CalendarViewMode.year) {
-      return '${snapshot.periodStart.year}년 전체 흐름';
+      return '${snapshot.periodStart.year}년 전체';
     }
 
     if (selectedDate == null) {
-      return '날짜를 고르면 하루 흐름이 열려요';
+      return '날짜를 고르세요';
     }
 
-    return '${selectedDate!.month}월 ${selectedDate!.day}일 흐름';
+    return '${selectedDate!.month}월 ${selectedDate!.day}일';
   }
 
   String _body() {
@@ -562,18 +562,18 @@ class _CalendarInsightCard extends StatelessWidget {
     }
 
     if (selectedDate == null) {
-      return '날짜를 눌러 거래를 봐요.';
+      return '거래를 봐요.';
     }
 
     final income = selectedDay?.income ?? 0;
     final expense = selectedDay?.expense ?? 0;
     if (income == 0 && expense == 0) {
-      return '이 날 기록은 비어 있어요.';
+      return '기록 없음';
     }
     if (income >= expense) {
-      return '수입이 더 큰 날이에요.';
+      return '수입이 큰 날';
     }
-    return '지출이 더 큰 날이에요.';
+    return '지출이 큰 날';
   }
 }
 

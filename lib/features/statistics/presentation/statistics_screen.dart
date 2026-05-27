@@ -48,8 +48,8 @@ class StatisticsScreen extends ConsumerWidget {
             ),
             child: AppLedgerAxisIntro(
               label: '통계',
-              headline: '돈 흐름을 읽어요',
-              body: '이번 달, 최근 3개월, 전체를 비교해요.',
+              headline: '돈 흐름',
+              body: '월·3개월·전체 비교',
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -888,15 +888,15 @@ class _InsightCopy {
 _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
   if (snapshot.transactionCount == 0) {
     return const _InsightCopy(
-      headline: '아직 이 기간 기록이 적어요.',
-      body: '기록이 더 모이면 흐름이 또렷해져요.',
+      headline: '기록이 아직 적어요.',
+      body: '기록이 더 모이면 보여요.',
     );
   }
 
   if (snapshot.totalExpense == 0) {
     return const _InsightCopy(
-      headline: '이번 기간은 들어온 흐름이 먼저 보여요.',
-      body: '지출보다 수입 확인이 먼저 필요한 기간이에요.',
+      headline: '수입이 먼저 보여요.',
+      body: '수입 확인이 먼저예요.',
     );
   }
 
@@ -907,14 +907,14 @@ _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
 
   if (snapshot.balance >= 0) {
     return _InsightCopy(
-      headline: '이번 기간은 남는 흐름이에요.',
-      body: '${snapshot.periodLabel} 동안 수입이 지출을 앞섰어요. $categoryNote',
+      headline: '남는 흐름이에요.',
+      body: '${snapshot.periodLabel} 수입이 앞섰어요. $categoryNote',
     );
   }
 
   return _InsightCopy(
-    headline: '이번 기간은 쓰는 속도가 더 빨라요.',
-    body: '${snapshot.periodLabel} 동안 지출이 수입보다 앞섰어요. $categoryNote',
+    headline: '지출이 더 빨라요.',
+    body: '${snapshot.periodLabel} 지출이 앞섰어요. $categoryNote',
   );
 }
 
