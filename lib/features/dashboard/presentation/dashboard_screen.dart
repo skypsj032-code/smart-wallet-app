@@ -447,7 +447,7 @@ class _RecurringSpendInsightCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const AppStatusChip(
-                label: 'FIRST INSIGHT',
+                label: '반복지출',
                 dotColor: AppColors.warning,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -1464,7 +1464,7 @@ class _TodayLoopCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppStatusChip(
-              label: 'TODAY LOOP',
+              label: '오늘 흐름',
               dotColor: hasTodayEntry ? AppColors.income : AppColors.warning,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -1645,9 +1645,16 @@ class _RepeatSuggestionTile extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(
-              width: 96,
+            IntrinsicWidth(
               child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 onPressed: onTap,
                 child: const Text('불러오기'),
               ),
@@ -1687,7 +1694,7 @@ class _MonthlySpendPaceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppStatusChip(
-              label: 'MONTHLY PACE',
+              label: '소비 속도',
               dotColor: accent,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -1767,7 +1774,7 @@ class _UpcomingRecurringCard extends StatelessWidget {
               Row(
                 children: [
                   AppStatusChip(
-                    label: 'UPCOMING',
+                    label: '다가오는 결제',
                     dotColor: AppColors.primary,
                   ),
                   const Spacer(),
@@ -1895,7 +1902,7 @@ class _CategoryPressureCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppStatusChip(
-              label: 'CATEGORY PRESSURE',
+              label: '카테고리',
               dotColor: accent,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -2030,7 +2037,7 @@ class _BudgetStatusCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     summary.totalBudget <= 0
-                        ? 'No budget'
+                        ? '예산 없음'
                         : '${(summary.budgetUsageRate * 100).clamp(0, 999).toStringAsFixed(0)}%',
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: progressColor,
