@@ -36,7 +36,7 @@ class AppLedgerAxisNavigation extends StatelessWidget {
                 currentAxis: currentAxis,
                 icon: Icons.calendar_month_rounded,
                 label: '달력',
-                caption: '날짜로 보기',
+                caption: '날짜',
                 onTap: onOpenCalendar,
               ),
             ),
@@ -47,7 +47,7 @@ class AppLedgerAxisNavigation extends StatelessWidget {
                 currentAxis: currentAxis,
                 icon: Icons.insert_chart_rounded,
                 label: '통계',
-                caption: '흐름으로 보기',
+                caption: '요약',
                 onTap: onOpenStatistics,
               ),
             ),
@@ -58,7 +58,7 @@ class AppLedgerAxisNavigation extends StatelessWidget {
                 currentAxis: currentAxis,
                 icon: Icons.account_balance_wallet_rounded,
                 label: '자산',
-                caption: '계좌로 보기',
+                caption: '계좌',
                 onTap: onOpenAccounts,
               ),
             ),
@@ -141,4 +141,5 @@ class _AxisTile extends StatelessWidget {
     );
   }
 }
+
 

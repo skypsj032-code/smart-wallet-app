@@ -269,14 +269,14 @@ class CalendarScreen extends ConsumerWidget {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
                               title: '날짜를 고르세요.',
-                              body: '거래를 봐요.',
+                              body: '거래 확인',
                             );
                           }
 
                           if (transactions.isEmpty) {
                             return const _CalendarEmptyMessage(
-                              title: '이 날 기록은 비어 있어요.',
-                              body: '여기서 바로 입력해요.',
+                              title: '기록 없음',
+                              body: '여기서 입력',
                             );
                           }
 
@@ -562,7 +562,7 @@ class _CalendarInsightCard extends StatelessWidget {
     }
 
     if (selectedDate == null) {
-      return '거래를 봐요.';
+      return '거래 확인';
     }
 
     final income = selectedDay?.income ?? 0;
@@ -1095,4 +1095,5 @@ class _EditableTransactionRow extends StatelessWidget {
     );
   }
 }
+
 

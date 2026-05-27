@@ -282,7 +282,7 @@ class _InsightPanel extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 _MiniHighlightChip(
-                  label: '남은 흐름',
+                  label: '순흐름',
                   value: _formatCurrency(snapshot.balance),
                   accent: highlightColor,
                 ),
@@ -293,7 +293,7 @@ class _InsightPanel extends StatelessWidget {
                 ),
                 if (snapshot.topCategory != null)
                   _MiniHighlightChip(
-                    label: '가장 큰 지출',
+                    label: '최대 지출',
                     value: snapshot.topCategory!.label,
                     accent: AppColors.warning,
                   ),
@@ -398,7 +398,7 @@ class _CategoryInsightPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '가장 큰 지출 카테고리예요.',
+              '최대 지출 카테고리예요.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
               ),
@@ -889,14 +889,14 @@ _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
   if (snapshot.transactionCount == 0) {
     return const _InsightCopy(
       headline: '기록이 아직 적어요.',
-      body: '기록이 더 모이면 보여요.',
+      body: '기록이 더 모이면 보여요',
     );
   }
 
   if (snapshot.totalExpense == 0) {
     return const _InsightCopy(
       headline: '수입이 먼저 보여요.',
-      body: '수입 확인이 먼저예요.',
+      body: '수입 확인 우선',
     );
   }
 
@@ -972,4 +972,5 @@ const _categoryPalette = <Color>[
   Colors.pink,
   Colors.indigo,
 ];
+
 
