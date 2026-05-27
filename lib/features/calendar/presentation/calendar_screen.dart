@@ -70,7 +70,7 @@ class CalendarScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               AppSection(
-                title: '보는 방식',
+                title: '보기',
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -200,7 +200,7 @@ class CalendarScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               AppSection(
-                title: viewMode == CalendarViewMode.year ? '기간 해석' : '선택한 날의 흐름',
+                title: viewMode == CalendarViewMode.year ? '기간' : '하루',
                 child: _CalendarInsightCard(
                   viewMode: viewMode,
                   snapshot: snapshot,
@@ -210,7 +210,7 @@ class CalendarScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               AppSection(
-                title: '바로 이어보기',
+                title: '이동',
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -225,16 +225,12 @@ class CalendarScreen extends ConsumerWidget {
                         FilledButton.tonalIcon(
                           onPressed: () => context.push('/statistics'),
                           icon: const Icon(Icons.pie_chart_outline),
-                          label: Text(
-                            viewMode == CalendarViewMode.year
-                                ? '연간 통계 보기'
-                                : '이 기간 통계 보기',
-                          ),
+                          label: const Text('통계'),
                         ),
                         FilledButton.tonalIcon(
                           onPressed: () => _openQuickEntry(context, ref),
                           icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('거래 바로 입력'),
+                          label: const Text('입력'),
                         ),
                       ],
                     ),
@@ -244,7 +240,7 @@ class CalendarScreen extends ConsumerWidget {
               if (viewMode != CalendarViewMode.year) ...[
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '선택한 날의 거래',
+                  title: '거래',
                   child: Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(

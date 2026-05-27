@@ -73,22 +73,22 @@ class StatisticsScreen extends ConsumerWidget {
             data: (snapshot) => Column(
               children: [
                 AppSection(
-                  title: '이번 흐름',
+                  title: '요약',
                   child: _InsightPanel(snapshot: snapshot),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '핵심 숫자',
+                  title: '숫자',
                   child: _OverviewPanel(snapshot: snapshot),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '카테고리 해석',
+                  title: '카테고리',
                   child: _CategoryInsightPanel(snapshot: snapshot),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '바로 이어보기',
+                  title: '이동',
                   child: _ShortcutPanel(
                     onOpenCalendar: () => context.push('/calendar'),
                     onOpenTimeline: () => context.push('/timeline'),
@@ -96,7 +96,7 @@ class StatisticsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: '차트는 참고',
+                  title: '차트',
                   child: _ChartsPanel(snapshot: snapshot),
                 ),
               ],
@@ -593,12 +593,12 @@ class _ShortcutPanel extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onOpenCalendar,
                   icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('달력 보기'),
+                  label: const Text('달력'),
                 ),
                 FilledButton.tonalIcon(
                   onPressed: onOpenTimeline,
                   icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('내역 보기'),
+                  label: const Text('내역'),
                 ),
               ],
             ),

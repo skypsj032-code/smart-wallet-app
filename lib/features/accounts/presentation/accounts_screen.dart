@@ -20,7 +20,7 @@ class AccountsScreen extends ConsumerWidget {
     final balancesAsync = ref.watch(accountBalancesProvider);
 
     return AppScaffold(
-      title: '내 자산',
+      title: '자산',
       body: balancesAsync.when(
         data: (balances) {
           final totalNetWorth = balances
