@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
@@ -357,11 +360,17 @@ class _AccountListTile extends StatelessWidget {
           horizontal: AppSpacing.md,
           vertical: AppSpacing.xs,
         ),
-        leading: CircleAvatar(
-          backgroundColor: typeColor.withValues(alpha: 0.12),
+        leading: Container(
+          width: AppSizes.avatarMD,
+          height: AppSizes.avatarMD,
+          decoration: BoxDecoration(
+            color: typeColor.withValues(alpha: AppOpacity.focused),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
           child: Icon(
             _typeIcon(balance.account.type),
             color: typeColor,
+            size: AppSizes.iconMD,
           ),
         ),
         title: Text(

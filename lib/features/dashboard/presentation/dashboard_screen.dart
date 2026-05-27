@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_mood.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
@@ -520,7 +523,7 @@ class _TodayLoopCard extends StatelessWidget {
           AppStatusChip(
             label: 'TODAY LOOP',
             dotColor: hasTodayEntry ? AppColors.income : AppColors.warning,
-            backgroundColor: onCard.withValues(alpha: 0.10),
+            backgroundColor: onCard.withValues(alpha: AppOpacity.hovered),
             foregroundColor: onCard,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -597,7 +600,7 @@ class _RecentTransactionsSection extends StatelessWidget {
                   if (index != transactions.length - 1)
                     Divider(
                       height: 18,
-                      color: onCard.withValues(alpha: 0.12),
+                      color: onCard.withValues(alpha: AppOpacity.focused),
                     ),
                 ],
               ],
@@ -638,7 +641,7 @@ class _BudgetStatusCard extends StatelessWidget {
           AppStatusChip(
             label: 'BUDGET PRESSURE',
             dotColor: progressColor,
-            backgroundColor: onCard.withValues(alpha: 0.10),
+            backgroundColor: onCard.withValues(alpha: AppOpacity.hovered),
             foregroundColor: onCard,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -653,12 +656,12 @@ class _BudgetStatusCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           ClipRRect(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppRadius.full),
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
               color: progressColor,
-              backgroundColor: onCard.withValues(alpha: 0.12),
+              backgroundColor: progressColor.withValues(alpha: AppOpacity.focused),
             ),
           ),
         ],
@@ -698,15 +701,23 @@ class _RecentTransactionTile extends StatelessWidget {
 
     final theme = Theme.of(context);
     final onCard = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
         vertical: AppSpacing.xs,
       ),
-      leading: CircleAvatar(
-        backgroundColor: onCard.withValues(alpha: 0.10),
-        child: Icon(icon, color: accent),
+      leading: Container(
+        width: AppSizes.avatarMD,
+        height: AppSizes.avatarMD,
+        decoration: BoxDecoration(
+          color: isExpense || isIncome
+              ? AppColors.transactionTint(isIncome: isIncome, isDark: isDark)
+              : AppColors.primary.withValues(alpha: AppOpacity.hovered),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Icon(icon, color: accent, size: AppSizes.iconMD),
       ),
       title: Text(
         title,

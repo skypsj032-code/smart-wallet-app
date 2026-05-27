@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
@@ -439,7 +441,7 @@ class _SearchControlCard extends StatelessWidget {
                       Text(
                         summaryText,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.76),
+                          color: Colors.white.withValues(alpha: AppOpacity.textSoft),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -502,7 +504,7 @@ class _TypeChip extends StatelessWidget {
         color: selected ? Colors.white : Colors.white.withValues(alpha: 0.86),
         fontWeight: FontWeight.w700,
       ),
-      backgroundColor: Colors.white.withValues(alpha: 0.14),
+      backgroundColor: Colors.white.withValues(alpha: AppOpacity.chipSelected),
       selectedColor: Colors.white.withValues(alpha: 0.24),
     );
   }
@@ -540,8 +542,8 @@ class _SearchResultTile extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withValues(alpha: AppOpacity.overlayHighlightDark),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
               child: Icon(
                 _icon(transaction.type),
@@ -569,7 +571,7 @@ class _SearchResultTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.72),
+                      color: Colors.white.withValues(alpha: AppOpacity.iconInactive),
                     ),
                   ),
                 ],
@@ -785,7 +787,7 @@ class _HintChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F4EE),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(color: const Color(0xFFE9E1D4)),
       ),
       child: Text(

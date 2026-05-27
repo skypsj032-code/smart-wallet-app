@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section_intro.dart';
@@ -157,13 +160,13 @@ class _ToolsTile extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         leading: Container(
-          width: 40,
-          height: 40,
+          width: AppSizes.avatarMD,
+          height: AppSizes.avatarMD,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+            color: color.withValues(alpha: AppOpacity.focused),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
-          child: Icon(icon, color: color, size: 20),
+          child: Icon(icon, color: color, size: AppSizes.iconMD),
         ),
         title: Text(
           title,
