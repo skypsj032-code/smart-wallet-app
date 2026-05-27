@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_opacity.dart';
 import '../../app/theme/app_radius.dart';
 
 class GlassCard extends StatelessWidget {
@@ -32,13 +33,13 @@ class GlassCard extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.07)
-                  : Colors.white.withValues(alpha: 0.86),
+                  ? Colors.white.withValues(alpha: AppOpacity.glassBackdropDark)
+                  : Colors.white.withValues(alpha: AppOpacity.glassBackdropLight),
               borderRadius: br,
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.10)
-                    : const Color(0xFFBFA978).withValues(alpha: 0.46),
+                    ? Colors.white.withValues(alpha: AppOpacity.borderGlass)
+                    : const Color(0xFFBFA978).withValues(alpha: AppOpacity.borderPrimaryLight),
                 width: 0.8,
               ),
             ),

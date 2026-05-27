@@ -224,8 +224,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           const SizedBox(height: AppSpacing.sm),
           Card(
             elevation: 0,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.xxl)),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(

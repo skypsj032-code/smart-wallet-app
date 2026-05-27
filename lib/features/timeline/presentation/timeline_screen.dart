@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
@@ -329,10 +332,10 @@ class _FilterChipButton extends StatelessWidget {
       label: Text(label),
       selected: selected,
       showCheckmark: false,
-      selectedColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      selectedColor: theme.colorScheme.primary.withValues(alpha: AppOpacity.focused),
       side: BorderSide(
         color: selected
-            ? theme.colorScheme.primary.withValues(alpha: 0.2)
+            ? theme.colorScheme.primary.withValues(alpha: AppOpacity.dragged)
             : theme.dividerColor,
       ),
       labelStyle: theme.textTheme.bodyMedium?.copyWith(
@@ -642,6 +645,7 @@ class _TimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isTransfer = transaction.type == 'transfer' ||
         transaction.type == 'transfer_reserved';
     final accentColor = isTransfer
@@ -655,12 +659,23 @@ class _TimelineTile extends StatelessWidget {
             ? Icons.arrow_downward_rounded
             : Icons.arrow_upward_rounded;
 
+    final iconBg = isTransfer
+        ? AppColors.primary.withValues(alpha: AppOpacity.hovered)
+        : AppColors.transactionTint(
+            isIncome: transaction.type == 'income',
+            isDark: isDark,
+          );
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: accentColor.withValues(alpha: 0.12),
-        child: Icon(icon, size: 18, color: accentColor),
+      leading: Container(
+        width: AppSizes.avatarMD,
+        height: AppSizes.avatarMD,
+        decoration: BoxDecoration(
+          color: iconBg,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Icon(icon, size: AppSizes.iconSM, color: accentColor),
       ),
       title: Text(
         _primaryLabel(transaction),

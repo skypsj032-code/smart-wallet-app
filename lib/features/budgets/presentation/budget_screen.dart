@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -105,7 +106,8 @@ class BudgetScreen extends ConsumerWidget {
                             minHeight: 12,
                             borderRadius: BorderRadius.circular(AppRadius.full),
                             color: _progressColor(totalProgress),
-                            backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                            backgroundColor: _progressColor(totalProgress)
+                                .withValues(alpha: AppOpacity.focused),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Row(
@@ -197,7 +199,7 @@ class BudgetScreen extends ConsumerWidget {
                         label: budgetCategoryItemSemanticLabel(item),
                         child: Card(
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
                             onTap: categoryOptionsAsync.hasValue
                                 ? () => _openBudgetEditor(
                                       context,
@@ -313,7 +315,8 @@ class BudgetScreen extends ConsumerWidget {
                                     minHeight: 12,
                                     borderRadius: BorderRadius.circular(AppRadius.full),
                                     color: _progressColor(item.progress),
-                                    backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+                                    backgroundColor: _progressColor(item.progress)
+                                        .withValues(alpha: AppOpacity.focused),
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   Row(

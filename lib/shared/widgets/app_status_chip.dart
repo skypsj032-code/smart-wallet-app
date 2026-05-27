@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
 
 class AppStatusChip extends StatelessWidget {
@@ -25,7 +26,7 @@ class AppStatusChip extends StatelessWidget {
             ? theme.colorScheme.primary.withValues(alpha: 0.1)
             : theme.colorScheme.primary.withValues(alpha: 0.18));
     final resolvedForeground = foregroundColor ??
-        (isDark ? theme.colorScheme.primary : const Color(0xFF4A2F0D));
+        (isDark ? theme.colorScheme.primary : AppColors.mutedInk);
     final resolvedBorder = backgroundColor != null || foregroundColor != null
         ? resolvedForeground.withValues(alpha: 0.22)
         : theme.colorScheme.outline;

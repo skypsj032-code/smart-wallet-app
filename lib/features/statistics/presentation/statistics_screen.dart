@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_opacity.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -664,7 +666,7 @@ class _CategoryRow extends StatelessWidget {
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
+                color: color.withValues(alpha: AppOpacity.chipSelected),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -694,11 +696,11 @@ class _CategoryRow extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         ClipRRect(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppRadius.full),
           child: LinearProgressIndicator(
             value: item.share.clamp(0, 1),
             minHeight: 10,
-            backgroundColor: color.withValues(alpha: 0.10),
+            backgroundColor: color.withValues(alpha: AppOpacity.borderGlass),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
