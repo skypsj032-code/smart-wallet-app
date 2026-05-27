@@ -23,7 +23,7 @@ class StatisticsScreen extends ConsumerWidget {
     return AppScaffold(
       title: '통계',
       body: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -52,7 +52,7 @@ class StatisticsScreen extends ConsumerWidget {
               body: '이번 달, 최근 3개월, 전체를 바로 비교할 수 있어요.',
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           _RangePanel(
             range: range,
             currentMonth: currentMonth,
@@ -68,7 +68,7 @@ class StatisticsScreen extends ConsumerWidget {
                   DateTime(currentMonth.year, currentMonth.month + 1, 1);
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           snapshotAsync.when(
             data: (snapshot) => Column(
               children: [
@@ -76,17 +76,17 @@ class StatisticsScreen extends ConsumerWidget {
                   title: '요약',
                   child: _InsightPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: '숫자',
                   child: _OverviewPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: '카테고리',
                   child: _CategoryInsightPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: '이동',
                   child: _ShortcutPanel(
@@ -94,7 +94,7 @@ class StatisticsScreen extends ConsumerWidget {
                     onOpenTimeline: () => context.push('/timeline'),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: '차트',
                   child: _ChartsPanel(snapshot: snapshot),

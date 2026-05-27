@@ -39,7 +39,7 @@ class CalendarScreen extends ConsumerWidget {
               : const <_CalendarCellData>[];
 
           return ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -68,7 +68,7 @@ class CalendarScreen extends ConsumerWidget {
                   body: '주간, 월간, 연간으로 날짜 흐름을 바로 확인할 수 있어요.',
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: '보기',
                 child: Card(
@@ -137,7 +137,7 @@ class CalendarScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: _periodTitle(viewMode),
                 action: _CalendarPeriodSwitcher(
@@ -198,7 +198,7 @@ class CalendarScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: viewMode == CalendarViewMode.year ? '기간' : '하루',
                 child: _CalendarInsightCard(
@@ -208,7 +208,7 @@ class CalendarScreen extends ConsumerWidget {
                   selectedDay: selectedDay,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: '이동',
                 child: Card(
@@ -238,7 +238,7 @@ class CalendarScreen extends ConsumerWidget {
                 ),
               ),
               if (viewMode != CalendarViewMode.year) ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
                   title: '거래',
                   child: Card(

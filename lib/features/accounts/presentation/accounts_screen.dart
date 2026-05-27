@@ -36,18 +36,18 @@ class AccountsScreen extends ConsumerWidget {
                 onOpenStatistics: () => context.push('/statistics'),
                 onOpenAccounts: () {},
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               const AppLedgerAxisIntro(
                 label: '자산',
                 headline: '계좌 상태를 먼저 봐요',
                 body: '순자산과 계좌별 잔액을 바로 확인할 수 있어요.',
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               _NetWorthCard(
                 totalNetWorth: totalNetWorth,
                 accountCount: balances.length,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: '계좌',
                 action: FilledButton.icon(
@@ -209,7 +209,7 @@ class _NetWorthCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -252,7 +252,7 @@ class _EmptyStateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
