@@ -6,6 +6,7 @@ import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -281,26 +282,14 @@ class _EmptyStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '아직 등록한 계좌가 없어요',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: onAddPressed,
-              icon: const Icon(Icons.add),
-              label: const Text('계좌 추가'),
-            ),
-          ],
-        ),
+    return AppEmptyState(
+      icon: Icons.account_balance_wallet_outlined,
+      title: '아직 등록한 계좌가 없어요',
+      subtitle: '현금·카드·예금 계좌를 추가하면\n잔고를 한눈에 볼 수 있어요.',
+      action: OutlinedButton.icon(
+        onPressed: onAddPressed,
+        icon: const Icon(Icons.add),
+        label: const Text('계좌 추가'),
       ),
     );
   }

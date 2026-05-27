@@ -11,6 +11,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_motion.dart';
 import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
@@ -174,11 +175,11 @@ class _AppShellState extends ConsumerState<AppShell>
                     child: Center(
                       child: Icon(
                         Icons.account_balance_wallet_outlined,
-                        size: 48,
+                        size: AppSizes.touchTarget,
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withValues(alpha: 0.2),
+                            .withValues(alpha: 0.20),
                       ),
                     ),
                   ),
@@ -373,25 +374,25 @@ class _AppShellState extends ConsumerState<AppShell>
                           },
                           destinations: const [
                             NavigationDestination(
-                              icon: Icon(Icons.home_outlined, size: 26),
-                              selectedIcon: Icon(Icons.home_rounded, size: 26),
+                              icon: Icon(Icons.home_outlined, size: AppSizes.iconMD),
+                              selectedIcon: Icon(Icons.home_rounded, size: AppSizes.iconMD),
                               label: '홈',
                             ),
                             NavigationDestination(
-                              icon: Icon(Icons.receipt_long_outlined, size: 26),
+                              icon: Icon(Icons.receipt_long_outlined, size: AppSizes.iconMD),
                               selectedIcon:
-                                  Icon(Icons.receipt_long_rounded, size: 26),
+                                  Icon(Icons.receipt_long_rounded, size: AppSizes.iconMD),
                               label: '내역',
                             ),
                             NavigationDestination(
-                              icon: Icon(Icons.menu_outlined, size: 26),
-                              selectedIcon: Icon(Icons.menu_rounded, size: 26),
+                              icon: Icon(Icons.menu_outlined, size: AppSizes.iconMD),
+                              selectedIcon: Icon(Icons.menu_rounded, size: AppSizes.iconMD),
                               label: '도구',
                             ),
                             NavigationDestination(
-                              icon: Icon(Icons.settings_outlined, size: 26),
+                              icon: Icon(Icons.settings_outlined, size: AppSizes.iconMD),
                               selectedIcon:
-                                  Icon(Icons.settings_rounded, size: 26),
+                                  Icon(Icons.settings_rounded, size: AppSizes.iconMD),
                               label: '설정',
                             ),
                           ],

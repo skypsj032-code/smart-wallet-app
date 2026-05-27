@@ -396,8 +396,8 @@ class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      const Color(0xFFF9F3E8).withValues(alpha: 0.88),
-                      const Color(0xFFF9F3E8).withValues(alpha: 0.52),
+                      AppColors.backgroundLight.withValues(alpha: 0.88),
+                      AppColors.backgroundLight.withValues(alpha: 0.52),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.58, 1.0],
@@ -522,7 +522,7 @@ class _TodayLoopCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppStatusChip(
-            label: 'TODAY LOOP',
+            label: '오늘 현황',
             dotColor: hasTodayEntry ? AppColors.income : AppColors.warning,
             backgroundColor: onCard.withValues(alpha: AppOpacity.hovered),
             foregroundColor: onCard,
@@ -640,7 +640,7 @@ class _BudgetStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppStatusChip(
-            label: 'BUDGET PRESSURE',
+            label: '예산 현황',
             dotColor: progressColor,
             backgroundColor: onCard.withValues(alpha: AppOpacity.hovered),
             foregroundColor: onCard,
