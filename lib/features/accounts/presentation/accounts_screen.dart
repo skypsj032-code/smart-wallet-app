@@ -208,6 +208,7 @@ class _NetWorthCard extends StatelessWidget {
         : '$accountCount개 계좌가 연결돼 있어요.';
 
     return Card(
+      color: theme.colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -311,7 +312,13 @@ class _AccountsCard extends StatelessWidget {
               onEdit: () => onEdit(balances[index].account),
               onDelete: () => onDelete(balances[index].account),
             ),
-            if (index != balances.length - 1) const Divider(height: 1),
+            if (index != balances.length - 1)
+              Divider(
+                height: 1,
+                indent: 60,
+                endIndent: AppSpacing.md,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
           ],
         ],
       ),

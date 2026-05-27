@@ -1,0 +1,9 @@
+- Why: `달력 / 통계 / 자산` 화면의 구조와 질감은 많이 정리됐지만, 카드 배경 대비와 리스트 divider 톤은 아직 모두 비슷해서 계층감이 약하다.
+- Change: 공용 상단 카드와 핵심 요약 카드에 한 단계 낮은 배경 톤을 주고, 자산 리스트 divider를 더 정돈해 카드 간 계층을 분명하게 만든다.
+- Scope:
+  - `AppLedgerAxisIntro`
+  - calendar insight card
+  - statistics metric tiles
+  - accounts net worth card
+  - accounts list divider tone
+- Out of scope: 색상 팔레트 재설계, 카드 구조 변경, 새 상태 표시 추가.

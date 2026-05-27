@@ -1,0 +1,5 @@
+- Changed: 공용 상단 소개 카드 `AppLedgerAxisIntro` 배경을 `surfaceContainerLow`로 내려 기본 콘텐츠 카드와 한 단계 구분되게 했다.
+- Changed: 달력 요약 카드, 통계 숫자 카드, 자산 순자산 카드도 같은 계열의 배경 톤으로 맞춰 핵심 요약 카드가 먼저 보이게 했다.
+- Changed: 자산 리스트 divider를 `outlineVariant`와 들여쓰기 기준으로 정리해 행 구분이 더 차분하게 보이게 했다.
+- Difference: 구조와 타이포는 그대로 두고, 카드 대비와 분리감만 다듬었다.
+- Next: 같은 기준으로 달력/통계의 하단 차트 카드 대비도 더 미세하게 분리할 수 있다.

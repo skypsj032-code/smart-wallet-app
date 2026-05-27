@@ -675,6 +675,7 @@ class _MetricTile extends StatelessWidget {
       width: width,
       child: Card(
         elevation: 0,
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),

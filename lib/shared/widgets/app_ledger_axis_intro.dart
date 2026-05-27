@@ -21,6 +21,7 @@ class AppLedgerAxisIntro extends StatelessWidget {
 
     return Card(
       key: const Key('ledger-axis-intro-card'),
+      color: theme.colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
