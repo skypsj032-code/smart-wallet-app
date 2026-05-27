@@ -40,7 +40,7 @@ class AccountsScreen extends ConsumerWidget {
               const AppLedgerAxisIntro(
                 label: '자산',
                 headline: '계좌 상태를 봐요',
-                body: '순자산과 잔액을 바로 확인해요.',
+                body: '순자산과 잔액을 확인해요.',
               ),
               const SizedBox(height: AppSpacing.md),
               _NetWorthCard(

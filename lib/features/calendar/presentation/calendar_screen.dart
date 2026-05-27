@@ -65,7 +65,7 @@ class CalendarScreen extends ConsumerWidget {
                 child: AppLedgerAxisIntro(
                   label: '달력',
                   headline: '날짜 흐름을 봐요',
-                  body: '주간, 월간, 연간으로 바로 볼 수 있어요.',
+                  body: '주간, 월간, 연간으로 봐요.',
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -253,14 +253,14 @@ class CalendarScreen extends ConsumerWidget {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
                               title: '날짜를 고르면 하루가 열려요.',
-                              body: '수입, 지출, 거래를 바로 볼 수 있어요.',
+                              body: '수입, 지출, 거래를 봐요.',
                             );
                           }
 
                           if (transactions.isEmpty) {
                             return const _CalendarEmptyMessage(
                               title: '이 날 기록은 비어 있어요.',
-                              body: '필요하면 여기서 바로 입력할 수 있어요.',
+                              body: '여기서 바로 입력해요.',
                             );
                           }
 
@@ -537,16 +537,16 @@ class _CalendarInsightCard extends StatelessWidget {
     if (viewMode == CalendarViewMode.year) {
       final net = snapshot.totalIncome - snapshot.totalExpense;
       if (snapshot.totalIncome == 0 && snapshot.totalExpense == 0) {
-        return '아직 기록이 많지 않아요.';
+        return '기록이 아직 적어요.';
       }
       if (net >= 0) {
-        return '달별 흐름을 아래에서 볼 수 있어요.';
+        return '수입이 먼저 보여요.';
       }
-      return '지출이 몰린 달을 아래에서 볼 수 있어요.';
+      return '지출이 먼저 보여요.';
     }
 
     if (selectedDate == null) {
-      return '날짜를 눌러 수입, 지출, 거래를 확인하세요.';
+      return '날짜를 눌러 거래를 봐요.';
     }
 
     final income = selectedDay?.income ?? 0;
@@ -555,9 +555,9 @@ class _CalendarInsightCard extends StatelessWidget {
       return '이 날 기록은 비어 있어요.';
     }
     if (income >= expense) {
-      return '수입 흐름이 더 크게 보이는 날이에요.';
+      return '수입이 더 큰 날이에요.';
     }
-    return '지출 흐름이 더 크게 보이는 날이에요.';
+    return '지출이 더 큰 날이에요.';
   }
 }
 

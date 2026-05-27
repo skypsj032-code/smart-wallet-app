@@ -49,7 +49,7 @@ class StatisticsScreen extends ConsumerWidget {
             child: AppLedgerAxisIntro(
               label: '통계',
               headline: '돈 흐름을 읽어요',
-              body: '이번 달, 최근 3개월, 전체를 바로 비교해요.',
+              body: '이번 달, 최근 3개월, 전체를 비교해요.',
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -360,14 +360,14 @@ class _CategoryInsightPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '이 기간엔 아직 지출 흐름이 쌓이지 않았어요.',
+                '이 기간 지출은 아직 적어요.',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '기록이 더 모이면 어디에 힘이 들어갔는지, 생활 리듬이 어디서 흔들렸는지 바로 읽을 수 있게 정리해둘게요.',
+                '기록이 더 모이면 흐름이 보이기 시작해요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
                 ),
@@ -582,7 +582,7 @@ class _ShortcutPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '다른 화면으로 바로 이동할 수 있어요.',
+              '다른 화면으로 이동해요.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -860,7 +860,7 @@ class _StatisticsError extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '다시 열면 이어서 볼 수 있어요.\n$error',
+              '다시 열면 볼 수 있어요.\n$error',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
               ),
@@ -892,26 +892,26 @@ _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
 
   if (snapshot.totalExpense == 0) {
     return const _InsightCopy(
-      headline: '이번 기간은 나간 돈보다 들어온 흐름이 먼저 보였어요.',
-      body: '지출이 거의 없어서 생활 압력보다는 유입 흐름을 확인하는 데 더 가까운 기간이에요.',
+      headline: '이번 기간은 들어온 흐름이 먼저 보여요.',
+      body: '지출보다 수입 확인이 먼저 필요한 기간이에요.',
     );
   }
 
   final topCategory = snapshot.topCategory;
   final categoryNote = topCategory == null
-      ? '카테고리 흐름은 아직 더 지켜보면 돼요.'
-      : '${topCategory.label} 쪽으로 힘이 가장 많이 들어갔어요.';
+      ? '카테고리는 아직 더 봐야 해요.'
+      : '${topCategory.label} 비중이 가장 커요.';
 
   if (snapshot.balance >= 0) {
     return _InsightCopy(
-      headline: '이번 기간은 남는 흐름으로 마무리되고 있어요.',
-      body: '${snapshot.periodLabel} 동안 수입이 지출을 받쳐주고 있었어요. $categoryNote',
+      headline: '이번 기간은 남는 흐름이에요.',
+      body: '${snapshot.periodLabel} 동안 수입이 지출을 앞섰어요. $categoryNote',
     );
   }
 
   return _InsightCopy(
-    headline: '이번 기간은 나간 돈의 속도가 조금 더 빨랐어요.',
-    body: '${snapshot.periodLabel}의 지출 압력이 수입보다 앞서 있었어요. $categoryNote',
+    headline: '이번 기간은 쓰는 속도가 더 빨라요.',
+    body: '${snapshot.periodLabel} 동안 지출이 수입보다 앞섰어요. $categoryNote',
   );
 }
 
