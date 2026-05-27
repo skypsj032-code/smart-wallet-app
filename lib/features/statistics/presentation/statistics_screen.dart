@@ -400,7 +400,7 @@ class _CategoryInsightPanel extends StatelessWidget {
             Text(
               '가장 큰 지출 카테고리예요.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -759,7 +759,7 @@ class _CategoryRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
@@ -769,14 +769,14 @@ class _CategoryRow extends StatelessWidget {
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           '전체 지출의 ${(item.share * 100).toStringAsFixed(1)}%',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.56),
+                    .withValues(alpha: 0.48),
               ),
         ),
       ],
@@ -811,13 +811,22 @@ class _LegendRow extends StatelessWidget {
             item.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.72),
+                ),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           '${(item.share * 100).toStringAsFixed(0)}%',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.62),
                 fontWeight: FontWeight.w700,
               ),
         ),
@@ -851,7 +860,7 @@ class _StatisticsError extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '잠깐만 숨을 고르고 다시 열어보면 이어서 확인할 수 있어요.\n$error',
+              '다시 열면 이어서 볼 수 있어요.\n$error',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
               ),
@@ -876,8 +885,8 @@ class _InsightCopy {
 _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
   if (snapshot.transactionCount == 0) {
     return const _InsightCopy(
-      headline: '아직 이 기간의 기록이 쌓이지 않았어요.',
-      body: '빠른 입력으로 몇 건만 더 채우면, 어디서 생활 압력이 올라왔는지 자연스럽게 읽히기 시작할 거예요.',
+      headline: '아직 이 기간 기록이 적어요.',
+      body: '기록이 더 모이면 흐름이 또렷해져요.',
     );
   }
 

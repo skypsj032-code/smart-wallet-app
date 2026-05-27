@@ -1,0 +1,8 @@
+- Why: 핵심 카드 위계는 많이 정리됐지만, `통계` 카테고리 행과 `자산` 계좌 행은 아직 보조 정보와 숫자가 비슷한 무게로 보여 리스트 리듬이 조금 퍼져 있다.
+- Change: 통계 카테고리/legend 구간과 자산 계좌 행의 보조 텍스트 농도와 행 리듬을 더 조여 숫자와 핵심 라벨이 먼저 읽히게 한다.
+- Scope:
+  - statistics category rows
+  - statistics legend rows
+  - statistics error/empty copy density
+  - accounts list tile label/amount hierarchy
+- Out of scope: 데이터 계산, 정렬 순서, 카드 구조 변경.
