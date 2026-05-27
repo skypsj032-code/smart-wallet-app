@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -225,11 +225,27 @@ class CalendarScreen extends ConsumerWidget {
                         FilledButton.tonalIcon(
                           onPressed: () => context.push('/statistics'),
                           icon: const Icon(Icons.pie_chart_outline),
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 10,
+                            ),
+                          ),
                           label: const Text('통계'),
                         ),
                         FilledButton.tonalIcon(
                           onPressed: () => _openQuickEntry(context, ref),
                           icon: const Icon(Icons.add_circle_outline),
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 10,
+                            ),
+                          ),
                           label: const Text('입력'),
                         ),
                       ],
@@ -1086,3 +1102,4 @@ class _EditableTransactionRow extends StatelessWidget {
     );
   }
 }
+

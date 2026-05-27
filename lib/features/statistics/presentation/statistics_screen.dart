@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -593,6 +593,14 @@ class _ShortcutPanel extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onOpenCalendar,
                   icon: const Icon(Icons.calendar_month_outlined),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 10,
+                    ),
+                  ),
                   label: const Text('달력'),
                 ),
                 FilledButton.tonalIcon(
@@ -969,3 +977,4 @@ const _categoryPalette = <Color>[
   Colors.pink,
   Colors.indigo,
 ];
+

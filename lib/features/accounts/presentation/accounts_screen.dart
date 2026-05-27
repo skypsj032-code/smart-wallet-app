@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
@@ -53,6 +53,14 @@ class AccountsScreen extends ConsumerWidget {
                 action: FilledButton.icon(
                   onPressed: () => _showAccountDialog(context, ref, null),
                   icon: const Icon(Icons.add),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 10,
+                    ),
+                  ),
                   label: const Text('추가'),
                 ),
                 child: balances.isEmpty
@@ -278,7 +286,15 @@ class _EmptyStateCard extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onAddPressed,
               icon: const Icon(Icons.add),
-              label: const Text('계좌 추가'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 10,
+                    ),
+                  ),
+                  label: const Text('계좌 추가'),
             ),
           ],
         ),
@@ -446,3 +462,4 @@ String _typeLabel(String type) {
       return '현금';
   }
 }
+

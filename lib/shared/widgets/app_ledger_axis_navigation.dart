@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../core/constants/app_spacing.dart';
 
@@ -27,7 +27,7 @@ class AppLedgerAxisNavigation extends StatelessWidget {
     return Card(
       key: const Key('ledger-axis-navigation-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Row(
           children: [
             Expanded(
@@ -98,7 +98,7 @@ class _AxisTile extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
-          vertical: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: isCurrent
@@ -111,11 +111,12 @@ class _AxisTile extends StatelessWidget {
           children: [
             Icon(
               icon,
+              size: 20,
               color: isCurrent
                   ? theme.colorScheme.onPrimaryContainer
                   : theme.colorScheme.primary,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               label,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -140,3 +141,4 @@ class _AxisTile extends StatelessWidget {
     );
   }
 }
+
