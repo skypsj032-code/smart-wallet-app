@@ -1,0 +1,5 @@
+- Changed: 통계 화면 보조 라벨을 `순흐름`, `최대 지출`, `흑자 흐름`, `지출 우세`처럼 더 짧은 상태명으로 줄였다.
+- Changed: 달력 화면 빈 상태와 하루 상태 문구를 `거래 확인`, `기록 없음`, `수입 우세`, `지출 우세`처럼 더 즉시 읽히게 바꿨다.
+- Changed: 축 이동 캡션도 더 짧게 줄여 상단 이동면이 설명보다 탭 목록처럼 읽히게 했다.
+- Difference: 기능과 구조는 그대로 두고, 읽는 단계만 한 번 더 줄였다.
+- Verify: `./flutterw.bat analyze lib/features/statistics/presentation/statistics_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/shared/widgets/app_ledger_axis_navigation.dart`

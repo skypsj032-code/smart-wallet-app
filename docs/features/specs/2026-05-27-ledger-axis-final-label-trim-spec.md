@@ -1,0 +1,7 @@
+- Why: 구조와 밀도는 충분히 편한가계부 쪽으로 가까워졌지만, 일부 라벨과 상태 문구는 아직 설명형이라 한 번 더 읽어야 이해되는 지점이 남아 있었다.
+- Change: `순흐름 / 최대 지출 / 거래 확인 / 기록 없음 / 수입 우세 / 지출 우세`처럼 더 짧은 상태명으로 바꿔, 화면이 바로 읽히게 한다.
+- Scope:
+  - statistics insight/helper labels
+  - calendar empty and day-state labels
+  - ledger axis navigation captions
+- Out of scope: 구조, 데이터, 컴포넌트 배치 변경
