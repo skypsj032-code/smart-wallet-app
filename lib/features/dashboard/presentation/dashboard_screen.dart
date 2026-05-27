@@ -106,7 +106,6 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
                 title: '최근 거래',
-                subtitle: '막 기록한 흐름을 바로 훑어보며 비어 있는 거래가 없는지 확인해보세요.',
               ),
               const SizedBox(height: AppSpacing.sm),
               _RecentTransactionsSection(
@@ -128,9 +127,6 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               AppSectionIntro(
                 title: '예산 흐름',
-                subtitle: summary.totalBudget > 0
-                    ? '이번 달 예산 ${formatCurrency(summary.totalBudget)} 기준으로 흐름을 읽어보세요.'
-                    : '아직 예산을 정하지 않았다면 이번 달 흐름부터 가볍게 확인해보세요.',
               ),
               const SizedBox(height: AppSpacing.sm),
               _BudgetStatusCard(summary: summary),
@@ -2003,7 +1999,7 @@ class _BudgetStatusCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppStatusChip(
-              label: 'BUDGET PRESSURE',
+              label: '예산 흐름',
               dotColor: progressColor,
             ),
             const SizedBox(height: AppSpacing.md),

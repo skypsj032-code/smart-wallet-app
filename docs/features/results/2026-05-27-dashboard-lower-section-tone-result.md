@@ -1,0 +1,3 @@
+- Changed: `최근 거래` and `예산 흐름` now use title-only section intros.
+- Changed: The budget card chip is now Korean (`예산 흐름`) instead of English.
+- Result: The lower half of the dashboard now matches the lighter, less instructional tone of the upper cards.
