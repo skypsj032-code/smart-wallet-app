@@ -64,8 +64,8 @@ class CalendarScreen extends ConsumerWidget {
                 ),
                 child: AppLedgerAxisIntro(
                   label: '달력',
-                  headline: '날짜 흐름부터 차분하게 볼게요',
-                  body: '주간, 월간, 연간으로 오가면서 지출이 몰린 날과 비어 있는 날을 먼저 확인할 수 있어요.',
+                  headline: '날짜 흐름을 먼저 봐요',
+                  body: '주간, 월간, 연간으로 날짜 흐름을 바로 확인할 수 있어요.',
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -82,14 +82,14 @@ class CalendarScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '언제 생활 압력이 몰렸는지 먼저 볼게요',
+                          '기간을 고르세요',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          '주간, 월간, 연간 흐름을 오가며 돈이 어느 시점에 몰렸는지 차분하게 확인할 수 있어요.',
+                          '주간, 월간, 연간으로 바꿔서 볼 수 있어요.',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context)
@@ -252,15 +252,15 @@ class CalendarScreen extends ConsumerWidget {
                         data: (transactions) {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
-                              title: '날짜를 고르면 그날의 흐름이 바로 이어져요.',
-                              body: '달력에서 하루를 눌러 두면, 그날의 수입과 지출 그리고 거래 목록을 한 번에 볼 수 있어요.',
+                              title: '날짜를 고르면 하루가 열려요.',
+                              body: '수입, 지출, 거래를 바로 볼 수 있어요.',
                             );
                           }
 
                           if (transactions.isEmpty) {
                             return const _CalendarEmptyMessage(
-                              title: '이 날은 조용하게 지나갔어요.',
-                              body: '기록이 없던 날도 흐름의 일부예요. 필요하면 여기서 바로 한 건을 남겨둘 수 있어요.',
+                              title: '이 날 기록은 비어 있어요.',
+                              body: '필요하면 여기서 바로 입력할 수 있어요.',
                             );
                           }
 
@@ -522,41 +522,41 @@ class _CalendarInsightCard extends StatelessWidget {
 
   String _title() {
     if (viewMode == CalendarViewMode.year) {
-      return '${snapshot.periodStart.year}년 전체 흐름을 한눈에 보고 있어요';
+      return '${snapshot.periodStart.year}년 전체 흐름';
     }
 
     if (selectedDate == null) {
-      return '날짜를 고르면 그날의 흐름이 바로 정리돼요';
+      return '날짜를 고르면 하루 흐름이 열려요';
     }
 
-    return '${selectedDate!.month}월 ${selectedDate!.day}일의 생활 흐름이에요';
+    return '${selectedDate!.month}월 ${selectedDate!.day}일 흐름';
   }
 
   String _body() {
     if (viewMode == CalendarViewMode.year) {
       final net = snapshot.totalIncome - snapshot.totalExpense;
       if (snapshot.totalIncome == 0 && snapshot.totalExpense == 0) {
-        return '아직 큰 흐름이 쌓이지 않았어요. 기록이 더 모이면 어떤 달에 힘이 들어갔는지 자연스럽게 읽히기 시작할 거예요.';
+        return '아직 기록이 많지 않아요.';
       }
       if (net >= 0) {
-        return '올해는 들어온 흐름이 나간 흐름을 받쳐주고 있어요. 달별로 어느 시점이 무거웠는지 아래에서 바로 확인할 수 있어요.';
+        return '달별 흐름을 아래에서 볼 수 있어요.';
       }
-      return '올해는 나간 흐름의 속도가 조금 더 빨랐어요. 어느 달에 압력이 몰렸는지 달력에서 바로 짚어볼 수 있어요.';
+      return '지출이 몰린 달을 아래에서 볼 수 있어요.';
     }
 
     if (selectedDate == null) {
-      return '날짜를 눌러 두면 수입과 지출이 어떻게 움직였는지, 그리고 어떤 거래가 있었는지 같은 자리에서 이어서 볼 수 있어요.';
+      return '날짜를 눌러 수입, 지출, 거래를 확인하세요.';
     }
 
     final income = selectedDay?.income ?? 0;
     final expense = selectedDay?.expense ?? 0;
     if (income == 0 && expense == 0) {
-      return '이 날은 기록이 없어서 조용하게 지나갔어요. 놓친 지출이 생각나면 바로 한 건을 붙여둘 수 있어요.';
+      return '이 날 기록은 비어 있어요.';
     }
     if (income >= expense) {
-      return '이 날은 들어온 흐름이 더 크게 보였어요. 어떤 맥락이었는지 아래 거래 목록까지 이어서 보면 더 분명해져요.';
+      return '수입 흐름이 더 크게 보이는 날이에요.';
     }
-    return '이 날은 나간 돈의 압력이 더 크게 보였어요. 아래 거래 목록에서 어디에 힘이 들어갔는지 바로 확인할 수 있어요.';
+    return '지출 흐름이 더 크게 보이는 날이에요.';
   }
 }
 

@@ -39,8 +39,8 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               const AppLedgerAxisIntro(
                 label: '자산',
-                headline: '계좌 상태를 한눈에 볼게요',
-                body: '전체 순자산과 계좌별 잔액을 같이 보면서 지금 돈이 어디에 놓여 있는지 바로 확인할 수 있어요.',
+                headline: '계좌 상태를 먼저 봐요',
+                body: '순자산과 계좌별 잔액을 바로 확인할 수 있어요.',
               ),
               const SizedBox(height: AppSpacing.lg),
               _NetWorthCard(
@@ -204,8 +204,8 @@ class _NetWorthCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     const amountColor = AppColors.primary;
     final caption = accountCount == 0
-        ? '계좌를 연결하면 자산이 한눈에 들어와요.'
-        : '$accountCount개의 계좌가 연결되어 있어요.';
+        ? '계좌를 추가해 자산을 보세요.'
+        : '$accountCount개 계좌가 연결되어 있어요.';
 
     return Card(
       child: Padding(
