@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
 import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -52,6 +53,19 @@ class CalendarScreen extends ConsumerWidget {
                   onOpenCalendar: () {},
                   onOpenStatistics: () => context.push('/statistics'),
                   onOpenAccounts: () => context.push('/accounts'),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: AppLedgerAxisIntro(
+                  label: '달력',
+                  headline: '날짜 흐름부터 차분하게 볼게요',
+                  body: '주간, 월간, 연간으로 오가면서 지출이 몰린 날과 비어 있는 날을 먼저 확인할 수 있어요.',
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),

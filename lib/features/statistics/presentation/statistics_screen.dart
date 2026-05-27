@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
 import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -36,6 +37,19 @@ class StatisticsScreen extends ConsumerWidget {
               onOpenCalendar: () => context.push('/calendar'),
               onOpenStatistics: () {},
               onOpenAccounts: () => context.push('/accounts'),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              0,
+            ),
+            child: AppLedgerAxisIntro(
+              label: '통계',
+              headline: '돈 흐름의 결부터 읽어볼게요',
+              body: '이번 달, 최근 3개월, 전체를 오가면서 어디에 얼마나 쏠렸는지 빠르게 비교할 수 있어요.',
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

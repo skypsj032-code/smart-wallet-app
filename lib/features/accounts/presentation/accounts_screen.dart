@@ -5,6 +5,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
 import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
@@ -34,6 +35,12 @@ class AccountsScreen extends ConsumerWidget {
                 onOpenCalendar: () => context.push('/calendar'),
                 onOpenStatistics: () => context.push('/statistics'),
                 onOpenAccounts: () {},
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              const AppLedgerAxisIntro(
+                label: '자산',
+                headline: '계좌 상태를 한눈에 볼게요',
+                body: '전체 순자산과 계좌별 잔액을 같이 보면서 지금 돈이 어디에 놓여 있는지 바로 확인할 수 있어요.',
               ),
               const SizedBox(height: AppSpacing.lg),
               _NetWorthCard(
