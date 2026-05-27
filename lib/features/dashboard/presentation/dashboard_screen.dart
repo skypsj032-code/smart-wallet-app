@@ -45,38 +45,6 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               _OverviewHero(summary: summary, totalBalance: totalBalance),
               const SizedBox(height: AppSpacing.md),
-              if (summary.recurringSpendInsight.groups.isNotEmpty) ...[
-                const AppSectionIntro(
-                  title: '반복적으로 나가는 돈',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _RecurringSpendInsightCard(summary: summary),
-                const SizedBox(height: AppSpacing.md),
-              ] else if (summary.excludedRecurringSpendGroups.isNotEmpty) ...[
-                const AppSectionIntro(
-                  title: '반복지출 복구',
-                  subtitle: '지금은 숨긴 반복지출만 남아 있어요. 필요하면 바로 다시 포함할 수 있어요.',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _RecurringRecoveryEntryCard(summary: summary),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              const AppSectionIntro(
-                title: '이번 달 소비 페이스',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _MonthlySpendPaceCard(summary: summary),
-              const SizedBox(height: AppSpacing.md),
-              if (_homeUpcomingRecurringGroups(summary).isNotEmpty) ...[
-                const AppSectionIntro(
-                  title: '곧 나갈 돈',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _UpcomingRecurringCard(summary: summary),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              const _CategoryPressureSection(),
-              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
@@ -96,13 +64,11 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _TodayLoopCard(
-                summary: summary,
-                onQuickEntry: () {
-                  ref.read(quickEntryFormProvider.notifier).reset();
-                  context.push('/quick-entry');
-                },
+              AppSectionIntro(
+                title: '예산 흐름',
               ),
+              const SizedBox(height: AppSpacing.sm),
+              _BudgetStatusCard(summary: summary),
               const SizedBox(height: AppSpacing.md),
               const AppSectionIntro(
                 title: '최근 거래',
@@ -125,11 +91,45 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
-              AppSectionIntro(
-                title: '예산 흐름',
+              _TodayLoopCard(
+                summary: summary,
+                onQuickEntry: () {
+                  ref.read(quickEntryFormProvider.notifier).reset();
+                  context.push('/quick-entry');
+                },
+              ),
+              if (summary.recurringSpendInsight.groups.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                const AppSectionIntro(
+                  title: '반복적으로 나가는 돈',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _RecurringSpendInsightCard(summary: summary),
+              ] else if (summary.excludedRecurringSpendGroups.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                const AppSectionIntro(
+                  title: '반복지출 복구',
+                  subtitle: '지금은 숨긴 반복지출만 남아 있어요. 필요하면 바로 다시 포함할 수 있어요.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _RecurringRecoveryEntryCard(summary: summary),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              const AppSectionIntro(
+                title: '이번 달 소비 페이스',
               ),
               const SizedBox(height: AppSpacing.sm),
-              _BudgetStatusCard(summary: summary),
+              _MonthlySpendPaceCard(summary: summary),
+              if (_homeUpcomingRecurringGroups(summary).isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                const AppSectionIntro(
+                  title: '곧 나갈 돈',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _UpcomingRecurringCard(summary: summary),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              const _CategoryPressureSection(),
             ],
           );
         },

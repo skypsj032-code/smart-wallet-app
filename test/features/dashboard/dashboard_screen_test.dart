@@ -26,6 +26,11 @@ void main() {
       'dashboard shows recurring spend insight as the first insight card', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1200, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final summary = _summaryWithRecurringGroups();
 
     await tester.pumpWidget(
@@ -45,14 +50,15 @@ void main() {
     );
 
     await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('recurring-spend-insight-card')));
 
     expect(
         find.byKey(const Key('recurring-spend-insight-card')), findsOneWidget);
     expect(find.textContaining('127,000'), findsWidgets);
     expect(find.textContaining('30%'), findsOneWidget);
-    expect(find.text('삼성화재'), findsOneWidget);
-    expect(find.text('NETFLIX'), findsOneWidget);
-    expect(find.text('새벽배송'), findsOneWidget);
+    expect(find.text('삼성화재'), findsWidgets);
+    expect(find.text('NETFLIX'), findsWidgets);
+    expect(find.text('새벽배송'), findsWidgets);
   });
 
   testWidgets('dashboard shows monthly spend pace reward card', (tester) async {
@@ -261,6 +267,61 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('dashboard places classic ledger sections before insight cards',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final summary = _summaryWithRecurringGroups(
+      recentTransactions: [
+        _tx(
+          'recent-1',
+          amount: 12000,
+          occurredAt: DateTime(2026, 5, 22, 12),
+          merchantName: '이디야',
+          categoryId: 'coffee',
+          accountId: 'card-1',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          dashboardSummaryProvider.overrideWith((ref) => Stream.value(summary)),
+          totalActiveAccountBalanceProvider.overrideWith(
+            (ref) => const AsyncData(4800000),
+          ),
+          recurringSpendOverrideStoreProvider.overrideWithValue(overrideStore),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('recurring-spend-insight-card')));
+
+    final budgetTop =
+        tester.getTopLeft(find.byKey(const Key('budget-status-card'))).dy;
+    final recentTop =
+        tester.getTopLeft(find.byKey(const Key('recent-transactions-card'))).dy;
+    final todayTop =
+        tester.getTopLeft(find.byKey(const Key('today-loop-card'))).dy;
+    final recurringTop = tester
+        .getTopLeft(find.byKey(const Key('recurring-spend-insight-card')))
+        .dy;
+
+    expect(budgetTop, lessThan(recentTop));
+    expect(recentTop, lessThan(todayTop));
+    expect(todayTop, lessThan(recurringTop));
   });
 
   testWidgets('dashboard shows only three recent transactions on home',
@@ -852,6 +913,11 @@ void main() {
   testWidgets(
       'dashboard shows recurring recovery entry when only excluded groups remain',
       (tester) async {
+    tester.view.physicalSize = const Size(1200, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final excludedGroup = RecurringSpendGroup(
       groupKey: 'insurance',
       displayName: '?쇱꽦?붿옱',
@@ -964,6 +1030,7 @@ class _FakeRecurringSpendOverrideStore implements RecurringSpendOverrideStore {
 
 DashboardSummary _summaryWithRecurringGroups({
   List<RecurringSpendGroup> excludedGroups = const [],
+  List<Transaction> recentTransactions = const [],
 }) {
   return DashboardSummary(
     monthIncome: 3200000,
@@ -973,7 +1040,7 @@ DashboardSummary _summaryWithRecurringGroups({
     remainingBudget: 70000,
     totalBudget: 500000,
     netCashflow: 2770000,
-    recentTransactions: const [],
+    recentTransactions: recentTransactions,
     repeatSuggestions: const [],
     recurringSpendInsight: RecurringSpendInsight(
       groups: [
