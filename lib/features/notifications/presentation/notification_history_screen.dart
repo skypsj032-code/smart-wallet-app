@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_radius.dart';
+import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
@@ -105,7 +107,7 @@ class _EmptyHistoryView extends StatelessWidget {
           children: [
             Icon(
               Icons.notifications_none_rounded,
-              size: 56,
+              size: AppSizes.iconXXL,
               color: theme.colorScheme.outlineVariant,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -142,6 +144,7 @@ class _HistoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isExpense = item.type == 'expense';
+    final isDark = theme.brightness == Brightness.dark;
     final amountColor = isExpense ? AppColors.expense : AppColors.income;
     final amountSign = isExpense ? '−' : '+';
 
@@ -174,7 +177,7 @@ class _HistoryTile extends StatelessWidget {
         margin: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: ExcludeSemantics(
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -185,17 +188,20 @@ class _HistoryTile extends StatelessWidget {
             children: [
               // 타입 아이콘
               Container(
-                width: 36,
-                height: 36,
+                width: AppSizes.avatarMD,
+                height: AppSizes.avatarMD,
                 decoration: BoxDecoration(
-                  color: amountColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+                  color: AppColors.transactionTint(
+                    isIncome: !isExpense,
+                    isDark: isDark,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
                   isExpense
                       ? Icons.arrow_upward_rounded
                       : Icons.arrow_downward_rounded,
-                  size: 18,
+                  size: AppSizes.iconSM,
                   color: amountColor,
                 ),
               ),
