@@ -37,7 +37,7 @@ class AppLedgerAxisIntro extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               headline,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 height: 1.2,
               ),

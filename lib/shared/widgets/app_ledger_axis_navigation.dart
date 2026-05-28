@@ -129,7 +129,7 @@ class _AxisTile extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               caption,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: isCurrent
                     ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.72)
                     : theme.colorScheme.onSurfaceVariant,

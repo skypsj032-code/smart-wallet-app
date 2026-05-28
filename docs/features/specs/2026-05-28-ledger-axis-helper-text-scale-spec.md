@@ -1,0 +1,7 @@
+- Why: 공통 축의 구조와 라벨은 충분히 정리됐지만, intro headline과 navigation caption, 자산 빈 상태 카드 텍스트는 아직 보조 정보치고 약간 크게 보여 위계가 조금 평평했다.
+- Change: 보조 텍스트 스케일을 한 단계 낮춰 `주정보 > 보조정보` 위계를 더 선명하게 만든다.
+- Scope:
+  - ledger axis intro headline scale
+  - ledger axis navigation caption scale
+  - accounts empty-state title/body scale
+- Out of scope: 문구, 레이아웃, 데이터 변경
