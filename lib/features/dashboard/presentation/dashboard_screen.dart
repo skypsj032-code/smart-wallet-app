@@ -33,7 +33,6 @@ class DashboardScreen extends ConsumerWidget {
       body: summaryAsync.when(
         data: (summary) {
           final totalBalance = totalBalanceAsync.valueOrNull ?? 0;
-          final theme = Theme.of(context);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(
@@ -74,7 +73,7 @@ class DashboardScreen extends ConsumerWidget {
                 onOpenAccounts: () => context.push('/accounts'),
               ),
               const SizedBox(height: AppSpacing.md),
-              AppSectionIntro(
+              const AppSectionIntro(
                 title: '예산 흐름',
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1402,6 +1401,7 @@ String _monthDayLabel(DateTime date) {
   return '${date.month}/${date.day}';
 }
 
+// ignore: unused_element
 List<String> _recurringReasonBullets(RecurringSpendGroup group) {
   return switch (group.kind) {
     RecurringSpendKind.fixed => [
@@ -1521,7 +1521,7 @@ class _LedgerAxisShortcutCard extends StatelessWidget {
     return Card(
       key: const Key('ledger-axis-shortcuts-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Row(
           children: [
             Expanded(
@@ -1580,15 +1580,15 @@ class _LedgerAxisShortcutTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Ink(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.md,
+          horizontal: 10,
+          vertical: 10,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1679,7 +1679,7 @@ class _RepeatSuggestionSection extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
               children: [
                 for (var index = 0; index < suggestions.length; index++) ...[
@@ -1688,7 +1688,7 @@ class _RepeatSuggestionSection extends StatelessWidget {
                     onTap: () => onRepeat(suggestions[index]),
                   ),
                   if (index != suggestions.length - 1)
-                    const Divider(height: AppSpacing.lg),
+                    const Divider(height: AppSpacing.md),
                 ],
               ],
             ),
@@ -1746,7 +1746,7 @@ class _RepeatSuggestionTile extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -1765,8 +1765,8 @@ class _RepeatSuggestionTile extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 40),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                    horizontal: AppSpacing.sm,
+                    vertical: 10,
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -1804,7 +1804,7 @@ class _MonthlySpendPaceCard extends StatelessWidget {
     return Card(
       key: const Key('monthly-spend-pace-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1812,7 +1812,7 @@ class _MonthlySpendPaceCard extends StatelessWidget {
               label: '소비 속도',
               dotColor: accent,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               _paceHeadline(pace),
               style: theme.textTheme.titleMedium?.copyWith(
@@ -1822,12 +1822,12 @@ class _MonthlySpendPaceCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               '오늘은 ${pace.daysInMonth}일 중 ${pace.elapsedDays}일째예요. 지금까지 ${formatCurrency(summary.monthExpense)} 썼고, 이 속도면 약 ${formatCurrency(pace.projectedMonthExpense)} 정도가 될 것 같아요.',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-                height: 1.5,
+                height: 1.4,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -1882,13 +1882,13 @@ class _UpcomingRecurringCard extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  AppStatusChip(
+                  const AppStatusChip(
                     label: '다가오는 결제',
                     dotColor: AppColors.primary,
                   ),
@@ -1902,11 +1902,11 @@ class _UpcomingRecurringCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
               for (var index = 0; index < items.length; index++) ...[
                 _UpcomingRecurringRow(item: items[index]),
                 if (index != items.length - 1)
-                  const Divider(height: AppSpacing.lg),
+                  const Divider(height: AppSpacing.md),
               ],
             ],
           ),
@@ -2011,7 +2011,7 @@ class _CategoryPressureCard extends StatelessWidget {
     return Card(
       key: const Key('category-pressure-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2019,7 +2019,7 @@ class _CategoryPressureCard extends StatelessWidget {
               label: '카테고리',
               dotColor: accent,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               _headlineForCategoryPressure(insight),
               style: theme.textTheme.titleMedium?.copyWith(
@@ -2029,11 +2029,11 @@ class _CategoryPressureCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               '${insight.label}에 ${formatCurrency(insight.spentAmount)} 나갔어요.',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             _PaceMetaChip(
               label: badgeLabel,
               accent: accent,
@@ -2117,7 +2117,7 @@ class _BudgetStatusCard extends StatelessWidget {
     return Card(
       key: const Key('budget-status-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2125,7 +2125,7 @@ class _BudgetStatusCard extends StatelessWidget {
               label: '예산 흐름',
               dotColor: progressColor,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               summary.totalBudget <= 0
                   ? '이번 달 예산은 아직 비어 있어요'
@@ -2134,7 +2134,7 @@ class _BudgetStatusCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             ClipRRect(
               borderRadius: BorderRadius.circular(999),
               child: LinearProgressIndicator(
