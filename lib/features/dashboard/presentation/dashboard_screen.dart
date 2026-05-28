@@ -1462,7 +1462,7 @@ class _TodayLoopCard extends StatelessWidget {
     return Card(
       key: const Key('today-loop-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1473,7 +1473,7 @@ class _TodayLoopCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               hasTodayEntry ? '오늘은 이미 기록 흐름이 이어지고 있어요' : '오늘 흐름은 아직 비어 있어요',
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1486,7 +1486,7 @@ class _TodayLoopCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -2271,12 +2271,12 @@ class _EmptyRecentTransactions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
             Icon(
               Icons.auto_stories_outlined,
-              size: 30,
+              size: 26,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: AppSpacing.sm),
