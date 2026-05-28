@@ -398,7 +398,7 @@ class _CategoryInsightPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '최대 지출 카테고리예요.',
+              '최대 지출',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
               ),
@@ -426,19 +426,9 @@ class _ChartsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '글로 먼저 읽고, 필요할 때 차트로 다시 확인하면 돼요.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
           shape:
@@ -888,33 +878,33 @@ class _InsightCopy {
 _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
   if (snapshot.transactionCount == 0) {
     return const _InsightCopy(
-      headline: '기록이 아직 적어요.',
-      body: '기록이 더 모이면 보여요',
+      headline: '기록 적음',
+      body: '기록 누적 필요',
     );
   }
 
   if (snapshot.totalExpense == 0) {
     return const _InsightCopy(
-      headline: '수입이 먼저 보여요.',
-      body: '수입 확인 우선',
+      headline: '수입 우세',
+      body: '수입 확인',
     );
   }
 
   final topCategory = snapshot.topCategory;
   final categoryNote = topCategory == null
-      ? '카테고리는 아직 더 봐야 해요.'
-      : '${topCategory.label} 비중이 가장 커요.';
+      ? '카테고리 확인 중'
+      : '${topCategory.label} 비중 최대';
 
   if (snapshot.balance >= 0) {
     return _InsightCopy(
-      headline: '남는 흐름이에요.',
-      body: '${snapshot.periodLabel} 수입이 앞섰어요. $categoryNote',
+      headline: '흑자',
+      body: '${snapshot.periodLabel} 수입 우세 · $categoryNote',
     );
   }
 
   return _InsightCopy(
-    headline: '지출이 더 빨라요.',
-    body: '${snapshot.periodLabel} 지출이 앞섰어요. $categoryNote',
+    headline: '지출 우세',
+    body: '${snapshot.periodLabel} 지출 우세 · $categoryNote',
   );
 }
 

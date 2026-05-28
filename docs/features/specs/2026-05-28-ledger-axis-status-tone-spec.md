@@ -1,0 +1,8 @@
+- Why: 화면 밀도와 구조는 충분히 정리됐지만, 일부 insight와 보조 라벨은 아직 문장형이라 `도구 화면`보다는 `설명 화면`처럼 읽히는 지점이 남아 있었다.
+- Change: `기록 적음 / 수입 우세 / 지출 우세 / 흑자 / 최대 지출`처럼 더 짧은 상태명으로 압축하고, 차트 안내 같은 중복 설명은 제거한다.
+- Scope:
+  - calendar year insight status labels
+  - statistics category helper label
+  - statistics insight headline/body tone
+  - statistics chart helper sentence removal
+- Out of scope: 레이아웃, 계산, 차트 데이터 변경

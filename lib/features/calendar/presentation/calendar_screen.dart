@@ -553,12 +553,12 @@ class _CalendarInsightCard extends StatelessWidget {
     if (viewMode == CalendarViewMode.year) {
       final net = snapshot.totalIncome - snapshot.totalExpense;
       if (snapshot.totalIncome == 0 && snapshot.totalExpense == 0) {
-        return '기록이 아직 적어요.';
+        return '기록 적음';
       }
       if (net >= 0) {
-        return '수입이 먼저 보여요.';
+        return '수입 우세';
       }
-      return '지출이 먼저 보여요.';
+      return '지출 우세';
     }
 
     if (selectedDate == null) {
