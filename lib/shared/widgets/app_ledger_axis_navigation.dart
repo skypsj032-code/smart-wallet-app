@@ -27,7 +27,7 @@ class AppLedgerAxisNavigation extends StatelessWidget {
     return Card(
       key: const Key('ledger-axis-navigation-card'),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.all(10),
         child: Row(
           children: [
             Expanded(
@@ -94,17 +94,17 @@ class _AxisTile extends StatelessWidget {
     return InkWell(
       key: Key('ledger-axis-${axis.name}'),
       onTap: isCurrent ? null : onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: Ink(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
+          horizontal: 10,
+          vertical: 10,
         ),
         decoration: BoxDecoration(
           color: isCurrent
               ? theme.colorScheme.primaryContainer
               : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
