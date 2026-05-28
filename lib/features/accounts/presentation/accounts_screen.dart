@@ -219,7 +219,7 @@ class _NetWorthCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -230,7 +230,7 @@ class _NetWorthCard extends StatelessWidget {
                 color: amountColor,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               '총 순자산',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -265,7 +265,7 @@ class _EmptyStateCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -280,7 +280,7 @@ class _EmptyStateCard extends StatelessWidget {
               '현금, 계좌, 카드부터 추가해요.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: onAddPressed,
               icon: const Icon(Icons.add),
@@ -288,8 +288,8 @@ class _EmptyStateCard extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
               ),
               label: const Text('계좌 추가'),
