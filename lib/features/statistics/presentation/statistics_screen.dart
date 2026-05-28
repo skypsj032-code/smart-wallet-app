@@ -229,7 +229,7 @@ class _InsightPanel extends StatelessWidget {
     return Card(
       elevation: 0,
       color: highlightColor.withValues(alpha: 0.06),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(

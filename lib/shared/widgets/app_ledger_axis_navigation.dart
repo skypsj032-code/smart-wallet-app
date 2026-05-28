@@ -94,7 +94,7 @@ class _AxisTile extends StatelessWidget {
     return InkWell(
       key: Key('ledger-axis-${axis.name}'),
       onTap: isCurrent ? null : onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Ink(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -104,7 +104,7 @@ class _AxisTile extends StatelessWidget {
           color: isCurrent
               ? theme.colorScheme.primaryContainer
               : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

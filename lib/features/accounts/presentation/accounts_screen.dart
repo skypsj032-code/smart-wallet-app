@@ -216,7 +216,7 @@ class _NetWorthCard extends StatelessWidget {
     return Card(
       color: theme.colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
