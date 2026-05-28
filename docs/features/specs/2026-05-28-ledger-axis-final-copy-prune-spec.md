@@ -1,0 +1,7 @@
+- Why: 구조와 질감은 거의 닫혔지만, 일부 빈 상태 제목과 중복 보조 라벨은 아직 한 번 더 읽게 만드는 군더더기로 남아 있었다.
+- Change: `계좌 없음`, `날짜 선택`처럼 더 짧은 제목으로 줄이고, 통계 상단 카테고리 카드의 중복 보조 라벨은 제거해 더 건조한 도구 화면으로 마감한다.
+- Scope:
+  - accounts empty-state title/body trim
+  - calendar transaction empty-state title trim
+  - statistics category helper label removal
+- Out of scope: 구조, 데이터, 버튼, 레이아웃 변경

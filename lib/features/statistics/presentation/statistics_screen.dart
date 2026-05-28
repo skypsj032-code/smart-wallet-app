@@ -396,13 +396,6 @@ class _CategoryInsightPanel extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '최대 지출',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
-              ),
-            ),
             const SizedBox(height: AppSpacing.md),
             for (var i = 0; i < visibleCategories.length; i++) ...[
               _CategoryRow(

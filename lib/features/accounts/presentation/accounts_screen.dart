@@ -270,14 +270,14 @@ class _EmptyStateCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '아직 등록한 계좌가 없어요',
+              '계좌 없음',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '현금, 계좌, 카드부터 추가해요.',
+              '현금·계좌·카드 추가',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: AppSpacing.sm),

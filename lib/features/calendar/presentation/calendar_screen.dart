@@ -268,7 +268,7 @@ class CalendarScreen extends ConsumerWidget {
                         data: (transactions) {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
-                              title: '날짜를 고르세요.',
+                              title: '날짜 선택',
                               body: '거래 확인',
                             );
                           }
