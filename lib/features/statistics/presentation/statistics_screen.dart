@@ -134,26 +134,19 @@ class _RangePanel extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '기간을 고르세요',
+              '기간',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '이번 달, 최근 3개월, 전체로 볼 수 있어요.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             SegmentedButton<StatisticsRange>(
               segments: const [
                 ButtonSegment(
@@ -181,12 +174,17 @@ class _RangePanel extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.softHighlight.withValues(alpha: 0.44),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: onPreviousMonth,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 36,
+                        height: 36,
+                      ),
                       icon: const Icon(Icons.chevron_left_rounded),
                     ),
                     Expanded(
@@ -201,6 +199,11 @@ class _RangePanel extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: onNextMonth,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 36,
+                        height: 36,
+                      ),
                       icon: const Icon(Icons.chevron_right_rounded),
                     ),
                   ],

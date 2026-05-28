@@ -50,10 +50,10 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: '계좌',
-                action: FilledButton.icon(
+                action: OutlinedButton.icon(
                   onPressed: () => _showAccountDialog(context, ref, null),
                   icon: const Icon(Icons.add),
-                  style: FilledButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(

@@ -74,34 +74,23 @@ class CalendarScreen extends ConsumerWidget {
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '기간을 고르세요',
+                          '기간',
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          '주간, 월간, 연간으로 볼 수 있어요.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.60),
-                                  ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
                           children: [
                             _ViewModeChip(
                               label: '주간',
