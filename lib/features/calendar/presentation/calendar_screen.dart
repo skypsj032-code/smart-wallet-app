@@ -74,7 +74,7 @@ class CalendarScreen extends ConsumerWidget {
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -158,7 +158,7 @@ class CalendarScreen extends ConsumerWidget {
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -214,7 +214,7 @@ class CalendarScreen extends ConsumerWidget {
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -260,7 +260,7 @@ class CalendarScreen extends ConsumerWidget {
                   child: Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.md),
@@ -1095,5 +1095,6 @@ class _EditableTransactionRow extends StatelessWidget {
     );
   }
 }
+
 
 

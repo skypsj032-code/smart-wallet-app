@@ -262,7 +262,7 @@ class _EmptyStateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -316,7 +316,7 @@ class _AccountsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [
@@ -460,4 +460,5 @@ String _typeLabel(String type) {
       return '현금';
   }
 }
+
 
