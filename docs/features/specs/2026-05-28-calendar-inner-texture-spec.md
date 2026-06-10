@@ -1,0 +1,5 @@
+- Why: 공통 축과 주요 카드 질감은 정리됐지만, 달력 화면 내부의 작은 detail block과 요약 pill 일부는 아직 16 계열 radius라 바깥 카드보다 조금 더 말랑하게 느껴졌다.
+- Change: 달력 내부의 작은 블록 radius를 14 계열로 맞춰, 화면 안쪽으로 갈수록 더 조밀하고 단단한 도구형 리듬이 느껴지게 한다.
+- Scope:
+  - calendar inner pills and detail blocks
+- Out of scope: 구조, 내용, spacing, 데이터 변경

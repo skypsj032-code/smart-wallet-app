@@ -1,0 +1,7 @@
+- Why: 공통 축 카드와 핵심 summary 카드는 이미 18 계열로 정리됐지만, 달력/통계/자산의 보조 카드 다수는 아직 20 계열이라 화면 안에서 둥근 정도가 조금씩 달랐다.
+- Change: 보조 카드 radius도 같은 18 계열로 맞춰, `달력 / 통계 / 자산` 화면 전체가 더 한 세트처럼 보이게 한다.
+- Scope:
+  - accounts secondary cards
+  - calendar secondary cards
+  - statistics secondary cards
+- Out of scope: 패딩, 색, 레이아웃, 데이터 변경

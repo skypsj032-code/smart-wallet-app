@@ -42,9 +42,12 @@ class Budgets extends Table {
   TextColumn get monthKey => text()();
   TextColumn get categoryId => text().nullable()();
   IntColumn get amountLimit => integer()();
-  BoolColumn get alert50Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert80Enabled => boolean().withDefault(const Constant(true))();
-  BoolColumn get alert100Enabled => boolean().withDefault(const Constant(true))();
+  BoolColumn get alert50Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert80Enabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get alert100Enabled =>
+      boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get lastModifiedAt => dateTime()();
 
@@ -72,8 +75,10 @@ class AppSettings extends Table {
   TextColumn get currencyCode => text().withDefault(const Constant('KRW'))();
   TextColumn get weekStart => text().withDefault(const Constant('monday'))();
   TextColumn get themeMode => text().withDefault(const Constant('system'))();
-  BoolColumn get appLockEnabled => boolean().withDefault(const Constant(false))();
-  BoolColumn get biometricEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get appLockEnabled =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get biometricEnabled =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get exportIncludeDeleted =>
       boolean().withDefault(const Constant(false))();
   TextColumn get pinCode => text().nullable()();
@@ -114,4 +119,14 @@ class OcrDrafts extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {localId};
+}
+
+class RecurringSpendOverrides extends Table {
+  TextColumn get groupKey => text()();
+  TextColumn get actionType => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastModifiedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {groupKey};
 }

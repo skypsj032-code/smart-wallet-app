@@ -1,12 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../shared/utils/currency_formatter.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
+import 'package:go_router/go_router.dart';
 import '../application/accounts_provider.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -17,7 +20,7 @@ class AccountsScreen extends ConsumerWidget {
     final balancesAsync = ref.watch(accountBalancesProvider);
 
     return AppScaffold(
-      title: '내 자산',
+      title: '자산',
       body: balancesAsync.when(
         data: (balances) {
           final totalNetWorth = balances
@@ -27,16 +30,37 @@ class AccountsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              AppLedgerAxisNavigation(
+                currentAxis: LedgerAxis.accounts,
+                onOpenCalendar: () => context.push('/calendar'),
+                onOpenStatistics: () => context.push('/statistics'),
+                onOpenAccounts: () {},
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const AppLedgerAxisIntro(
+                label: '자산',
+                headline: '계좌 상태',
+                body: '순자산·잔액',
+              ),
+              const SizedBox(height: AppSpacing.md),
               _NetWorthCard(
                 totalNetWorth: totalNetWorth,
                 accountCount: balances.length,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: '계좌',
-                action: FilledButton.icon(
+                action: OutlinedButton.icon(
                   onPressed: () => _showAccountDialog(context, ref, null),
                   icon: const Icon(Icons.add),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 10,
+                    ),
+                  ),
                   label: const Text('추가'),
                 ),
                 child: balances.isEmpty
@@ -187,23 +211,18 @@ class _NetWorthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     const amountColor = AppColors.primary;
-    final caption = accountCount == 0
-        ? '계좌를 연결하면 자산이 한눈에 들어와요.'
-        : '$accountCount개의 계좌가 연결되어 있어요.';
+    final caption = accountCount == 0 ? '계좌 추가' : '$accountCount개 연결';
 
     return Card(
+      color: theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '총 순자산',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.65),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
             Text(
               _formatCurrency(totalNetWorth),
               style: theme.textTheme.headlineMedium?.copyWith(
@@ -211,7 +230,14 @@ class _NetWorthCard extends StatelessWidget {
                 color: amountColor,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '총 순자산',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               caption,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -235,26 +261,37 @@ class _EmptyStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '아직 등록한 계좌가 없어요',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              '계좌 없음',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '현금, 은행 계좌, 카드처럼 자주 쓰는 자산부터 추가해 보세요.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              '현금·계좌·카드 추가',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: onAddPressed,
               icon: const Icon(Icons.add),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+              ),
               label: const Text('계좌 추가'),
             ),
           ],
@@ -278,6 +315,9 @@ class _AccountsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Column(
         children: [
           for (var index = 0; index < balances.length; index++) ...[
@@ -286,7 +326,13 @@ class _AccountsCard extends StatelessWidget {
               onEdit: () => onEdit(balances[index].account),
               onDelete: () => onDelete(balances[index].account),
             ),
-            if (index != balances.length - 1) const Divider(height: 1),
+            if (index != balances.length - 1)
+              Divider(
+                height: 1,
+                indent: 60,
+                endIndent: AppSpacing.md,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
           ],
         ],
       ),
@@ -310,15 +356,19 @@ class _AccountListTile extends StatelessWidget {
     const typeColor = AppColors.primary;
 
     return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.sm,
+        vertical: 0,
       ),
       leading: CircleAvatar(
+        radius: 16,
         backgroundColor: typeColor.withValues(alpha: 0.12),
         child: Icon(
           _typeIcon(balance.account.type),
           color: typeColor,
+          size: 16,
         ),
       ),
       title: Text(
@@ -328,19 +378,29 @@ class _AccountListTile extends StatelessWidget {
             ),
       ),
       subtitle: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Text(_typeLabel(balance.account.type)),
+        padding: const EdgeInsets.only(top: 1),
+        child: Text(
+          _typeLabel(balance.account.type),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.50),
+              ),
+        ),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             formatCurrency(balance.balance),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
           PopupMenuButton<String>(
+            iconSize: 16,
+            padding: EdgeInsets.zero,
             onSelected: (value) {
               if (value == 'edit') {
                 onEdit();
@@ -400,3 +460,5 @@ String _typeLabel(String type) {
       return '현금';
   }
 }
+
+

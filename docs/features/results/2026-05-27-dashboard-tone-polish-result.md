@@ -1,0 +1,3 @@
+- Changed: Dashboard chip labels now use Korean copy that matches the rest of the home screen.
+- Changed: The budget fallback text now reads `예산 없음` instead of `No budget`.
+- Changed: The repeat-suggestion `불러오기` CTA no longer relies on a hardcoded width and now sizes from content with a stable minimum height.

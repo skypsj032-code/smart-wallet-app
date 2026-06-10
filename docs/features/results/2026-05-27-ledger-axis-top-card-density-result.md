@@ -1,0 +1,5 @@
+- Changed: `AppLedgerAxisIntro` 의 headline/body 타이포를 한 단계 줄이고 간격도 함께 줄였다.
+- Changed: 달력 `보기` 카드와 통계 `기간` 카드의 제목을 `titleSmall` 기준으로 낮추고, 보조 문구를 더 짧게 줄였다.
+- Changed: 자산 소개 카드와 순자산 캡션도 더 짧고 빠르게 읽히는 문구로 다듬었다.
+- Difference: 구조와 행동은 유지하고, 상단 카드의 시각 밀도만 조정했다.
+- Next: 같은 기준으로 하단 요약 카드들의 title/body 위계도 더 압축할 수 있다.

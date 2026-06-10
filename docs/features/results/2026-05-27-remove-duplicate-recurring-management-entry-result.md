@@ -1,0 +1,4 @@
+- Changed: The repeat-suggestions area no longer shows a duplicate `관리하기` entry for recurring exclusions.
+- Changed: Recurring exclusion management remains available only where it matches the meaning of the action, inside recurring-specific UI.
+- Fixed: The repeat-suggestion CTA now uses a finite width so the section can render safely when repeat suggestions actually exist.
+- Verified: Added a dashboard widget test that keeps repeat suggestions visible while confirming the duplicate management key is absent.

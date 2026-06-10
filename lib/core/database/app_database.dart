@@ -17,13 +17,14 @@ part 'app_database.g.dart';
     AppSettings,
     BackupMetadata,
     OcrDrafts,
+    RecurringSpendOverrides,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,10 +45,37 @@ class AppDatabase extends _$AppDatabase {
               await customStatement('DROP TABLE IF EXISTS local_user_profile;');
             } catch (_) {}
           }
+          if (from < 4) {
+            await m.createTable(recurringSpendOverrides);
+          }
         },
       );
 
-  // ── 예산 요약 ───────────────────────────────────────────────────────────────
+  Stream<Set<String>> watchNotRecurringGroupKeys() {
+    return (select(recurringSpendOverrides)
+          ..where((t) => t.actionType.equals('not_recurring')))
+        .watch()
+        .map((rows) => rows.map((row) => row.groupKey).toSet().cast<String>());
+  }
+
+  Future<void> markRecurringSpendGroupNotRecurring(String groupKey) {
+    final now = DateTime.now();
+    return into(recurringSpendOverrides).insertOnConflictUpdate(
+      RecurringSpendOverridesCompanion.insert(
+        groupKey: groupKey,
+        actionType: 'not_recurring',
+        createdAt: now,
+        lastModifiedAt: now,
+      ),
+    );
+  }
+
+  Future<void> unmarkRecurringSpendGroupNotRecurring(String groupKey) {
+    return (delete(recurringSpendOverrides)
+          ..where((t) => t.groupKey.equals(groupKey)))
+        .go();
+  }
+
   Stream<BudgetSummary> watchBudgetSummary() {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
@@ -70,7 +98,8 @@ class AppDatabase extends _$AppDatabase {
         (select(categories)..where((c) => c.isActive.equals(true))).watch();
 
     return monthlyBudgets.combineLatest(
-      monthlyExpenses.combineLatest(activeCategories, (txs, cats) => (txs, cats)),
+      monthlyExpenses.combineLatest(
+          activeCategories, (txs, cats) => (txs, cats)),
       (bgs, payload) {
         final txs = payload.$1;
         final cats = payload.$2;
@@ -106,7 +135,6 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // ── 타임라인 ────────────────────────────────────────────────────────────────
   Stream<List<Transaction>> watchTimelineTransactions() {
     return (select(transactions)
           ..where((t) => t.deletedAt.isNull())
@@ -116,10 +144,8 @@ class AppDatabase extends _$AppDatabase {
           ]))
         .watch();
   }
-
 }
 
-// ── StreamCombineLatest 유틸 ──────────────────────────────────────────────────
 extension _CombineLatestExtension<A> on Stream<A> {
   Stream<R> combineLatest<B, R>(
     Stream<B> other,

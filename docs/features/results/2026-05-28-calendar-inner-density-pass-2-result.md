@@ -1,0 +1,4 @@
+- Changed: 달력 연간 월 카드 radius와 padding, 월 제목 스케일을 낮춰 더 조밀한 연간 보드처럼 보이게 했다.
+- Changed: 달력 summary tile radius와 padding, 값 텍스트 스케일을 낮춰 통계/자산 내부 블록과 같은 결로 맞췄다.
+- Difference: 바깥 카드 구조는 그대로 두고 달력 내부 블록 질감만 한 단계 더 조밀하게 만들었다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/calendar/presentation/calendar_screen.dart`

@@ -1,0 +1,5 @@
+- Changed: 자산 빈 상태 카드의 안내 문구를 더 짧게 줄이고, `계좌 추가` 버튼 스타일을 `OutlinedButton` 계열에 맞게 바로잡았다.
+- Changed: 달력 거래 빈 상태 문구를 더 짧게 줄이고, 거래 행 우측의 `수정` 보조 캡션을 제거해 금액과 본문 정보가 먼저 보이게 했다.
+- Changed: 통계 이동 카드의 한 줄 설명을 제거해 버튼 자체가 바로 보이게 했다.
+- Difference: 구조와 동작은 그대로 두고, 빈 상태와 보조 액션의 시각 잡음을 더 줄였다.
+- Verify: `./flutterw.bat analyze lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

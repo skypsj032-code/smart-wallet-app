@@ -71,12 +71,12 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
 
     if (bootstrapAsync.isLoading) {
       return MaterialApp(
+        title: '다정가계부',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
-        builder: (context, child) => AppFrame(
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: (context, child) =>
+            AppFrame(child: child ?? const SizedBox.shrink()),
         home: const Scaffold(
           body: BrandSplashScreen(
             trailing: SizedBox(
@@ -91,15 +91,15 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
 
     if (bootstrapError != null) {
       return MaterialApp(
+        title: '다정가계부',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
-        builder: (context, child) => AppFrame(
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: (context, child) =>
+            AppFrame(child: child ?? const SizedBox.shrink()),
         home: Scaffold(
           body: BrandSplashScreen(
-            title: 'Smart Wallet',
+            title: '다정가계부',
             subtitle: '앱을 시작하는 중 문제가 발생했습니다.',
             trailing: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -122,14 +122,13 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
     };
 
     return MaterialApp.router(
-      title: 'Smart Wallet',
+      title: '다정가계부',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      builder: (context, child) => AppFrame(
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) =>
+          AppFrame(child: child ?? const SizedBox.shrink()),
       routerConfig: router,
     );
   }

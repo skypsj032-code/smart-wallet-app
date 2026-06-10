@@ -1,0 +1,9 @@
+- Why: `달력 / 통계 / 자산` 축의 구조와 톤은 많이 정리됐지만, 공통 상단 카드와 핵심 summary 카드의 둥근 정도가 화면마다 조금씩 달라 같은 도구 세트처럼 보이는 힘이 약했다.
+- Change: 축 intro, 축 이동 타일, 자산 순자산 카드, 달력 insight 카드, 통계 핵심 insight 카드의 radius를 한 단계 통일해 더 단단한 표면 리듬을 만든다.
+- Scope:
+  - ledger axis intro radius
+  - ledger axis navigation tile radius
+  - accounts net-worth card radius
+  - calendar insight card radius
+  - statistics insight card radius
+- Out of scope: 색, 패딩, 데이터, 카드 순서 변경

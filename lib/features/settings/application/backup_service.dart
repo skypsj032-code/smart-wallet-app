@@ -37,10 +37,7 @@ class BackupPayload {
 }
 
 class RestoreSafetyBackup {
-  const RestoreSafetyBackup({
-    required this.payload,
-    required this.file,
-  });
+  const RestoreSafetyBackup({required this.payload, required this.file});
 
   final BackupPayload payload;
   final File file;
@@ -78,7 +75,9 @@ class BackupService {
   static const int backupVersion = 1;
 
   Future<BackupPayload> exportJsonBackup() async {
-    final transactionsData = await _database.select(_database.transactions).get();
+    final transactionsData = await _database
+        .select(_database.transactions)
+        .get();
     final categoriesData = await _database.select(_database.categories).get();
     final budgetsData = await _database.select(_database.budgets).get();
     final accountsData = await _database.select(_database.accounts).get();
@@ -102,11 +101,14 @@ class BackupService {
         'categories': categoriesData.map(_categoryToJson).toList(),
         'budgets': budgetsData.map(_budgetToJson).toList(),
         'accounts': accountsData.map(_accountToJson).toList(),
-        'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
+        'settings': settingsData.isEmpty
+            ? null
+            : _settingsToJson(settingsData.first),
       },
     };
 
-    final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
+    final fileName =
+        'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
 
     return BackupPayload(
       json: const JsonEncoder.withIndent('  ').convert(payload),
@@ -129,7 +131,7 @@ class BackupService {
 
   Future<void> shareBackupFile(
     File file, {
-    String text = 'Smart Wallet JSON backup file',
+    String text = '다정가계부 JSON 백업 파일입니다.',
   }) async {
     await Share.shareXFiles([XFile(file.path)], text: text);
   }
@@ -150,7 +152,8 @@ class BackupService {
       createdAt: DateTime.parse(decoded['createdAt'] as String),
       appVersion: decoded['appVersion'] as String? ?? 'unknown',
       summary: BackupSummary(
-        transactionCount: (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
+        transactionCount:
+            (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
         categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
         budgetCount: (summaryData['budgetCount'] as num?)?.toInt() ?? 0,
         accountCount: (summaryData['accountCount'] as num?)?.toInt() ?? 0,
@@ -162,7 +165,8 @@ class BackupService {
     final decoded = _decodeAndValidateBackup(jsonText);
     final data = decoded['data'] as Map<String, dynamic>;
 
-    final transactionsData = (data['transactions'] as List<dynamic>? ?? const []);
+    final transactionsData =
+        (data['transactions'] as List<dynamic>? ?? const []);
     final categoriesData = (data['categories'] as List<dynamic>? ?? const []);
     final budgetsData = (data['budgets'] as List<dynamic>? ?? const []);
     final accountsData = (data['accounts'] as List<dynamic>? ?? const []);
@@ -176,7 +180,9 @@ class BackupService {
       await _database.delete(_database.appSettings).go();
 
       for (final raw in categoriesData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.categories).insert(
+        await _database
+            .into(_database.categories)
+            .insert(
               CategoriesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -193,13 +199,17 @@ class BackupService {
       }
 
       for (final raw in accountsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.accounts).insert(
+        await _database
+            .into(_database.accounts)
+            .insert(
               AccountsCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
                 type: raw['type'] as String,
                 colorHex: Value(raw['colorHex'] as String?),
-                includeInNetWorth: Value((raw['includeInNetWorth'] as bool?) ?? true),
+                includeInNetWorth: Value(
+                  (raw['includeInNetWorth'] as bool?) ?? true,
+                ),
                 isActive: Value((raw['isActive'] as bool?) ?? true),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
@@ -208,7 +218,9 @@ class BackupService {
       }
 
       for (final raw in budgetsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.budgets).insert(
+        await _database
+            .into(_database.budgets)
+            .insert(
               BudgetsCompanion.insert(
                 localId: raw['localId'] as String,
                 monthKey: raw['monthKey'] as String,
@@ -216,7 +228,9 @@ class BackupService {
                 amountLimit: raw['amountLimit'] as int,
                 alert50Enabled: Value((raw['alert50Enabled'] as bool?) ?? true),
                 alert80Enabled: Value((raw['alert80Enabled'] as bool?) ?? true),
-                alert100Enabled: Value((raw['alert100Enabled'] as bool?) ?? true),
+                alert100Enabled: Value(
+                  (raw['alert100Enabled'] as bool?) ?? true,
+                ),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
               ),
@@ -224,7 +238,9 @@ class BackupService {
       }
 
       for (final raw in transactionsData.cast<Map<String, dynamic>>()) {
-        await _database.into(_database.transactions).insert(
+        await _database
+            .into(_database.transactions)
+            .insert(
               TransactionsCompanion.insert(
                 localId: raw['localId'] as String,
                 type: raw['type'] as String,
@@ -250,19 +266,33 @@ class BackupService {
       }
 
       if (settingsData != null) {
-        await _database.into(_database.appSettings).insert(
+        await _database
+            .into(_database.appSettings)
+            .insert(
               AppSettingsCompanion.insert(
                 id: Value((settingsData['id'] as int?) ?? 1),
-                currencyCode: Value((settingsData['currencyCode'] as String?) ?? 'KRW'),
-                weekStart: Value((settingsData['weekStart'] as String?) ?? 'monday'),
-                themeMode: Value((settingsData['themeMode'] as String?) ?? 'system'),
-                appLockEnabled: Value((settingsData['appLockEnabled'] as bool?) ?? false),
-                biometricEnabled: Value((settingsData['biometricEnabled'] as bool?) ?? false),
+                currencyCode: Value(
+                  (settingsData['currencyCode'] as String?) ?? 'KRW',
+                ),
+                weekStart: Value(
+                  (settingsData['weekStart'] as String?) ?? 'monday',
+                ),
+                themeMode: Value(
+                  (settingsData['themeMode'] as String?) ?? 'system',
+                ),
+                appLockEnabled: Value(
+                  (settingsData['appLockEnabled'] as bool?) ?? false,
+                ),
+                biometricEnabled: Value(
+                  (settingsData['biometricEnabled'] as bool?) ?? false,
+                ),
                 exportIncludeDeleted: Value(
                   (settingsData['exportIncludeDeleted'] as bool?) ?? false,
                 ),
                 createdAt: DateTime.parse(settingsData['createdAt'] as String),
-                lastModifiedAt: DateTime.parse(settingsData['lastModifiedAt'] as String),
+                lastModifiedAt: DateTime.parse(
+                  settingsData['lastModifiedAt'] as String,
+                ),
               ),
             );
       }
@@ -279,7 +309,9 @@ class BackupService {
   Map<String, dynamic> _decodeAndValidateBackup(String jsonText) {
     final decodedDynamic = jsonDecode(jsonText);
     if (decodedDynamic is! Map<String, dynamic>) {
-      throw const BackupFormatException('Backup file top-level structure is invalid.');
+      throw const BackupFormatException(
+        'Backup file top-level structure is invalid.',
+      );
     }
 
     final decoded = decodedDynamic;
@@ -322,7 +354,12 @@ class BackupService {
       throw const BackupFormatException('data payload is invalid.');
     }
 
-    for (final key in const ['transactions', 'categories', 'budgets', 'accounts']) {
+    for (final key in const [
+      'transactions',
+      'categories',
+      'budgets',
+      'accounts',
+    ]) {
       final value = dataValue[key];
       if (value != null && value is! List<dynamic>) {
         throw BackupFormatException('$key payload is invalid.');
@@ -338,70 +375,70 @@ class BackupService {
   }
 
   Map<String, dynamic> _transactionToJson(Transaction transaction) => {
-        'localId': transaction.localId,
-        'type': transaction.type,
-        'amount': transaction.amount,
-        'occurredAt': transaction.occurredAt.toIso8601String(),
-        'accountId': transaction.accountId,
-        'fromAccountId': transaction.fromAccountId,
-        'toAccountId': transaction.toAccountId,
-        'categoryId': transaction.categoryId,
-        'merchantName': transaction.merchantName,
-        'paymentMethod': transaction.paymentMethod,
-        'memo': transaction.memo,
-        'tagJson': transaction.tagJson,
-        'createdAt': transaction.createdAt.toIso8601String(),
-        'lastModifiedAt': transaction.lastModifiedAt.toIso8601String(),
-        'deletedAt': transaction.deletedAt?.toIso8601String(),
-      };
+    'localId': transaction.localId,
+    'type': transaction.type,
+    'amount': transaction.amount,
+    'occurredAt': transaction.occurredAt.toIso8601String(),
+    'accountId': transaction.accountId,
+    'fromAccountId': transaction.fromAccountId,
+    'toAccountId': transaction.toAccountId,
+    'categoryId': transaction.categoryId,
+    'merchantName': transaction.merchantName,
+    'paymentMethod': transaction.paymentMethod,
+    'memo': transaction.memo,
+    'tagJson': transaction.tagJson,
+    'createdAt': transaction.createdAt.toIso8601String(),
+    'lastModifiedAt': transaction.lastModifiedAt.toIso8601String(),
+    'deletedAt': transaction.deletedAt?.toIso8601String(),
+  };
 
   Map<String, dynamic> _categoryToJson(Category category) => {
-        'localId': category.localId,
-        'name': category.name,
-        'type': category.type,
-        'iconName': category.iconName,
-        'colorHex': category.colorHex,
-        'isDefault': category.isDefault,
-        'isActive': category.isActive,
-        'sortOrder': category.sortOrder,
-        'createdAt': category.createdAt.toIso8601String(),
-        'lastModifiedAt': category.lastModifiedAt.toIso8601String(),
-      };
+    'localId': category.localId,
+    'name': category.name,
+    'type': category.type,
+    'iconName': category.iconName,
+    'colorHex': category.colorHex,
+    'isDefault': category.isDefault,
+    'isActive': category.isActive,
+    'sortOrder': category.sortOrder,
+    'createdAt': category.createdAt.toIso8601String(),
+    'lastModifiedAt': category.lastModifiedAt.toIso8601String(),
+  };
 
   Map<String, dynamic> _budgetToJson(Budget budget) => {
-        'localId': budget.localId,
-        'monthKey': budget.monthKey,
-        'categoryId': budget.categoryId,
-        'amountLimit': budget.amountLimit,
-        'alert50Enabled': budget.alert50Enabled,
-        'alert80Enabled': budget.alert80Enabled,
-        'alert100Enabled': budget.alert100Enabled,
-        'createdAt': budget.createdAt.toIso8601String(),
-        'lastModifiedAt': budget.lastModifiedAt.toIso8601String(),
-      };
+    'localId': budget.localId,
+    'monthKey': budget.monthKey,
+    'categoryId': budget.categoryId,
+    'amountLimit': budget.amountLimit,
+    'alert50Enabled': budget.alert50Enabled,
+    'alert80Enabled': budget.alert80Enabled,
+    'alert100Enabled': budget.alert100Enabled,
+    'createdAt': budget.createdAt.toIso8601String(),
+    'lastModifiedAt': budget.lastModifiedAt.toIso8601String(),
+  };
 
   Map<String, dynamic> _accountToJson(Account account) => {
-        'localId': account.localId,
-        'name': account.name,
-        'type': account.type,
-        'colorHex': account.colorHex,
-        'includeInNetWorth': account.includeInNetWorth,
-        'isActive': account.isActive,
-        'createdAt': account.createdAt.toIso8601String(),
-        'lastModifiedAt': account.lastModifiedAt.toIso8601String(),
-      };
+    'localId': account.localId,
+    'name': account.name,
+    'type': account.type,
+    'colorHex': account.colorHex,
+    'includeInNetWorth': account.includeInNetWorth,
+    'isActive': account.isActive,
+    'createdAt': account.createdAt.toIso8601String(),
+    'lastModifiedAt': account.lastModifiedAt.toIso8601String(),
+  };
 
   Map<String, dynamic> _settingsToJson(AppSetting settings) => {
-        'id': settings.id,
-        'currencyCode': settings.currencyCode,
-        'weekStart': settings.weekStart,
-        'themeMode': settings.themeMode,
-        'appLockEnabled': settings.appLockEnabled,
-        'biometricEnabled': settings.biometricEnabled,
-        'exportIncludeDeleted': settings.exportIncludeDeleted,
-        'createdAt': settings.createdAt.toIso8601String(),
-        'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
-      };
+    'id': settings.id,
+    'currencyCode': settings.currencyCode,
+    'weekStart': settings.weekStart,
+    'themeMode': settings.themeMode,
+    'appLockEnabled': settings.appLockEnabled,
+    'biometricEnabled': settings.biometricEnabled,
+    'exportIncludeDeleted': settings.exportIncludeDeleted,
+    'createdAt': settings.createdAt.toIso8601String(),
+    'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
+  };
 }
 
 final backupServiceProvider = Provider<BackupService>((ref) {

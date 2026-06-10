@@ -99,9 +99,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _RestoreActionCard(
-            onTap: () => _restoreBackup(context, ref),
-          ),
+          _RestoreActionCard(onTap: () => _restoreBackup(context, ref)),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '보안',
@@ -119,11 +117,8 @@ class SettingsScreen extends ConsumerWidget {
                   await _disableAppLock(context, ref, settings);
                 }
               },
-              onChangePin: () => _enableAppLock(
-                context,
-                ref,
-                isChangingPin: true,
-              ),
+              onChangePin: () =>
+                  _enableAppLock(context, ref, isChangingPin: true),
               onLockNow: () => _lockNow(context, ref),
             ),
             loading: () => const Card(
@@ -175,11 +170,10 @@ class SettingsScreen extends ConsumerWidget {
     String mode,
   ) async {
     final db = ref.read(appDatabaseProvider);
-    await db.update(db.appSettings).replace(
-          settings.copyWith(
-            themeMode: mode,
-            lastModifiedAt: DateTime.now(),
-          ),
+    await db
+        .update(db.appSettings)
+        .replace(
+          settings.copyWith(themeMode: mode, lastModifiedAt: DateTime.now()),
         );
   }
 
@@ -198,19 +192,15 @@ class SettingsScreen extends ConsumerWidget {
 
     ref.read(sessionUnlockedProvider.notifier).state = true;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isChangingPin ? 'PIN을 변경했습니다.' : '앱 잠금을 설정했습니다.',
-        ),
-      ),
+      SnackBar(content: Text(isChangingPin ? 'PIN을 변경했습니다.' : '앱 잠금을 설정했습니다.')),
     );
   }
 
   void _lockNow(BuildContext context, WidgetRef ref) {
     ref.read(sessionUnlockedProvider.notifier).state = false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('현재 세션을 잠갔습니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('현재 세션을 잠갔습니다.')));
   }
 
   Future<void> _disableAppLock(
@@ -223,9 +213,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('앱 잠금 해제'),
-          content: const Text(
-            'PIN 잠금을 끄면 다음부터는 추가 인증 없이 앱이 바로 열립니다.',
-          ),
+          content: const Text('PIN 잠금을 끄면 다음부터는 추가 인증 없이 앱이 바로 열립니다.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -246,7 +234,9 @@ class SettingsScreen extends ConsumerWidget {
 
     final db = ref.read(appDatabaseProvider);
     final now = DateTime.now();
-    await db.update(db.appSettings).replace(
+    await db
+        .update(db.appSettings)
+        .replace(
           settings.copyWith(
             appLockEnabled: false,
             pinCode: const drift.Value(null),
@@ -260,9 +250,9 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('앱 잠금을 해제했습니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('앱 잠금을 해제했습니다.')));
   }
 
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
@@ -292,10 +282,9 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () async {
-              await ref.read(backupServiceProvider).shareBackupFile(
-                    file,
-                    text: '공유용으로 만든 Smart Wallet 백업 파일입니다.',
-                  );
+              await ref
+                  .read(backupServiceProvider)
+                  .shareBackupFile(file, text: '공유용으로 만든 다정가계부 백업 파일입니다.');
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }
@@ -389,9 +378,9 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('복원에 실패했습니다: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('복원에 실패했습니다: $e')));
     }
   }
 
@@ -482,9 +471,11 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () async {
-              await ref.read(backupServiceProvider).shareBackupFile(
+              await ref
+                  .read(backupServiceProvider)
+                  .shareBackupFile(
                     safetyBackup.file,
-                    text: '복원 직전에 만든 Smart Wallet 안전 백업 파일입니다.',
+                    text: '복원 직전에 만든 다정가계부 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -522,9 +513,11 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () async {
-              await ref.read(backupServiceProvider).shareBackupFile(
+              await ref
+                  .read(backupServiceProvider)
+                  .shareBackupFile(
                     safetyBackup.file,
-                    text: 'Smart Wallet 복원 실패 시 보관한 안전 백업 파일입니다.',
+                    text: '다정가계부 복원 실패 시 보관한 안전 백업 파일입니다.',
                   );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
@@ -576,10 +569,9 @@ class SettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () async {
-              await ref.read(transactionExportServiceProvider).shareCsvFile(
-                    file,
-                    text: '공유용으로 만든 Smart Wallet CSV 파일입니다.',
-                  );
+              await ref
+                  .read(transactionExportServiceProvider)
+                  .shareCsvFile(file, text: '공유용으로 만든 다정가계부 CSV 파일입니다.');
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }
@@ -588,7 +580,9 @@ class SettingsScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () async {
-              await ref.read(transactionExportServiceProvider).shareCsvFile(file);
+              await ref
+                  .read(transactionExportServiceProvider)
+                  .shareCsvFile(file);
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }
@@ -611,10 +605,7 @@ class _SettingsHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const AppHeroPanel(
-      eyebrow: AppStatusChip(
-        label: 'UTILITY HUB',
-        dotColor: AppColors.primary,
-      ),
+      eyebrow: AppStatusChip(label: 'UTILITY HUB', dotColor: AppColors.primary),
       title: '조용한 지원 허브',
       body: '일상 이동, 데이터 안전, 보안, 화면 모드를 한곳에서 차분하게 관리합니다.',
     );
@@ -659,8 +650,8 @@ class _AppLockCard extends StatelessWidget {
             Text(
               enabled
                   ? sessionUnlocked
-                      ? '현재 세션은 잠금이 해제된 상태입니다.'
-                      : '현재 세션은 잠겨 있습니다. 다음 화면 전환부터 PIN이 필요합니다.'
+                        ? '현재 세션은 잠금이 해제된 상태입니다.'
+                        : '현재 세션은 잠겨 있습니다. 다음 화면 전환부터 PIN이 필요합니다.'
                   : '앱 잠금을 다시 켜면 민감한 화면을 한 겹 더 보호할 수 있습니다.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -698,9 +689,7 @@ class _AppLockCard extends StatelessWidget {
 }
 
 class _RestoreActionCard extends StatelessWidget {
-  const _RestoreActionCard({
-    required this.onTap,
-  });
+  const _RestoreActionCard({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -749,10 +738,7 @@ class _RestoreActionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const AppStatusChip(
-                  label: '신중',
-                  dotColor: AppColors.warning,
-                ),
+                const AppStatusChip(label: '신중', dotColor: AppColors.warning),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -813,9 +799,9 @@ class _SettingsActionTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
       subtitle: subtitle != null
           ? Padding(
@@ -829,10 +815,7 @@ class _SettingsActionTile extends StatelessWidget {
 }
 
 class _ThemeModeTile extends StatelessWidget {
-  const _ThemeModeTile({
-    required this.currentMode,
-    required this.onChanged,
-  });
+  const _ThemeModeTile({required this.currentMode, required this.onChanged});
 
   final String currentMode;
   final ValueChanged<String> onChanged;
@@ -850,16 +833,16 @@ class _ThemeModeTile extends StatelessWidget {
           currentMode == 'dark'
               ? Icons.dark_mode_outlined
               : currentMode == 'light'
-                  ? Icons.light_mode_outlined
-                  : Icons.brightness_auto_outlined,
+              ? Icons.light_mode_outlined
+              : Icons.brightness_auto_outlined,
           color: AppColors.primary,
         ),
       ),
       title: Text(
         '화면 모드',
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),

@@ -1,0 +1,7 @@
+- Why: `달력 / 통계 / 자산` 화면이 구조와 밀도는 편한가계부 쪽에 가까워졌지만, intro/빈 상태/오류/이동 패널 문구는 아직 설명형이 남아 있었다.
+- Change: 사용 흐름을 바꾸지 않고, 보조 문구와 해석 문장을 더 짧고 도구형으로 줄여 숫자와 핵심 액션이 먼저 읽히게 한다.
+- Scope:
+  - accounts intro body trim
+  - calendar intro and insight copy trim
+  - statistics intro, empty, error, shortcut, insight copy trim
+- Out of scope: 레이아웃, 데이터 계산, 라우팅, 카드 순서 변경

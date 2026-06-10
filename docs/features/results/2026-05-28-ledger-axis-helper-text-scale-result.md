@@ -1,0 +1,4 @@
+- Changed: 공통 intro headline을 `titleMedium -> titleSmall`로 낮춰 각 화면 상단이 더 도구형으로 보이게 했다.
+- Changed: 축 이동 캡션을 `bodySmall -> labelSmall`로 낮춰 탭명보다 덜 튀게 정리했다.
+- Changed: 자산 빈 상태 카드의 title/body 스케일을 한 단계 낮춰 CTA와 계좌 리스트가 더 먼저 읽히게 했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/shared/widgets/app_ledger_axis_intro.dart lib/shared/widgets/app_ledger_axis_navigation.dart lib/features/accounts/presentation/accounts_screen.dart`

@@ -1,0 +1,4 @@
+- Changed: 자산 순자산 카드의 내부 padding과 줄 간격을 줄여 숫자가 더 먼저, 더 촘촘하게 읽히게 했다.
+- Changed: 자산 빈 상태 카드의 padding과 `계좌 추가` CTA padding을 낮춰 통계 내부 블록과 같은 밀도로 맞췄다.
+- Difference: 구조와 내용은 그대로 두고, 자산 내부 카드의 리듬만 더 조밀하게 정리했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/accounts/presentation/accounts_screen.dart`

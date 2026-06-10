@@ -1,0 +1,7 @@
+- Why: 화면 밀도와 위계는 많이 편한가계부 쪽으로 붙었지만, 일부 headline과 insight 문구는 아직 `문장형`으로 남아 도구 화면보다 설명 화면처럼 읽혔다.
+- Change: `달력 / 통계 / 자산`의 intro와 핵심 insight 문구를 더 `명사형 / 짧은 동사형`으로 줄여 화면 이름과 상태가 더 빠르게 읽히게 한다.
+- Scope:
+  - accounts intro and summary caption tone
+  - calendar intro and insight title/body tone
+  - statistics intro and insight title/body tone
+- Out of scope: 구조, 데이터, 색, 레이아웃 변경

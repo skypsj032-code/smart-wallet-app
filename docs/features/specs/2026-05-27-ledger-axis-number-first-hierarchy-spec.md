@@ -1,0 +1,8 @@
+- Why: `달력 / 통계 / 자산` 화면은 도구형 톤으로 많이 정리됐지만, 일부 상단 카드에서는 설명이 숫자보다 먼저 눈에 들어온다. 편한가계부처럼 빠르게 읽히게 하려면 금액, 비율, 건수가 먼저 보여야 한다.
+- Change: 달력 요약 카드, 통계 숫자 카드, 자산 순자산 카드의 내부 위계를 `숫자 우선`으로 조정한다.
+- Scope:
+  - `CalendarScreen` insight summary ordering
+  - statistics metric tiles
+  - accounts net worth card
+  - statistics category headline phrasing
+- Out of scope: 데이터 계산 변경, 새 카드 추가, 라우트 변경.

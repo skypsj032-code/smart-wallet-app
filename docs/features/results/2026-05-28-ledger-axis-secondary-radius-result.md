@@ -1,0 +1,3 @@
+- Changed: 자산, 달력, 통계 화면의 보조 카드 radius를 20에서 18 계열로 맞춰 공통 축 카드와 같은 질감으로 정리했다.
+- Difference: 구조와 내용은 그대로 두고, 화면 안에서 카드 둥근 정도만 더 통일했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

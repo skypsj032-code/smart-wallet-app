@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
@@ -37,41 +39,58 @@ class CalendarScreen extends ConsumerWidget {
               : const <_CalendarCellData>[];
 
           return ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: AppLedgerAxisNavigation(
+                  currentAxis: LedgerAxis.calendar,
+                  onOpenCalendar: () {},
+                  onOpenStatistics: () => context.push('/statistics'),
+                  onOpenAccounts: () => context.push('/accounts'),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: AppLedgerAxisIntro(
+                  label: '달력',
+                  headline: '날짜 흐름',
+                  body: '주·월·연 보기',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
-                title: '보는 방식',
+                title: '보기',
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '언제 생활 압력이 몰렸는지 먼저 볼게요',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          '기간',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          '주간, 월간, 연간 흐름을 오가며 돈이 어느 시점에 몰렸는지 차분하게 확인할 수 있어요.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.60),
-                                  ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
                           children: [
                             _ViewModeChip(
                               label: '주간',
@@ -107,7 +126,7 @@ class CalendarScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
                 title: _periodTitle(viewMode),
                 action: _CalendarPeriodSwitcher(
@@ -128,7 +147,7 @@ class CalendarScreen extends ConsumerWidget {
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -168,9 +187,9 @@ class CalendarScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
-                title: viewMode == CalendarViewMode.year ? '기간 해석' : '선택한 날의 흐름',
+                title: viewMode == CalendarViewMode.year ? '기간' : '하루',
                 child: _CalendarInsightCard(
                   viewMode: viewMode,
                   snapshot: snapshot,
@@ -178,13 +197,13 @@ class CalendarScreen extends ConsumerWidget {
                   selectedDay: selectedDay,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               AppSection(
-                title: '바로 이어보기',
+                title: '이동',
                 child: Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -195,16 +214,28 @@ class CalendarScreen extends ConsumerWidget {
                         FilledButton.tonalIcon(
                           onPressed: () => context.push('/statistics'),
                           icon: const Icon(Icons.pie_chart_outline),
-                          label: Text(
-                            viewMode == CalendarViewMode.year
-                                ? '연간 통계 보기'
-                                : '이 기간 통계 보기',
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 10,
+                            ),
                           ),
+                          label: const Text('통계'),
                         ),
                         FilledButton.tonalIcon(
                           onPressed: () => _openQuickEntry(context, ref),
                           icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('거래 바로 입력'),
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 10,
+                            ),
+                          ),
+                          label: const Text('입력'),
                         ),
                       ],
                     ),
@@ -212,13 +243,13 @@ class CalendarScreen extends ConsumerWidget {
                 ),
               ),
               if (viewMode != CalendarViewMode.year) ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
-                  title: '선택한 날의 거래',
+                  title: '거래',
                   child: Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.md),
@@ -226,15 +257,15 @@ class CalendarScreen extends ConsumerWidget {
                         data: (transactions) {
                           if (selectedDate == null) {
                             return const _CalendarEmptyMessage(
-                              title: '날짜를 고르면 그날의 흐름이 바로 이어져요.',
-                              body: '달력에서 하루를 눌러 두면, 그날의 수입과 지출 그리고 거래 목록을 한 번에 볼 수 있어요.',
+                              title: '날짜 선택',
+                              body: '거래 확인',
                             );
                           }
 
                           if (transactions.isEmpty) {
                             return const _CalendarEmptyMessage(
-                              title: '이 날은 조용하게 지나갔어요.',
-                              body: '기록이 없던 날도 흐름의 일부예요. 필요하면 여기서 바로 한 건을 남겨둘 수 있어요.',
+                              title: '기록 없음',
+                              body: '여기서 입력',
                             );
                           }
 
@@ -440,7 +471,8 @@ class _CalendarInsightCard extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      color: theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -448,16 +480,8 @@ class _CalendarInsightCard extends StatelessWidget {
           children: [
             Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              body,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
-                height: 1.5,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -488,6 +512,14 @@ class _CalendarInsightCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              body,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
+                height: 1.4,
+              ),
+            ),
           ],
         ),
       ),
@@ -496,41 +528,41 @@ class _CalendarInsightCard extends StatelessWidget {
 
   String _title() {
     if (viewMode == CalendarViewMode.year) {
-      return '${snapshot.periodStart.year}년 전체 흐름을 한눈에 보고 있어요';
+      return '${snapshot.periodStart.year}년 전체';
     }
 
     if (selectedDate == null) {
-      return '날짜를 고르면 그날의 흐름이 바로 정리돼요';
+      return '날짜를 고르세요';
     }
 
-    return '${selectedDate!.month}월 ${selectedDate!.day}일의 생활 흐름이에요';
+    return '${selectedDate!.month}월 ${selectedDate!.day}일';
   }
 
   String _body() {
     if (viewMode == CalendarViewMode.year) {
       final net = snapshot.totalIncome - snapshot.totalExpense;
       if (snapshot.totalIncome == 0 && snapshot.totalExpense == 0) {
-        return '아직 큰 흐름이 쌓이지 않았어요. 기록이 더 모이면 어떤 달에 힘이 들어갔는지 자연스럽게 읽히기 시작할 거예요.';
+        return '기록 적음';
       }
       if (net >= 0) {
-        return '올해는 들어온 흐름이 나간 흐름을 받쳐주고 있어요. 달별로 어느 시점이 무거웠는지 아래에서 바로 확인할 수 있어요.';
+        return '수입 우세';
       }
-      return '올해는 나간 흐름의 속도가 조금 더 빨랐어요. 어느 달에 압력이 몰렸는지 달력에서 바로 짚어볼 수 있어요.';
+      return '지출 우세';
     }
 
     if (selectedDate == null) {
-      return '날짜를 눌러 두면 수입과 지출이 어떻게 움직였는지, 그리고 어떤 거래가 있었는지 같은 자리에서 이어서 볼 수 있어요.';
+      return '거래 확인';
     }
 
     final income = selectedDay?.income ?? 0;
     final expense = selectedDay?.expense ?? 0;
     if (income == 0 && expense == 0) {
-      return '이 날은 기록이 없어서 조용하게 지나갔어요. 놓친 지출이 생각나면 바로 한 건을 붙여둘 수 있어요.';
+      return '기록 없음';
     }
     if (income >= expense) {
-      return '이 날은 들어온 흐름이 더 크게 보였어요. 어떤 맥락이었는지 아래 거래 목록까지 이어서 보면 더 분명해져요.';
+      return '수입이 큰 날';
     }
-    return '이 날은 나간 돈의 압력이 더 크게 보였어요. 아래 거래 목록에서 어디에 힘이 들어갔는지 바로 확인할 수 있어요.';
+    return '지출이 큰 날';
   }
 }
 
@@ -561,7 +593,7 @@ class _CalendarEmptyMessage extends StatelessWidget {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.60),
+                    .withValues(alpha: 0.52),
               ),
         ),
       ],
@@ -779,12 +811,12 @@ class _YearCalendarView extends StatelessWidget {
       itemBuilder: (context, index) {
         final month = months[index];
         return InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: () => onTapMonth(month.monthStart),
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: Theme.of(context)
                     .colorScheme
@@ -797,7 +829,7 @@ class _YearCalendarView extends StatelessWidget {
               children: [
                 Text(
                   '${month.monthStart.month}월',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -851,9 +883,9 @@ class _CalendarDayCell extends StatelessWidget {
       color: isSelected
           ? Theme.of(context).colorScheme.primaryContainer
           : Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -866,7 +898,7 @@ class _CalendarDayCell extends StatelessWidget {
                       .outline
                       .withValues(alpha: 0.15),
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -932,10 +964,10 @@ class _SummaryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -944,7 +976,7 @@ class _SummaryTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -998,18 +1030,18 @@ class _EditableTransactionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 18,
+                radius: 16,
                 backgroundColor: accentColor.withValues(alpha: 0.12),
                 child: Icon(
                   icon,
-                  size: 18,
+                  size: 16,
                   color: accentColor,
                 ),
               ),
@@ -1024,7 +1056,7 @@ class _EditableTransactionRow extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: 2),
                     Text(
                       supportingParts.join(' · '),
                       style: Theme.of(context).textTheme.bodySmall,
@@ -1043,13 +1075,6 @@ class _EditableTransactionRow extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '눌러서 수정',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
                 ],
               ),
             ],
@@ -1059,3 +1084,7 @@ class _EditableTransactionRow extends StatelessWidget {
     );
   }
 }
+
+
+
+

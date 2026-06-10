@@ -1,0 +1,5 @@
+- Changed: 자산 계좌 행의 좌우 패딩, 아바타, 메뉴 아이콘, 보조 줄 간격을 줄여 계좌명과 잔액이 더 빨리 읽히게 했다.
+- Changed: 달력 거래 행의 아바타, 세로 패딩, 보조 줄 간격, 우측 액션 문구를 압축해 한 화면에 더 촘촘하게 보이게 했다.
+- Changed: 통계 카테고리 행의 순번 배지, 간격, progress bar 높이를 줄여 카테고리명과 금액이 먼저 들어오게 했다.
+- Difference: 정보량과 구조는 그대로 두고 리스트 행의 시각 리듬만 정리했다.
+- Verify: `./flutterw.bat analyze lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

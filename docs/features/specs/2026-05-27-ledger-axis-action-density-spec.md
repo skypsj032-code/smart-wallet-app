@@ -1,0 +1,8 @@
+- Why: `달력 / 통계 / 자산` 화면의 본문 카피와 숫자 위계는 많이 정리됐지만, 축 이동 타일과 보조 액션 버튼은 아직 한 단계 크게 보여 도구형 밀도를 약하게 만들고 있었다.
+- Change: 화면 구조는 유지한 채 `축 이동 타일`, `달력/통계 이동 버튼`, `자산 추가 버튼`의 패딩과 탭 타깃 밀도를 한 단계 조여 전체 리듬을 더 촘촘하게 맞춘다.
+- Scope:
+  - ledger axis navigation card padding and tile spacing
+  - calendar shortcut button density
+  - statistics shortcut button density
+  - accounts add button density
+- Out of scope: 라우팅, 문구, 데이터, 카드 순서 변경

@@ -37,6 +37,76 @@ class BudgetSummaryItem {
   double get progress => limitAmount <= 0 ? 0 : spentAmount / limitAmount;
 }
 
+enum CategoryPressureStatus {
+  spending,
+  watch,
+  overspending,
+}
+
+class CategoryPressureInsight {
+  const CategoryPressureInsight({
+    required this.label,
+    required this.spentAmount,
+    required this.limitAmount,
+    required this.progress,
+    required this.status,
+  });
+
+  final String label;
+  final int spentAmount;
+  final int? limitAmount;
+  final double? progress;
+  final CategoryPressureStatus status;
+}
+
+CategoryPressureInsight? deriveCategoryPressure(BudgetSummary summary) {
+  final categorizedItems = summary.items
+      .where((item) => item.categoryId != null && item.spentAmount > 0)
+      .toList();
+  if (categorizedItems.isEmpty) {
+    return null;
+  }
+
+  final budgetTrackedItems =
+      categorizedItems.where((item) => item.limitAmount > 0).toList();
+  if (budgetTrackedItems.isNotEmpty) {
+    budgetTrackedItems.sort((a, b) {
+      final progressCompare = b.progress.compareTo(a.progress);
+      if (progressCompare != 0) {
+        return progressCompare;
+      }
+
+      return b.spentAmount.compareTo(a.spentAmount);
+    });
+
+    final item = budgetTrackedItems.first;
+    final progress = item.progress;
+    final status = progress >= 1
+        ? CategoryPressureStatus.overspending
+        : progress >= 0.8
+            ? CategoryPressureStatus.watch
+            : CategoryPressureStatus.spending;
+
+    return CategoryPressureInsight(
+      label: item.label,
+      spentAmount: item.spentAmount,
+      limitAmount: item.limitAmount,
+      progress: progress,
+      status: status,
+    );
+  }
+
+  categorizedItems.sort((a, b) => b.spentAmount.compareTo(a.spentAmount));
+  final item = categorizedItems.first;
+  return CategoryPressureInsight(
+    label: item.label,
+    spentAmount: item.spentAmount,
+    limitAmount: null,
+    progress: null,
+    status: CategoryPressureStatus.spending,
+  );
+}
+
 class BudgetCategoryOption {
   const BudgetCategoryOption({
     required this.id,

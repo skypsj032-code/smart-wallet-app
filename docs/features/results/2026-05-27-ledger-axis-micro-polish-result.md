@@ -1,0 +1,5 @@
+- Changed: 통계 카테고리 행의 간격과 progress bar 높이를 더 조이고, legend와 보조 문구 농도를 낮춰 핵심 숫자와 카테고리명이 먼저 들어오게 했다.
+- Changed: 자산 계좌 리스트의 avatar, 메뉴 버튼, 보조 텍스트 밀도를 더 낮춰 계좌명과 잔액이 더 도구형으로 읽히게 했다.
+- Changed: 달력 빈 상태 카드의 보조 문구 톤을 더 가볍게 조정해 안내는 남기되 시선은 덜 잡아먹게 했다.
+- Difference: 구조나 동작은 바꾸지 않고, 이미 맞춰둔 편한가계부식 위계 안에서 미세한 질감만 정리했다.
+- Verify: `./flutterw.bat analyze lib/features/statistics/presentation/statistics_screen.dart lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart`

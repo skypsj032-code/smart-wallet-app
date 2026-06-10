@@ -1,0 +1,4 @@
+- Changed: 축 intro 카드와 축 이동 타일의 radius를 더 타이트하게 맞춰 상단 공통 컴포넌트가 한 세트처럼 보이게 했다.
+- Changed: 자산 순자산 카드, 달력 insight 카드, 통계 핵심 insight 카드 radius를 같은 계열로 정리해 화면 간 질감 차이를 줄였다.
+- Difference: 정보 구조나 위계는 그대로 두고, 표면 질감만 더 단단하게 통일했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/shared/widgets/app_ledger_axis_intro.dart lib/shared/widgets/app_ledger_axis_navigation.dart lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

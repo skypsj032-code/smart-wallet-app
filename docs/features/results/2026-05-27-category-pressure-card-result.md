@@ -1,0 +1,5 @@
+- 변경: `budget_provider.dart`에 `deriveCategoryPressure` helper와 `CategoryPressureInsight` 모델을 추가해서, 예산 우선 / 최다 지출 fallback 규칙으로 카테고리 압박 인사이트를 계산하게 했다.
+- 변경: 홈에 `카테고리 압박` 카드를 추가해서 `교통`, `식비` 같은 가장 큰 카테고리를 설명형 문구로 바로 보여주게 했다.
+- 변경: 예산이 있으면 `예산 대비 n%`, 예산이 없으면 `이번 달 최다 지출 카테고리` 배지로 문구를 분기했다.
+- 검증: `budget_provider_test.dart` 에서 helper 규칙을 고정했고, `dashboard_screen_test.dart` 에서 홈 카드 노출을 검증했다.
+- 차이: 처음엔 dashboard summary 안으로 계산을 넣으려 했지만, 예산과 카테고리 규칙을 재사용하기 위해 budget application 계층에 helper를 두는 쪽이 더 안정적이었다.

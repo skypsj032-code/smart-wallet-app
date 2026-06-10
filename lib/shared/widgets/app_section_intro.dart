@@ -27,12 +27,12 @@ class AppSectionIntro extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: theme.textTheme.titleLarge?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -44,7 +44,7 @@ class AppSectionIntro extends StatelessWidget {
           ),
         ),
         if (trailing != null) ...[
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           trailing!,
         ],
       ],

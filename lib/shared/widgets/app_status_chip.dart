@@ -24,29 +24,31 @@ class AppStatusChip extends StatelessWidget {
     final resolvedForeground = foregroundColor ?? theme.colorScheme.primary;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: resolvedBackground,
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: theme.colorScheme.outline),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (dotColor != null) ...[
             Container(
-              width: 7,
-              height: 7,
+              width: 6,
+              height: 6,
               decoration: BoxDecoration(
                 color: dotColor,
                 borderRadius: BorderRadius.circular(AppRadius.full),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
           ],
           Text(
             label,
-            style: theme.textTheme.labelLarge?.copyWith(
+            style: theme.textTheme.labelMedium?.copyWith(
               color: resolvedForeground,
             ),
           ),

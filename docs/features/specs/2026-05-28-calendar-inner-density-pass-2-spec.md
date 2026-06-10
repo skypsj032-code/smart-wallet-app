@@ -1,0 +1,6 @@
+- Why: 달력 안쪽 블록은 이미 한 번 조였지만, `연간 월 카드`와 `SummaryTile`은 아직 통계/자산 내부 블록보다 약간 크고 여유가 있어 보였다.
+- Change: 연간 월 카드와 summary tile의 radius, padding, title scale을 한 단계 더 줄여 달력 내부 밀도를 통계/자산과 맞춘다.
+- Scope:
+  - year calendar month card density
+  - calendar summary tile density
+- Out of scope: 월/주 레이아웃, 데이터, 액션 변경

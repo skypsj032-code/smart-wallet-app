@@ -1,0 +1,8 @@
+- Why: 밀도 조정 뒤에도 몇몇 빈 상태 카드와 보조 액션 캡션이 아직 시선을 잡아먹고 있었고, 자산 빈 상태 버튼 스타일도 톤에 비해 거칠게 남아 있었다.
+- Change: 빈 상태와 보조 액션 문구를 더 짧게 줄이고, 불필요한 보조 캡션은 제거하며, 자산 빈 상태 버튼 스타일을 실제 위젯 계열에 맞게 정리한다.
+- Scope:
+  - accounts empty-state copy and button style polish
+  - calendar transaction empty-state copy trim
+  - calendar transaction row trailing caption removal
+  - statistics shortcut panel helper copy removal
+- Out of scope: 데이터, 라우팅, 카드 순서, 계산 로직 변경

@@ -1,0 +1,6 @@
+- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- 파일: `test/features/dashboard/dashboard_screen_test.dart`
+- 단계: 제외 후와 복구 후 Snackbar를 기대하는 위젯 테스트를 먼저 추가한다.
+- 단계: 마지막 제외 항목 복구 시 관리 시트가 닫히는 동작도 테스트로 고정한다.
+- 단계: 최소 구현으로 Snackbar와 시트 정리를 붙인다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`

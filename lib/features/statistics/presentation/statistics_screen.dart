@@ -1,10 +1,12 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_ledger_axis_intro.dart';
+import '../../../shared/widgets/app_ledger_axis_navigation.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
 import '../application/statistics_provider.dart';
@@ -21,8 +23,36 @@ class StatisticsScreen extends ConsumerWidget {
     return AppScaffold(
       title: '통계',
       body: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: AppLedgerAxisNavigation(
+              currentAxis: LedgerAxis.statistics,
+              onOpenCalendar: () => context.push('/calendar'),
+              onOpenStatistics: () {},
+              onOpenAccounts: () => context.push('/accounts'),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              0,
+            ),
+            child: AppLedgerAxisIntro(
+              label: '통계',
+              headline: '돈 흐름',
+              body: '월·3개월·전체 비교',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           _RangePanel(
             range: range,
             currentMonth: currentMonth,
@@ -38,35 +68,35 @@ class StatisticsScreen extends ConsumerWidget {
                   DateTime(currentMonth.year, currentMonth.month + 1, 1);
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           snapshotAsync.when(
             data: (snapshot) => Column(
               children: [
                 AppSection(
-                  title: '이번 흐름',
+                  title: '요약',
                   child: _InsightPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
-                  title: '핵심 숫자',
+                  title: '숫자',
                   child: _OverviewPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
-                  title: '카테고리 해석',
+                  title: '카테고리',
                   child: _CategoryInsightPanel(snapshot: snapshot),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
-                  title: '바로 이어보기',
+                  title: '이동',
                   child: _ShortcutPanel(
                     onOpenCalendar: () => context.push('/calendar'),
                     onOpenTimeline: () => context.push('/timeline'),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 AppSection(
-                  title: '차트는 참고',
+                  title: '차트',
                   child: _ChartsPanel(snapshot: snapshot),
                 ),
               ],
@@ -104,26 +134,19 @@ class _RangePanel extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '생활 흐름을 볼 기간을 먼저 정해볼게요',
-              style: theme.textTheme.titleMedium?.copyWith(
+              '기간',
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '같은 돈도 시기마다 결이 달라져요. 지금 보고 싶은 범위부터 가볍게 고르면 돼요.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             SegmentedButton<StatisticsRange>(
               segments: const [
                 ButtonSegment(
@@ -151,12 +174,17 @@ class _RangePanel extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.softHighlight.withValues(alpha: 0.44),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: onPreviousMonth,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 36,
+                        height: 36,
+                      ),
                       icon: const Icon(Icons.chevron_left_rounded),
                     ),
                     Expanded(
@@ -171,6 +199,11 @@ class _RangePanel extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: onNextMonth,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 36,
+                        height: 36,
+                      ),
                       icon: const Icon(Icons.chevron_right_rounded),
                     ),
                   ],
@@ -199,7 +232,7 @@ class _InsightPanel extends StatelessWidget {
     return Card(
       elevation: 0,
       color: highlightColor.withValues(alpha: 0.06),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -252,7 +285,7 @@ class _InsightPanel extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 _MiniHighlightChip(
-                  label: '남은 흐름',
+                  label: '순흐름',
                   value: _formatCurrency(snapshot.balance),
                   accent: highlightColor,
                 ),
@@ -263,7 +296,7 @@ class _InsightPanel extends StatelessWidget {
                 ),
                 if (snapshot.topCategory != null)
                   _MiniHighlightChip(
-                    label: '가장 큰 지출',
+                    label: '최대 지출',
                     value: snapshot.topCategory!.label,
                     accent: AppColors.warning,
                   ),
@@ -330,14 +363,14 @@ class _CategoryInsightPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '이 기간엔 아직 지출 흐름이 쌓이지 않았어요.',
+                '이 기간 지출은 아직 적어요.',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '기록이 더 모이면 어디에 힘이 들어갔는지, 생활 리듬이 어디서 흔들렸는지 바로 읽을 수 있게 정리해둘게요.',
+                '기록이 더 모이면 흐름이 보이기 시작해요.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
                 ),
@@ -354,23 +387,16 @@ class _CategoryInsightPanel extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${topCategory.label}이 전체 지출의 $topShare%로 가장 크게 보였어요.',
+              '$topShare% · ${topCategory.label}',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '많이 쓴 항목을 먼저 이해하면, 이번 기간이 왜 이렇게 느껴졌는지 훨씬 빨리 정리돼요.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -396,23 +422,13 @@ class _ChartsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '글로 먼저 읽고, 필요할 때 차트로 다시 확인하면 돼요.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.60),
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: SizedBox(
@@ -486,7 +502,7 @@ class _ChartsPanel extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
@@ -545,17 +561,12 @@ class _ShortcutPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '숫자만 보고 끝내지 않아도 돼요. 흐름이 궁금해졌다면 바로 그 자리로 이어서 볼 수 있어요.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -563,12 +574,20 @@ class _ShortcutPanel extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onOpenCalendar,
                   icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('달력 보기'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 10,
+                    ),
+                  ),
+                  label: const Text('달력'),
                 ),
                 FilledButton.tonalIcon(
                   onPressed: onOpenTimeline,
                   icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('내역 보기'),
+                  label: const Text('내역'),
                 ),
               ],
             ),
@@ -595,10 +614,10 @@ class _MiniHighlightChip extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,20 +664,29 @@ class _MetricTile extends StatelessWidget {
       width: width,
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 10,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.62),
+                    ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: accent,
                       fontWeight: FontWeight.w800,
                     ),
@@ -691,12 +719,12 @@ class _CategoryRow extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${index + 1}',
@@ -706,7 +734,7 @@ class _CategoryRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
                 item.label,
@@ -723,24 +751,24 @@ class _CategoryRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 3),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: item.share.clamp(0, 1),
-            minHeight: 10,
+            minHeight: 6,
             backgroundColor: color.withValues(alpha: 0.10),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 3),
         Text(
           '전체 지출의 ${(item.share * 100).toStringAsFixed(1)}%',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.56),
+                    .withValues(alpha: 0.48),
               ),
         ),
       ],
@@ -775,13 +803,22 @@ class _LegendRow extends StatelessWidget {
             item.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.66),
+                ),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           '${(item.share * 100).toStringAsFixed(0)}%',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.56),
                 fontWeight: FontWeight.w700,
               ),
         ),
@@ -801,7 +838,7 @@ class _StatisticsError extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -815,7 +852,7 @@ class _StatisticsError extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '잠깐만 숨을 고르고 다시 열어보면 이어서 확인할 수 있어요.\n$error',
+              '다시 열면 볼 수 있어요.\n$error',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.62),
               ),
@@ -840,33 +877,33 @@ class _InsightCopy {
 _InsightCopy _buildInsight(StatisticsSnapshot snapshot) {
   if (snapshot.transactionCount == 0) {
     return const _InsightCopy(
-      headline: '아직 이 기간의 기록이 쌓이지 않았어요.',
-      body: '빠른 입력으로 몇 건만 더 채우면, 어디서 생활 압력이 올라왔는지 자연스럽게 읽히기 시작할 거예요.',
+      headline: '기록 적음',
+      body: '기록 누적 필요',
     );
   }
 
   if (snapshot.totalExpense == 0) {
     return const _InsightCopy(
-      headline: '이번 기간은 나간 돈보다 들어온 흐름이 먼저 보였어요.',
-      body: '지출이 거의 없어서 생활 압력보다는 유입 흐름을 확인하는 데 더 가까운 기간이에요.',
+      headline: '수입 우세',
+      body: '수입 확인',
     );
   }
 
   final topCategory = snapshot.topCategory;
   final categoryNote = topCategory == null
-      ? '카테고리 흐름은 아직 더 지켜보면 돼요.'
-      : '${topCategory.label} 쪽으로 힘이 가장 많이 들어갔어요.';
+      ? '카테고리 확인 중'
+      : '${topCategory.label} 비중 최대';
 
   if (snapshot.balance >= 0) {
     return _InsightCopy(
-      headline: '이번 기간은 남는 흐름으로 마무리되고 있어요.',
-      body: '${snapshot.periodLabel} 동안 수입이 지출을 받쳐주고 있었어요. $categoryNote',
+      headline: '흑자',
+      body: '${snapshot.periodLabel} 수입 우세 · $categoryNote',
     );
   }
 
   return _InsightCopy(
-    headline: '이번 기간은 나간 돈의 속도가 조금 더 빨랐어요.',
-    body: '${snapshot.periodLabel}의 지출 압력이 수입보다 앞서 있었어요. $categoryNote',
+    headline: '지출 우세',
+    body: '${snapshot.periodLabel} 지출 우세 · $categoryNote',
   );
 }
 
@@ -924,3 +961,6 @@ const _categoryPalette = <Color>[
   Colors.pink,
   Colors.indigo,
 ];
+
+
+

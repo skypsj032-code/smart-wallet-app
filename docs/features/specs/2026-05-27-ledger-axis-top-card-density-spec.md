@@ -1,0 +1,8 @@
+- Why: `달력 / 통계 / 자산` 화면의 상단 구간은 구조와 문구는 정리됐지만, 첫 소개 카드와 첫 제어 카드의 타이포가 아직 크고 여유가 있어서 편한가계부 같은 빠른 도구형 화면감과는 거리가 있다.
+- Change: 상단 소개 카드와 첫 제어 카드에 한해 headline/body 타이포를 한 단계 줄이고, 보조 문구를 한 줄 길이로 정리한다.
+- Scope:
+  - `AppLedgerAxisIntro`
+  - calendar `보기` 카드
+  - statistics `기간` 카드
+  - accounts intro/summary top copy
+- Out of scope: 버튼 크기, 칩 크기, 하단 카드 구조 변경.

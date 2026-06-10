@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_radius.dart';
 import '../../core/constants/app_spacing.dart';
 
 class AppMetricStrip extends StatelessWidget {
@@ -22,16 +21,16 @@ class AppMetricStrip extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: emphasize
             ? theme.colorScheme.primary.withValues(alpha: 0.1)
             : theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: emphasize
               ? theme.colorScheme.primary.withValues(alpha: 0.18)
-              : theme.colorScheme.outline,
+              : theme.colorScheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -41,7 +40,7 @@ class AppMetricStrip extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelLarge?.copyWith(
+            style: theme.textTheme.labelMedium?.copyWith(
               color: emphasize
                   ? theme.colorScheme.primary
                   : theme.colorScheme.onSurfaceVariant,
@@ -52,7 +51,7 @@ class AppMetricStrip extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),

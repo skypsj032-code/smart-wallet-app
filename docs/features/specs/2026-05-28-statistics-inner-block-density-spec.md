@@ -1,0 +1,6 @@
+- Why: 통계 화면의 바깥 카드 질감은 충분히 정리됐지만, 안쪽 `highlight chip`과 `metric tile`은 아직 radius와 패딩이 조금 넉넉해 내부 블록치고는 말랑하게 느껴졌다.
+- Change: 통계 내부 블록의 radius와 padding을 한 단계 더 줄여, 바깥 카드보다 안쪽 블록이 더 조밀하고 빠르게 읽히게 만든다.
+- Scope:
+  - statistics highlight chip density
+  - statistics metric tile density
+- Out of scope: 차트, 숫자 위계, 라벨, 데이터 변경

@@ -1,0 +1,7 @@
+- Why: `달력 / 통계 / 자산` 화면의 문구와 구조는 정리됐지만, 세로 간격과 일부 카드 패딩이 아직 넓어서 편한가계부 같은 촘촘한 도구형 화면과는 거리가 있다.
+- Change: 세 화면의 상단 구간과 섹션 사이 간격을 한 단계 줄이고, 자산 화면의 큰 카드 패딩도 압축한다.
+- Scope:
+  - top-level section spacing
+  - list bottom padding
+  - accounts summary / empty state card padding
+- Out of scope: 카드 내부 정보 구조 변경, 새 컴포넌트 추가, 로직 변경.

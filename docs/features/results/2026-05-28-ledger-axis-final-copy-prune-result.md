@@ -1,0 +1,5 @@
+- Changed: 자산 빈 상태를 `계좌 없음 / 현금·계좌·카드 추가`로 줄여 더 즉시 읽히게 했다.
+- Changed: 달력 거래 빈 상태 제목을 `날짜 선택`으로 줄여 선택 행동이 먼저 보이게 했다.
+- Changed: 통계 상단 카테고리 카드의 `최대 지출` 보조 라벨을 제거해 제목 한 줄만으로 읽히게 했다.
+- Difference: 구조와 질감은 그대로 두고, 마지막 남은 카피 군더더기만 더 걷어냈다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

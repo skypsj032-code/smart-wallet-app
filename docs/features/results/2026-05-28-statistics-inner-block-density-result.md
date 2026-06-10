@@ -1,0 +1,4 @@
+- Changed: 통계 highlight chip 패딩과 radius를 줄여 보조 상태 블록이 더 조밀하게 보이게 했다.
+- Changed: 통계 metric tile radius와 내부 padding을 낮춰 숫자 카드가 더 단단하고 빠르게 읽히게 했다.
+- Difference: 바깥 카드 구조는 그대로 두고, 통계 화면의 안쪽 블록 질감만 더 조밀하게 조정했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/statistics/presentation/statistics_screen.dart`

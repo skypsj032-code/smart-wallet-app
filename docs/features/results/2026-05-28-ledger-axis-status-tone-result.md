@@ -1,0 +1,5 @@
+- Changed: 달력 연간 insight 상태 문구를 `기록 적음 / 수입 우세 / 지출 우세`로 줄여 상태가 더 즉시 읽히게 했다.
+- Changed: 통계 카테고리 보조 라벨을 `최대 지출`로 줄이고, 차트 위 안내 문장은 제거해 차트 자체가 먼저 보이게 했다.
+- Changed: 통계 insight headline/body를 `흑자 / 지출 우세 / 수입 우세` 같은 상태명 중심으로 바꿔 설명보다 상태가 먼저 들어오게 했다.
+- Difference: 구조와 데이터는 그대로 두고, 최종 읽기 톤만 더 도구형으로 마감했다.
+- Verify: `./flutterw.bat analyze lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

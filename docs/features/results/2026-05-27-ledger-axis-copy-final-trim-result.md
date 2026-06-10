@@ -1,0 +1,5 @@
+- Changed: 자산 화면 intro 문구를 더 짧게 줄여 `순자산 / 잔액` 확인 목적이 바로 읽히게 했다.
+- Changed: 달력 화면의 intro, 빈 상태, 날짜 해석 문장을 더 짧게 정리해 설명보다 날짜/거래 확인 흐름이 먼저 보이게 했다.
+- Changed: 통계 화면의 intro, 빈 상태, 오류, 이동 패널, 핵심 해석 문구를 더 도구형으로 줄여 숫자와 카테고리 해석이 먼저 들어오게 했다.
+- Difference: 구조나 계산은 건드리지 않고, 이미 맞춘 편한가계부식 위계 안에서 설명 밀도만 더 낮췄다.
+- Verify: `./flutterw.bat analyze lib/features/accounts/presentation/accounts_screen.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart`

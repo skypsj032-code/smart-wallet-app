@@ -1,0 +1,7 @@
+- Why: `달력 / 통계 / 자산` 화면은 큰 구조는 정리됐지만, legend/보조 문구/메뉴 버튼처럼 끝단에 남은 요소들이 아직 약간 두드러져 핵심 정보 집중을 방해한다.
+- Change: 통계 legend와 카테고리 행, 자산 계좌 행의 메뉴 버튼, 달력 빈 상태 카드의 보조 톤을 더 가볍게 만들어 핵심 정보 우선순위를 더 분명하게 한다.
+- Scope:
+  - statistics category row spacing and legend tone
+  - accounts list avatar/menu density
+  - calendar empty message supporting copy tone
+- Out of scope: 카드 구조 변경, 데이터 변경, 라우트/행동 변경.

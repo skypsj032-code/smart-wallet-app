@@ -1,0 +1,4 @@
+- Changed: 축 이동 카드 바깥 패딩과 내부 타일 세로 간격을 줄이고 아이콘 크기를 낮춰 상단 축 이동면이 더 촘촘하게 읽히게 했다.
+- Changed: 달력/통계의 보조 이동 버튼과 자산의 `추가` 버튼에 compact density를 적용해 큰 보조 CTA 느낌을 줄였다.
+- Changed: 구조나 라벨은 그대로 두고 조작 요소의 질감만 조정해, 편한가계부 쪽 도구형 화면 밀도에 더 가깝게 맞췄다.
+- Verify: `./flutterw.bat analyze lib/shared/widgets/app_ledger_axis_navigation.dart lib/features/calendar/presentation/calendar_screen.dart lib/features/statistics/presentation/statistics_screen.dart lib/features/accounts/presentation/accounts_screen.dart`

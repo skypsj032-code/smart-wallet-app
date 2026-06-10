@@ -1,0 +1,7 @@
+- Why: 통계 안쪽 블록 질감은 더 조밀하게 정리됐지만, 자산의 순자산 카드와 빈 상태 카드는 아직 패딩과 CTA 여백이 조금 더 넉넉해 내부 리듬이 상대적으로 느슨했다.
+- Change: 자산 내부 카드의 padding과 CTA 여백을 한 단계 줄여, 통계 내부 블록과 같은 촘촘함으로 맞춘다.
+- Scope:
+  - accounts net-worth card inner padding
+  - accounts empty-state card inner padding
+  - accounts empty-state CTA padding
+- Out of scope: 계좌 리스트 구조, 데이터, 라벨 변경

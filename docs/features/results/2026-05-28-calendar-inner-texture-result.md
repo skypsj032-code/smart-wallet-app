@@ -1,0 +1,3 @@
+- Changed: 달력 화면 내부의 작은 요약/상세 블록 radius를 16에서 14 계열로 낮춰, 바깥 카드보다 더 조밀한 안쪽 표면 리듬을 만들었다.
+- Difference: 구조와 데이터는 그대로 두고, nested surface 질감만 더 단단하게 조정했다.
+- Verify: `./flutterw.bat analyze --no-pub lib/features/calendar/presentation/calendar_screen.dart`

@@ -1,0 +1,6 @@
+- 파일: `lib/features/dashboard/presentation/dashboard_screen.dart`
+- 파일: `test/features/dashboard/dashboard_screen_test.dart`
+- 단계: 제외 후 Snackbar의 `실행 취소`가 복구 store 메서드를 부르는 테스트를 먼저 추가한다.
+- 단계: 복구 후 Snackbar의 `실행 취소`가 다시 제외 store 메서드를 부르는 테스트를 추가한다.
+- 단계: 최소 구현으로 두 Snackbar에 동일한 action label을 붙인다.
+- 검증: `./flutterw.bat test --no-pub test/features/dashboard/dashboard_screen_test.dart`

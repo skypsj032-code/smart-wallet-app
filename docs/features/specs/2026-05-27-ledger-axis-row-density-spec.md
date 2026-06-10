@@ -1,0 +1,7 @@
+- Why: 상단 카드와 버튼 밀도는 많이 정리됐지만, 실제 정보가 붙는 `계좌 행 / 달력 거래 행 / 통계 카테고리 행`은 아직 한 단계 여유가 있어 편한가계부식 촘촘함이 덜했다.
+- Change: 행 구조는 그대로 두고 `좌우 패딩`, `아이콘 크기`, `보조 줄 간격`, `progress bar 높이`만 줄여 리스트 리듬을 더 빠르게 훑히게 만든다.
+- Scope:
+  - accounts list tile density
+  - calendar transaction row density
+  - statistics category row density
+- Out of scope: 정렬, 데이터, 라벨, 액션 흐름 변경
