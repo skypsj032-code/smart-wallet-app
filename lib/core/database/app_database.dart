@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../features/budgets/application/budget_provider.dart';
+import '../../shared/utils/budget_totals.dart';
 import 'connection/connection.dart';
 import 'tables.dart';
 
@@ -21,6 +22,7 @@ part 'app_database.g.dart';
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
+  AppDatabase.testing(QueryExecutor executor) : super(executor);
 
   @override
   int get schemaVersion => 3;
@@ -78,7 +80,7 @@ class AppDatabase extends _$AppDatabase {
 
         final items = bgs.map((budget) {
           final spent = txs
-              .where((tx) => tx.categoryId == budget.categoryId)
+              .where((tx) => budget.categoryId == null || tx.categoryId == budget.categoryId)
               .fold<int>(0, (sum, tx) => sum + tx.amount);
 
           return BudgetSummaryItem(
@@ -91,8 +93,9 @@ class AppDatabase extends _$AppDatabase {
           );
         }).toList();
 
-        final totalBudget =
-            items.fold<int>(0, (sum, item) => sum + item.limitAmount);
+        final totalBudget = effectiveBudgetTotal(
+          items.map((item) => (categoryId: item.categoryId, amount: item.limitAmount)),
+        );
         final totalSpent = txs.fold<int>(0, (sum, tx) => sum + tx.amount);
 
         return BudgetSummary(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -53,6 +54,7 @@ class BackupPreview {
     required this.createdAt,
     required this.appVersion,
     required this.summary,
+    this.warnings = const [],
   });
 
   final int backupVersion;
@@ -60,6 +62,7 @@ class BackupPreview {
   final DateTime createdAt;
   final String appVersion;
   final BackupSummary summary;
+  final List<String> warnings;
 }
 
 class BackupFormatException implements Exception {
@@ -75,35 +78,46 @@ class BackupService {
   BackupService(this._database);
 
   final AppDatabase _database;
-  static const int backupVersion = 1;
+  static const int backupVersion = 2;
 
   Future<BackupPayload> exportJsonBackup() async {
-    final transactionsData = await _database.select(_database.transactions).get();
-    final categoriesData = await _database.select(_database.categories).get();
-    final budgetsData = await _database.select(_database.budgets).get();
-    final accountsData = await _database.select(_database.accounts).get();
-    final settingsData = await _database.select(_database.appSettings).get();
+    // Read all tables from one database snapshot so a transaction added
+    // during backup cannot refer to data from a different point in time.
+    final snapshot = await _database.transaction(() async => (
+          transactions: await _database.select(_database.transactions).get(),
+          categories: await _database.select(_database.categories).get(),
+          budgets: await _database.select(_database.budgets).get(),
+          accounts: await _database.select(_database.accounts).get(),
+          settings: await _database.select(_database.appSettings).get(),
+        ));
+    final transactionsData = snapshot.transactions;
+    final categoriesData = snapshot.categories;
+    final budgetsData = snapshot.budgets;
+    final accountsData = snapshot.accounts;
+    final settingsData = snapshot.settings;
 
     final createdAt = DateTime.now().toUtc();
+    final data = <String, dynamic>{
+      'transactions': transactionsData.map(_transactionToJson).toList(),
+      'categories': categoriesData.map(_categoryToJson).toList(),
+      'budgets': budgetsData.map(_budgetToJson).toList(),
+      'accounts': accountsData.map(_accountToJson).toList(),
+      'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
+    };
     final payload = {
       'backupVersion': backupVersion,
       'schemaVersion': _database.schemaVersion,
       'createdAt': createdAt.toIso8601String(),
       'appVersion': '0.1.0',
       'deviceId': 'local-device',
+      'dataChecksum': sha256.convert(utf8.encode(jsonEncode(data))).toString(),
       'summary': {
         'transactionCount': transactionsData.length,
         'categoryCount': categoriesData.length,
         'budgetCount': budgetsData.length,
         'accountCount': accountsData.length,
       },
-      'data': {
-        'transactions': transactionsData.map(_transactionToJson).toList(),
-        'categories': categoriesData.map(_categoryToJson).toList(),
-        'budgets': budgetsData.map(_budgetToJson).toList(),
-        'accounts': accountsData.map(_accountToJson).toList(),
-        'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
-      },
+      'data': data,
     };
 
     final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
@@ -142,7 +156,7 @@ class BackupService {
 
   BackupPreview inspectJsonBackup(String jsonText) {
     final decoded = _decodeAndValidateBackup(jsonText);
-    final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
+    final data = decoded['data'] as Map<String, dynamic>;
 
     return BackupPreview(
       backupVersion: decoded['backupVersion'] as int,
@@ -150,11 +164,15 @@ class BackupService {
       createdAt: DateTime.parse(decoded['createdAt'] as String),
       appVersion: decoded['appVersion'] as String? ?? 'unknown',
       summary: BackupSummary(
-        transactionCount: (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
-        categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
-        budgetCount: (summaryData['budgetCount'] as num?)?.toInt() ?? 0,
-        accountCount: (summaryData['accountCount'] as num?)?.toInt() ?? 0,
+        transactionCount: (data['transactions'] as List<dynamic>).length,
+        categoryCount: (data['categories'] as List<dynamic>).length,
+        budgetCount: (data['budgets'] as List<dynamic>).length,
+        accountCount: (data['accounts'] as List<dynamic>).length,
       ),
+      warnings: [
+        if (!decoded.containsKey('dataChecksum')) '무결성 확인 정보가 없는 이전 백업입니다.',
+        ..._collectBackupWarnings(data),
+      ],
     );
   }
 
@@ -169,6 +187,13 @@ class BackupService {
     final settingsData = data['settings'] as Map<String, dynamic>?;
 
     await _database.transaction(() async {
+      // A shared JSON backup intentionally does not contain a PIN hash.
+      // Preserve this device's security settings instead of enabling a lock
+      // that cannot actually be verified after the restore.
+      final currentSettings = await _database.select(_database.appSettings).getSingleOrNull();
+      final currentPin = currentSettings?.pinCode;
+      final keepLock = (currentSettings?.appLockEnabled ?? false) && currentPin != null;
+
       await _database.delete(_database.transactions).go();
       await _database.delete(_database.categories).go();
       await _database.delete(_database.budgets).go();
@@ -256,14 +281,27 @@ class BackupService {
                 currencyCode: Value((settingsData['currencyCode'] as String?) ?? 'KRW'),
                 weekStart: Value((settingsData['weekStart'] as String?) ?? 'monday'),
                 themeMode: Value((settingsData['themeMode'] as String?) ?? 'system'),
-                appLockEnabled: Value((settingsData['appLockEnabled'] as bool?) ?? false),
-                biometricEnabled: Value((settingsData['biometricEnabled'] as bool?) ?? false),
+                appLockEnabled: Value(keepLock),
+                biometricEnabled: Value(keepLock && (currentSettings?.biometricEnabled ?? false)),
+                pinCode: Value(currentPin),
                 exportIncludeDeleted: Value(
                   (settingsData['exportIncludeDeleted'] as bool?) ?? false,
                 ),
                 createdAt: DateTime.parse(settingsData['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(settingsData['lastModifiedAt'] as String),
               ),
+            );
+      } else if (currentSettings != null) {
+        await _database.into(_database.appSettings).insert(
+              currentSettings.copyWith(
+                appLockEnabled: keepLock,
+                biometricEnabled: keepLock && currentSettings.biometricEnabled,
+              ),
+            );
+      } else {
+        final now = DateTime.now();
+        await _database.into(_database.appSettings).insert(
+              AppSettingsCompanion.insert(createdAt: now, lastModifiedAt: now),
             );
       }
     });
@@ -292,14 +330,18 @@ class BackupService {
       throw const BackupFormatException('backupVersion is missing or invalid.');
     }
 
-    if (backupVersionValue != backupVersion) {
+    if (backupVersionValue != 1 && backupVersionValue != backupVersion) {
       throw BackupFormatException(
-        'Unsupported backup version: $backupVersionValue. Current app supports version $backupVersion only.',
+        'Unsupported backup version: $backupVersionValue. Supported versions are 1 and $backupVersion.',
       );
     }
 
     if (schemaVersionValue is! int) {
       throw const BackupFormatException('schemaVersion is missing or invalid.');
+    }
+
+    if (schemaVersionValue < 1) {
+      throw const BackupFormatException('schemaVersion must be positive.');
     }
 
     if (schemaVersionValue > _database.schemaVersion) {
@@ -324,17 +366,182 @@ class BackupService {
 
     for (final key in const ['transactions', 'categories', 'budgets', 'accounts']) {
       final value = dataValue[key];
-      if (value != null && value is! List<dynamic>) {
+      if (value is! List<dynamic>) {
         throw BackupFormatException('$key payload is invalid.');
+      }
+      if (value.any((row) => row is! Map<String, dynamic>)) {
+        throw BackupFormatException('$key contains an invalid record.');
+      }
+      final ids = <String>{};
+      for (final row in value.cast<Map<String, dynamic>>()) {
+        _validateBackupRecord(key, row);
+        if (!ids.add(row['localId'] as String)) {
+          throw BackupFormatException('$key contains duplicate record IDs.');
+        }
       }
     }
 
+    if (!dataValue.containsKey('settings')) {
+      throw const BackupFormatException('settings payload is missing.');
+    }
     final settingsValue = dataValue['settings'];
     if (settingsValue != null && settingsValue is! Map<String, dynamic>) {
       throw const BackupFormatException('settings payload is invalid.');
     }
+    if (settingsValue is Map<String, dynamic>) {
+      _validateBackupRecord('settings', settingsValue);
+    }
+
+    // Reject a damaged or inconsistent file rather than presenting a
+    // misleading preview before replacing the current data.
+    final summaryValue = decoded['summary'];
+    if (summaryValue is! Map<String, dynamic>) {
+      throw const BackupFormatException('summary payload is invalid.');
+    }
+    const counts = {
+      'transactionCount': 'transactions',
+      'categoryCount': 'categories',
+      'budgetCount': 'budgets',
+      'accountCount': 'accounts',
+    };
+    for (final entry in counts.entries) {
+      final declaredCount = summaryValue[entry.key];
+      final actualCount = (dataValue[entry.value] as List<dynamic>).length;
+      if (declaredCount is! int || declaredCount != actualCount) {
+        throw BackupFormatException('${entry.key} does not match the backup contents.');
+      }
+    }
+
+    // Version 1 predates checksums. New version-2 backups must have one.
+    // This detects accidental data changes; it is not authentication.
+    final checksum = decoded['dataChecksum'];
+    if (backupVersionValue >= 2 && checksum == null) {
+      throw const BackupFormatException('Backup checksum is missing.');
+    }
+    if (checksum != null) {
+      if (checksum is! String || !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(checksum)) {
+        throw const BackupFormatException('Backup checksum is invalid.');
+      }
+      final actual = sha256.convert(utf8.encode(jsonEncode(dataValue))).toString();
+      if (checksum.toLowerCase() != actual) {
+        throw const BackupFormatException('Backup data integrity check failed.');
+      }
+    } else if (decoded.containsKey('dataChecksum')) {
+      throw const BackupFormatException('Backup checksum is missing or invalid.');
+    }
 
     return decoded;
+  }
+
+  // Both the original schema-1 APK and the current exporter emit these fields,
+  // including explicitly null values. Missing nullable fields must not be
+  // silently converted into different data during restore.
+  static const _recordFields = <String, Map<String, String>>{
+    'transactions': {
+      'localId': 'string', 'type': 'string', 'amount': 'int', 'occurredAt': 'date',
+      'accountId': 'string?', 'fromAccountId': 'string?', 'toAccountId': 'string?',
+      'categoryId': 'string?', 'merchantName': 'string?', 'paymentMethod': 'string?',
+      'memo': 'string?', 'tagJson': 'string?', 'createdAt': 'date',
+      'lastModifiedAt': 'date', 'deletedAt': 'date?',
+    },
+    'categories': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'iconName': 'string?',
+      'colorHex': 'string?', 'isDefault': 'bool', 'isActive': 'bool', 'sortOrder': 'int',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'budgets': {
+      'localId': 'string', 'monthKey': 'string', 'categoryId': 'string?',
+      'amountLimit': 'int', 'alert50Enabled': 'bool', 'alert80Enabled': 'bool',
+      'alert100Enabled': 'bool', 'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'accounts': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'colorHex': 'string?',
+      'includeInNetWorth': 'bool', 'isActive': 'bool', 'createdAt': 'date',
+      'lastModifiedAt': 'date',
+    },
+    'settings': {
+      'id': 'int', 'currencyCode': 'string', 'weekStart': 'string', 'themeMode': 'string',
+      'appLockEnabled': 'bool', 'biometricEnabled': 'bool', 'exportIncludeDeleted': 'bool',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+  };
+
+  void _validateBackupRecord(String section, Map<String, dynamic> record) {
+    for (final field in _recordFields[section]!.entries) {
+      if (!record.containsKey(field.key)) {
+        throw BackupFormatException('$section record is missing ${field.key}.');
+      }
+      final value = record[field.key];
+      final valid = switch (field.value) {
+        'string' => value is String,
+        'string?' => value == null || value is String,
+        'int' => value is int,
+        'bool' => value is bool,
+        'date' => value is String && DateTime.tryParse(value) != null,
+        'date?' => value == null || (value is String && DateTime.tryParse(value) != null),
+        _ => false,
+      };
+      if (!valid) {
+        throw BackupFormatException('$section record has an invalid ${field.key}.');
+      }
+    }
+  }
+
+  List<String> _collectBackupWarnings(Map<String, dynamic> data) {
+    final accounts = (data['accounts'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final categories = (data['categories'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final transactions = (data['transactions'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final budgets = (data['budgets'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final accountIds = accounts.map((row) => row['localId'] as String).toSet();
+    final categoryIds = categories.map((row) => row['localId'] as String).toSet();
+    var missingAccounts = 0;
+    var missingCategories = 0;
+    var unsupportedTypes = 0;
+    var unusualAmounts = 0;
+    var unusualBudgets = 0;
+    var duplicateBudgets = 0;
+
+    for (final row in transactions) {
+      if (row['deletedAt'] != null) continue;
+      final type = row['type'] as String;
+      if (type == 'income' || type == 'expense') {
+        if (!accountIds.contains(row['accountId'])) missingAccounts++;
+      } else if (type == 'transfer') {
+        if (!accountIds.contains(row['fromAccountId']) ||
+            !accountIds.contains(row['toAccountId']) ||
+            row['fromAccountId'] == row['toAccountId']) {
+          missingAccounts++;
+        }
+      } else {
+        unsupportedTypes++;
+      }
+      if (row['categoryId'] != null && !categoryIds.contains(row['categoryId'])) {
+        missingCategories++;
+      }
+      if ((row['amount'] as int) <= 0) unusualAmounts++;
+    }
+
+    final budgetKeys = <String>{};
+    for (final row in budgets) {
+      final key = jsonEncode([row['monthKey'], row['categoryId']]);
+      if (!budgetKeys.add(key)) duplicateBudgets++;
+      if (row['categoryId'] != null && !categoryIds.contains(row['categoryId'])) {
+        missingCategories++;
+      }
+      if ((row['amountLimit'] as int) <= 0 ||
+          !RegExp(r'^\d{4}-(0[1-9]|1[0-2])$').hasMatch(row['monthKey'] as String)) {
+        unusualBudgets++;
+      }
+    }
+
+    return [
+      if (missingAccounts > 0) '계좌 연결을 확인해야 할 거래 $missingAccounts건',
+      if (missingCategories > 0) '카테고리 연결을 확인해야 할 항목 $missingCategories건',
+      if (unsupportedTypes > 0) '현재 계산에 반영되지 않는 거래 $unsupportedTypes건',
+      if (unusualAmounts > 0) '금액이 0원 이하인 거래 $unusualAmounts건',
+      if (unusualBudgets > 0) '예산 금액이나 월을 확인해야 할 항목 $unusualBudgets건',
+      if (duplicateBudgets > 0) '같은 달과 항목에 중복된 예산 $duplicateBudgets건',
+    ];
   }
 
   Map<String, dynamic> _transactionToJson(Transaction transaction) => {

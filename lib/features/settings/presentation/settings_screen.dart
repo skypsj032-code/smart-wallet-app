@@ -86,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.file_upload_outlined,
                 color: AppColors.primary,
                 title: 'JSON 백업 만들기',
-                subtitle: '현재 데이터를 안전한 파일로 저장합니다.',
+                subtitle: '거래, 계좌, 카테고리와 예산을 파일로 저장합니다.',
                 onTap: () => _exportBackup(context, ref),
               ),
               _SettingsActionTile(
@@ -400,6 +400,9 @@ class SettingsScreen extends ConsumerWidget {
     BackupPreview preview,
     String filePath,
   ) {
+    final warningsText = preview.warnings.isEmpty
+        ? ''
+        : '\n\n확인할 내용\n${preview.warnings.join('\n')}';
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -408,7 +411,10 @@ class SettingsScreen extends ConsumerWidget {
           content: SingleChildScrollView(
             child: Text(
               '복원을 시작하면 현재 데이터가 선택한 백업 내용으로 교체됩니다.\n'
-              '문제가 생기면 복원 직전에 만든 안전 백업으로 되돌릴 수 있습니다.\n\n'
+              '복원 직전 안전 백업이 앱 안에 만들어집니다. '
+              '복원 후 공유 버튼을 눌러 별도로 보관해 주세요.\n'
+              'PIN은 백업에 포함되지 않고 현재 기기의 PIN을 유지합니다. '
+              'PIN이 없는 기기에서는 복원 후 잠금을 다시 설정해 주세요.\n\n'
               '파일: $filePath\n'
               '백업 버전: ${preview.backupVersion}\n'
               '스키마 버전: ${preview.schemaVersion}\n'
@@ -418,7 +424,7 @@ class SettingsScreen extends ConsumerWidget {
               '- 거래 ${preview.summary.transactionCount}개\n'
               '- 카테고리 ${preview.summary.categoryCount}개\n'
               '- 예산 ${preview.summary.budgetCount}개\n'
-              '- 계좌 ${preview.summary.accountCount}개',
+              '- 계좌 ${preview.summary.accountCount}개$warningsText',
             ),
           ),
           actions: [
@@ -476,7 +482,7 @@ class SettingsScreen extends ConsumerWidget {
             '- 카테고리 ${summary.categoryCount}개\n'
             '- 예산 ${summary.budgetCount}개\n'
             '- 계좌 ${summary.accountCount}개\n\n'
-            '안전 백업 파일은 나중에 다시 공유할 수 있습니다.',
+            '앱을 삭제하면 이 파일도 사라질 수 있습니다. 지금 공유해 따로 보관해 주세요.',
           ),
         ),
         actions: [
@@ -516,6 +522,7 @@ class SettingsScreen extends ConsumerWidget {
             '복원은 끝나지 않았지만, 시작 직전에 만든 안전 백업은 남아 있습니다.\n\n'
             '안전 백업 위치: ${safetyBackup.file.path}\n'
             '안전 백업 파일명: ${safetyBackup.payload.fileName}\n\n'
+            '앱을 삭제하면 이 파일도 사라질 수 있습니다. 지금 공유해 따로 보관해 주세요.\n\n'
             '오류: $error',
           ),
         ),

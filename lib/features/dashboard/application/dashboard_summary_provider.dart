@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+import '../../../shared/utils/budget_totals.dart';
 
 class DashboardSummary {
   const DashboardSummary({
@@ -87,7 +88,9 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
       final todayExpense = todayTransactions
           .where((tx) => tx.type == 'expense')
           .fold<int>(0, (sum, tx) => sum + tx.amount);
-      final totalBudget = budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
+      final totalBudget = effectiveBudgetTotal(
+        budgets.map((budget) => (categoryId: budget.categoryId, amount: budget.amountLimit)),
+      );
       final repeatSuggestions = <Transaction>[];
       final seenKeys = <String>{};
 

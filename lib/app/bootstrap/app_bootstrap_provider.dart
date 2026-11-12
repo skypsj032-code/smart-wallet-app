@@ -16,6 +16,16 @@ final appBootstrapProvider = FutureProvider<void>((ref) async {
             lastModifiedAt: now,
           ),
         );
+  } else if (appSettings.appLockEnabled && appSettings.pinCode == null) {
+    // Older restores could leave the switch enabled without a PIN, which the
+    // lock screen cannot enforce. Show the true state until a PIN is set again.
+    await database.update(database.appSettings).replace(
+          appSettings.copyWith(
+            appLockEnabled: false,
+            biometricEnabled: false,
+            lastModifiedAt: now,
+          ),
+        );
   }
 
   final existingAccounts = await database.select(database.accounts).get();

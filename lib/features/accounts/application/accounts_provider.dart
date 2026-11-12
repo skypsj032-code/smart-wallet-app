@@ -23,45 +23,45 @@ class AccountBalance {
   final int balance; // 수입 합계 - 지출 합계
 }
 
+const _accountBalanceSql = '''
+SELECT a.*,
+       COALESCE(SUM(
+         CASE
+           WHEN t.type = 'income' AND t.account_id = a.local_id THEN t.amount
+           WHEN t.type = 'expense' AND t.account_id = a.local_id THEN -t.amount
+           ELSE 0
+         END
+         + CASE WHEN t.type = 'transfer' AND t.to_account_id = a.local_id
+                THEN t.amount ELSE 0 END
+         - CASE WHEN t.type = 'transfer' AND t.from_account_id = a.local_id
+                THEN t.amount ELSE 0 END
+       ), 0) AS calculated_balance
+FROM accounts AS a
+LEFT JOIN transactions AS t
+  ON t.deleted_at IS NULL
+ AND ((t.type IN ('income', 'expense') AND t.account_id = a.local_id)
+      OR (t.type = 'transfer' AND (t.from_account_id = a.local_id
+                                   OR t.to_account_id = a.local_id)))
+WHERE a.is_active = 1
+GROUP BY a.local_id
+ORDER BY a.created_at ASC, a.local_id ASC
+''';
+
 final accountBalancesProvider = StreamProvider<List<AccountBalance>>((ref) {
   final db = ref.watch(appDatabaseProvider);
-
-  // 두 쿼리를 결합하기 위해 accounts 스트림과 transactions 스트림을 개별 watch
-  return db
-      .select(db.accounts)
-      .watch()
-      .asyncMap((accounts) async {
-        final txList = await (db.select(db.transactions)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
-
-        final activeAccounts =
-            accounts.where((a) => a.isActive).toList();
-
-        return activeAccounts.map((account) {
-          int income = 0;
-          int expense = 0;
-
-          for (final tx in txList) {
-            if (tx.type == 'income' && tx.accountId == account.localId) {
-              income += tx.amount;
-            } else if (tx.type == 'expense' &&
-                tx.accountId == account.localId) {
-              expense += tx.amount;
-            } else if (tx.type == 'transfer') {
-              if (tx.fromAccountId == account.localId) {
-                expense += tx.amount;
-              }
-              if (tx.toAccountId == account.localId) {
-                income += tx.amount;
-              }
-            }
-          }
-
-          return AccountBalance(
-              account: account, balance: income - expense);
-        }).toList();
-      });
+  // Drift must observe both tables: transactions can change without any
+  // change to the account row itself.
+  return db.customSelect(
+    _accountBalanceSql,
+    readsFrom: {db.accounts, db.transactions},
+  ).watch().map(
+        (rows) => rows
+            .map((row) => AccountBalance(
+                  account: db.accounts.map(row.data),
+                  balance: row.read<int>('calculated_balance'),
+                ))
+            .toList(),
+      );
 });
 
 // ── 계좌 CRUD 액션 ─────────────────────────────────────────────────────────────
