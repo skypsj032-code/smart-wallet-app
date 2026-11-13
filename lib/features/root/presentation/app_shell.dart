@@ -467,6 +467,11 @@ class _AppShellState extends ConsumerState<AppShell>
       if (!allowed || !context.mounted) return false;
     }
 
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
+
     if (router.canPop()) {
       router.pop();
       return false;
