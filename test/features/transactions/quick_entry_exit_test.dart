@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/features/budgets/application/budget_provider.dart';
+import 'package:smart_wallet_app/features/notifications/application/notification_parser.dart';
+import 'package:smart_wallet_app/features/notifications/application/notification_provider.dart';
 import 'package:smart_wallet_app/features/root/presentation/app_shell.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_form_provider.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
@@ -106,6 +108,17 @@ void main() {
     expect(harness.container.read(quickEntryFormProvider).amount, '6500');
   });
 
+  testWidgets('back from a new entry does not ask about editing', (tester) async {
+    final harness = await _Harness.open(tester);
+    harness.container.read(quickEntryFormProvider.notifier).reset();
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('home screen'), findsOneWidget);
+    expect(find.text('수정 내용을 저장할까요?'), findsNothing);
+  });
+
   testWidgets('switching tabs from an opened subpage protects the edit',
       (tester) async {
     final harness = await _Harness.open(tester);
@@ -135,6 +148,31 @@ void main() {
     expect(find.text('수정 내용을 저장할까요?'), findsNothing);
   });
 
+  testWidgets('a new notification cannot silently replace an edit', (tester) async {
+    final harness = await _Harness.open(tester);
+    await harness.edit(tester);
+    await harness.enterAmount(tester, '8200');
+    harness.container.read(detectedNotificationTransactionProvider.notifier).state =
+        ParsedNotificationTransaction(
+      amount: 2000,
+      type: 'expense',
+      merchant: '새 알림',
+      rawTitle: 'card',
+      rawText: 'payment',
+      detectedAt: DateTime(2026, 5, 5),
+    );
+    await tester.pump();
+    await tester.tap(find.text('새 알림'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(harness.container.read(quickEntryFormProvider).amount, '8200');
+    expect(harness.container.read(quickEntryFormProvider).editingId, 'tx-original');
+  });
+
   testWidgets('locked screen preserves the pending edit until it is reopened',
       (tester) async {
     final harness = await _Harness.open(tester);
@@ -152,6 +190,30 @@ void main() {
     final amountField = tester.widget<TextField>(find.byWidgetPredicate((widget) =>
         widget is TextField && widget.decoration?.hintText == '0'));
     expect(amountField.controller?.text, '7800');
+  });
+
+  testWidgets('locking while the exit dialog is open keeps the edit usable',
+      (tester) async {
+    final harness = await _Harness.open(tester);
+    await harness.edit(tester);
+    await harness.enterAmount(tester, '7900');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
+
+    harness.router.go('/lock');
+    await tester.pumpAndSettle();
+    expect(find.text('locked screen'), findsOneWidget);
+    expect(find.text('수정 내용을 저장할까요?'), findsNothing);
+    harness.router.go('/quick-entry');
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider).amount, '7900');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정'));
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider).editingId, 'tx-original');
   });
 }
 

@@ -13,8 +13,10 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/widgets/app_brand_mark.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../application/device_auth.dart';
 import '../application/pin_security.dart';
 import '../application/settings_provider.dart';
+import 'lock_setup_dialog.dart';
 
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
@@ -23,7 +25,8 @@ class LockScreen extends ConsumerStatefulWidget {
   ConsumerState<LockScreen> createState() => _LockScreenState();
 }
 
-class _LockScreenState extends ConsumerState<LockScreen> {
+class _LockScreenState extends ConsumerState<LockScreen>
+    with WidgetsBindingObserver {
   String _input = '';
   int _failedAttempts = 0;
   String? _message;
@@ -31,6 +34,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   DateTime? _cooldownUntil;
   Timer? _cooldownTimer;
   bool _unlockScheduled = false;
+  bool _recovering = false;
+  bool _recoverySetupActive = false;
+  int _recoveryGeneration = 0;
+  String? _recoveryMessage;
   late final FocusNode _keyboardFocusNode;
 
   // 보안 랜덤 키패드: 0~9를 무작위 배치
@@ -54,19 +61,31 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _keyboardFocusNode = FocusNode(debugLabel: 'lock_screen_keyboard');
     _shuffledDigits = List<int>.generate(10, (i) => i)..shuffle();
   }
 
   @override
   void dispose() {
+    _recoveryGeneration++;
+    WidgetsBinding.instance.removeObserver(this);
+    if (_recovering && !_recoverySetupActive) {
+      unawaited(const DeviceAuth().cancel());
+    }
     _cooldownTimer?.cancel();
     _keyboardFocusNode.dispose();
     super.dispose();
   }
 
   void _onDigit(String digit) {
-    if (_input.length >= 4 || _isCoolingDown) {
+    final settings = ref.read(appSettingsProvider).asData?.value;
+    if (_input.length >= 4 ||
+        _isCoolingDown ||
+        _recovering ||
+        settings == null ||
+        !settings.appLockEnabled ||
+        settings.pinCode == null) {
       return;
     }
 
@@ -124,13 +143,113 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       }
 
       final settings = ref.read(appSettingsProvider).asData?.value;
-      if (settings == null ||
-          (settings.appLockEnabled && settings.pinCode != null)) {
+      if (settings == null || settings.appLockEnabled) {
         _unlockScheduled = false;
         return;
       }
       ref.read(sessionUnlockedProvider.notifier).state = true;
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The system credential UI can suspend the app, so an auth request is
+    // owned by Android until its result arrives. Once PIN setup begins, loss
+    // of foreground focus expires the one-use recovery approval.
+    if (_recoverySetupActive &&
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.hidden ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.detached)) {
+      _recoveryGeneration++;
+      _recoverySetupActive = false;
+    }
+  }
+
+  bool get _isForeground {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return state == null || state == AppLifecycleState.resumed;
+  }
+
+  Future<void> _recoverPin() async {
+    final initialSettings = ref.read(appSettingsProvider).asData?.value;
+    if (_recovering ||
+        initialSettings == null ||
+        !initialSettings.appLockEnabled ||
+        initialSettings.pinCode != null ||
+        !_isForeground) {
+      return;
+    }
+
+    final generation = ++_recoveryGeneration;
+    setState(() {
+      _recovering = true;
+      _recoveryMessage = null;
+    });
+
+    try {
+      final outcome = await const DeviceAuth().authenticate();
+      if (!mounted || generation != _recoveryGeneration) return;
+
+      if (outcome != DeviceAuthResult.success) {
+        setState(() {
+          _recoveryMessage = switch (outcome) {
+            DeviceAuthResult.notConfigured =>
+              '휴대폰에 화면 잠금을 설정한 뒤 다시 시도해 주세요.',
+            DeviceAuthResult.unsupported =>
+              '이 기기에서는 PIN 복구를 지원하지 않습니다.',
+            DeviceAuthResult.cancelled => '인증이 취소되었습니다. 다시 시도할 수 있습니다.',
+            _ => '휴대폰 잠금을 확인하지 못했습니다. 다시 시도해 주세요.',
+          };
+        });
+        return;
+      }
+
+      // Native Android delivers success only after this activity is resumed
+      // and focused. If Flutter is not foregrounded too, fail closed.
+      if (!_isForeground) return;
+      _recoverySetupActive = true;
+
+      final db = ref.read(appDatabaseProvider);
+      final current = await db.select(db.appSettings).getSingleOrNull();
+      if (!mounted ||
+          generation != _recoveryGeneration ||
+          !_isForeground ||
+          current == null ||
+          !current.appLockEnabled ||
+          current.pinCode != null) {
+        return;
+      }
+
+      final configured = await LockSetupDialog.show(
+        context,
+        isRecoveringPin: true,
+        isRecoveryAuthorized: () =>
+            mounted &&
+            _recoverySetupActive &&
+            generation == _recoveryGeneration &&
+            _isForeground,
+      );
+      if (mounted && configured == true && generation == _recoveryGeneration) {
+        setState(() {
+          _message = '새로 설정한 PIN을 입력해 주세요.';
+          _messageIsError = false;
+        });
+      }
+    } catch (_) {
+      if (mounted && generation == _recoveryGeneration) {
+        setState(() {
+          _recoveryMessage = 'PIN을 복구하지 못했습니다. 다시 시도해 주세요.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _recoverySetupActive = false;
+          _recovering = false;
+        });
+      }
+    }
   }
 
   void _startCooldown(Duration duration) {
@@ -172,7 +291,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     final pinCode = settings.pinCode;
 
     if (pinCode == null) {
-      _scheduleUnlock();
+      if (_input.isNotEmpty) {
+        setState(() => _input = '');
+      }
       return;
     }
 
@@ -263,7 +384,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_keyboardFocusNode.hasFocus) {
+      if (mounted &&
+          !_recovering &&
+          ref.read(appSettingsProvider).asData?.value.pinCode != null &&
+          !_keyboardFocusNode.hasFocus) {
         _keyboardFocusNode.requestFocus();
       }
     });
@@ -276,7 +400,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         child: SafeArea(
           child: appSettingsAsync.when(
             data: (settings) {
-              if (!settings.appLockEnabled || settings.pinCode == null) {
+              if (!settings.appLockEnabled) {
                 _scheduleUnlock();
 
                 return const Center(
@@ -287,6 +411,43 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       SizedBox(height: AppSpacing.md),
                       Text('잠금 설정이 없어 홈으로 이동하고 있습니다.'),
                     ],
+                  ),
+                );
+              }
+
+              if (settings.pinCode == null) {
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '앱 PIN을 복구해 주세요.',
+                            style: theme.textTheme.titleLarge,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          const Text(
+                            '앱 잠금이 켜져 있지만 PIN을 찾을 수 없습니다. '
+                            '휴대폰의 PIN, 패턴 또는 비밀번호를 확인한 뒤 '
+                            '새 앱 PIN을 설정할 수 있습니다. 기록은 그대로 유지됩니다.',
+                            textAlign: TextAlign.center,
+                          ),
+                          if (_recoveryMessage != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Text(_recoveryMessage!, textAlign: TextAlign.center),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          FilledButton(
+                            onPressed: _recovering ? null : _recoverPin,
+                            child: const Text('휴대폰 잠금으로 PIN 복구'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               }

@@ -150,14 +150,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         _selectedCategoryName(categoryOptions, form.categoryId);
     final validationMessages = _validationMessages(form);
 
-    return PopScope<void>(
-      canPop: !isEditing || _allowDirectPop,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !_allowDirectPop) _requestExitAndLeave();
-      },
-      child: AbsorbPointer(
-        absorbing: isSubmitting,
-        child: AppScaffold(
+    final screen = AppScaffold(
       title: isEditing ? '거래 수정' : '빠른 입력',
       hideGlobalQuickPanel: true,
       body: ListView(
@@ -446,8 +439,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           ),
         ],
       ),
-        ),
-      ),
+    );
+    return PopScope<void>(
+      canPop: !isEditing || _allowDirectPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_allowDirectPop) _requestExitAndLeave();
+      },
+      child: AbsorbPointer(absorbing: isSubmitting, child: screen),
     );
   }
 

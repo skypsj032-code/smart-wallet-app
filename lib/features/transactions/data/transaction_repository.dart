@@ -119,8 +119,8 @@ class TransactionRepository implements ITransactionRepository {
         throw ArgumentError('transfer accounts must be different');
       }
 
-      await (_database.update(_database.transactions)
-            ..where((t) => t.localId.equals(localId)))
+      final updated = await (_database.update(_database.transactions)
+            ..where((t) => t.localId.equals(localId) & t.deletedAt.isNull()))
           .write(
         TransactionsCompanion(
           type: Value(_mapType(form.type)),
@@ -134,6 +134,9 @@ class TransactionRepository implements ITransactionRepository {
           lastModifiedAt: Value(now),
         ),
       );
+      if (updated != 1) {
+        throw StateError('The transaction no longer exists or has been deleted');
+      }
       return;
     }
 
@@ -141,8 +144,8 @@ class TransactionRepository implements ITransactionRepository {
       throw ArgumentError('account is required');
     }
 
-    await (_database.update(_database.transactions)
-          ..where((t) => t.localId.equals(localId)))
+    final updated = await (_database.update(_database.transactions)
+          ..where((t) => t.localId.equals(localId) & t.deletedAt.isNull()))
         .write(
       TransactionsCompanion(
         type: Value(_mapType(form.type)),
@@ -156,6 +159,9 @@ class TransactionRepository implements ITransactionRepository {
         lastModifiedAt: Value(now),
       ),
     );
+    if (updated != 1) {
+      throw StateError('The transaction no longer exists or has been deleted');
+    }
   }
 
   Future<void> undoDeleteTransaction(String localId) async {
