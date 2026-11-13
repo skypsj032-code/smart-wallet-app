@@ -123,6 +123,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         return;
       }
 
+      final settings = ref.read(appSettingsProvider).asData?.value;
+      if (settings == null ||
+          (settings.appLockEnabled && settings.pinCode != null)) {
+        _unlockScheduled = false;
+        return;
+      }
       ref.read(sessionUnlockedProvider.notifier).state = true;
     });
   }
@@ -157,7 +163,13 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   Future<void> _verify() async {
     final settings = ref.read(appSettingsProvider).asData?.value;
-    final pinCode = settings?.pinCode;
+    if (settings == null) {
+      if (_input.isNotEmpty) {
+        setState(() => _input = '');
+      }
+      return;
+    }
+    final pinCode = settings.pinCode;
 
     if (pinCode == null) {
       _scheduleUnlock();

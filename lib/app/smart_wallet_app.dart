@@ -36,7 +36,19 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final appSettings = ref.read(appSettingsProvider).asData?.value;
-    if (appSettings?.appLockEnabled != true) {
+    if (appSettings == null) {
+      // If the lock policy is unknown when the app leaves the foreground,
+      // require authentication again once settings become available.
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden ||
+          state == AppLifecycleState.detached ||
+          (state == AppLifecycleState.resumed && _backgroundedAt != null)) {
+        _backgroundedAt = null;
+        ref.read(sessionUnlockedProvider.notifier).state = false;
+      }
+      return;
+    }
+    if (!appSettings.appLockEnabled) {
       _backgroundedAt = null;
       return;
     }

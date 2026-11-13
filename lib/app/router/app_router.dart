@@ -60,9 +60,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isSessionUnlocked = ref.read(sessionUnlockedProvider);
       final isLockRoute = state.matchedLocation == '/lock';
 
-      if (appSettings != null &&
-          appSettings.appLockEnabled &&
-          !isSessionUnlocked) {
+      // Treat unknown lock settings as locked until the settings stream has
+      // produced a valid value. The lock screen handles loading and errors.
+      if (appSettings == null) {
+        return isLockRoute ? null : '/lock';
+      }
+
+      if (appSettings.appLockEnabled && !isSessionUnlocked) {
         return isLockRoute ? null : '/lock';
       }
 

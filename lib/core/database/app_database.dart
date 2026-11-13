@@ -60,14 +60,8 @@ class AppDatabase extends _$AppDatabase {
                 '$error\n$stackTrace',
               );
             }
-            try {
-              await customStatement('DROP TABLE IF EXISTS local_user_profile;');
-            } catch (error, stackTrace) {
-              debugPrint(
-                'Skipping local_user_profile drop during migration: '
-                '$error\n$stackTrace',
-              );
-            }
+            // The old profile is no longer used by this app, but keeping the
+            // table avoids discarding legacy device and backup information.
           }
           if (from < 4 && !await _tableExists('recurring_expenses')) {
             await m.createTable(recurringExpenses);

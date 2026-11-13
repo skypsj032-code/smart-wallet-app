@@ -122,6 +122,8 @@ void main() {
       calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
     ]);
     addTearDown(() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
@@ -135,6 +137,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
     expect(container.read(sessionUnlockedProvider), isFalse);
