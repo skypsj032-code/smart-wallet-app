@@ -153,6 +153,15 @@ void main() {
       calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
     ]);
     addTearDown(() async {
+      if (tester.binding.lifecycleState == AppLifecycleState.paused) {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      }
+      if (tester.binding.lifecycleState == AppLifecycleState.hidden) {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      }
+      if (tester.binding.lifecycleState == AppLifecycleState.inactive) {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      }
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
       await settings.close();
@@ -171,10 +180,11 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    settings.addError(StateError('settings unavailable'));
-    await tester.pump();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    settings.addError(StateError('settings unavailable'));
+    await tester.pump();
+    expect(container.read(appSettingsProvider).asData, isNull);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(container.read(sessionUnlockedProvider), isFalse);
