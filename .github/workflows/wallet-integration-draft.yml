@@ -62,5 +62,5 @@ jobs:
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded test/core/database/branch_schema_migration_test.dart test/core/database/budget_summary_regression_test.dart test/features/settings/backup_safety_regression_test.dart test/features/settings/backup_compatibility_regression_test.dart test/features/settings/backup_service_test.dart test/features/dashboard/dashboard_screen_navigation_test.dart test/features/dashboard/recurring_spend_detector_test.dart test/features/notifications/foreign_currency_safety_test.dart
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded test/core/database/branch_schema_migration_test.dart test/core/database/budget_summary_regression_test.dart test/features/settings/backup_safety_regression_test.dart test/features/settings/backup_compatibility_regression_test.dart test/features/settings/backup_service_test.dart test/features/dashboard/dashboard_screen_navigation_test.dart test/features/dashboard/recurring_spend_detector_test.dart test/features/notifications/foreign_currency_safety_test.dart
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

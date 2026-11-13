@@ -9,6 +9,7 @@ import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/core/database/providers/database_providers.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
+import 'package:smart_wallet_app/features/dashboard/application/detected_recurring_spend_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_transaction_suggestion_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_summary_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/wealth_hero_motion.dart';
@@ -31,9 +32,6 @@ void main() {
 
     final router = _buildRouter();
     addTearDown(router.dispose);
-    addTearDown(() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
 
     await tester.pumpWidget(
       _DashboardTestApp(
@@ -57,9 +55,6 @@ void main() {
 
     final router = _buildRouter();
     addTearDown(router.dispose);
-    addTearDown(() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
 
     await tester.pumpWidget(
       _DashboardTestApp(
@@ -100,28 +95,32 @@ void main() {
     }
     final router = _buildRouter();
     addTearDown(router.dispose);
-    addTearDown(() async {
+    try {
+      await tester.pumpWidget(_DashboardTestApp(
+        router: router, database: database, realInsight: true,
+      ));
+      await tester.pumpAndSettle();
+
+      final headers = tester.widgetList<SliverPersistentHeader>(
+        find.byType(SliverPersistentHeader),
+      );
+      expect(headers.any((header) => header.pinned), isTrue);
+      expect(find.text('거래에서 감지한 반복 지출'), findsOneWidget);
+      expect(find.text('월세'), findsOneWidget);
+
+      const visibleKey = Key('recurring-spend-visible-bank|월세');
+      expect(find.byKey(visibleKey), findsOneWidget);
+      await tester.tap(find.byTooltip('반복 지출에서 제외'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(visibleKey), findsNothing);
+      expect(find.text('숨긴 반복 지출'), findsOneWidget);
+      await tester.tap(find.byTooltip('반복 지출 복구'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(visibleKey), findsOneWidget);
+    } finally {
       await tester.pumpWidget(const SizedBox.shrink());
-    });
-    await tester.pumpWidget(_DashboardTestApp(router: router, database: database));
-    await tester.pumpAndSettle();
-
-    final headers = tester.widgetList<SliverPersistentHeader>(
-      find.byType(SliverPersistentHeader),
-    );
-    expect(headers.any((header) => header.pinned), isTrue);
-    expect(find.text('거래에서 감지한 반복 지출'), findsOneWidget);
-    expect(find.text('월세'), findsOneWidget);
-
-    const visibleKey = Key('recurring-spend-visible-bank|월세');
-    expect(find.byKey(visibleKey), findsOneWidget);
-    await tester.tap(find.byTooltip('반복 지출에서 제외'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(visibleKey), findsNothing);
-    expect(find.text('숨긴 반복 지출'), findsOneWidget);
-    await tester.tap(find.byTooltip('반복 지출 복구'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(visibleKey), findsOneWidget);
+      await tester.pump();
+    }
   });
 }
 
@@ -129,16 +128,24 @@ class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
     required this.database,
+    this.realInsight = false,
   });
 
   final GoRouter router;
   final AppDatabase database;
+  final bool realInsight;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
         appDatabaseProvider.overrideWithValue(database),
+        if (!realInsight)
+          detectedRecurringSpendProvider.overrideWith(
+            (ref) => const AsyncData(DetectedRecurringSpendSnapshot(
+              groups: [], excludedKeys: {},
+            )),
+          ),
         dashboardSummaryProvider.overrideWith(
           (ref) => Stream.value(_fakeDashboardSummary()),
         ),

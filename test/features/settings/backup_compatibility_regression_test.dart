@@ -18,6 +18,8 @@ void main() {
     final service = BackupService(db);
     final decoded = jsonDecode((await service.exportJsonBackup()).json)
         as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
     decoded['schemaVersion'] = 3;
     (decoded['data'] as Map<String, dynamic>).remove('recurringExpenses');
     (decoded['summary'] as Map<String, dynamic>).remove('recurringExpenseCount');
@@ -35,6 +37,8 @@ void main() {
     final service = BackupService(db);
     final decoded = jsonDecode((await service.exportJsonBackup()).json)
         as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
     decoded['schemaVersion'] = 3;
     final data = decoded['data'] as Map<String, dynamic>;
     data.remove('recurringExpenses');
@@ -56,6 +60,8 @@ void main() {
     final service = BackupService(db);
     final decoded = jsonDecode((await service.exportJsonBackup()).json)
         as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
     decoded['schemaVersion'] = 5;
     final data = decoded['data'] as Map<String, dynamic>;
     final recurring = (data['recurringExpenses'] as List).single

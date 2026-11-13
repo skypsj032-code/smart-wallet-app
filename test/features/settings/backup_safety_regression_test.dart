@@ -81,10 +81,80 @@ void main() {
     final service = BackupService(db);
     final decoded = jsonDecode((await service.exportJsonBackup()).json)
         as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
     (decoded['data'] as Map<String, dynamic>)['transactions'] = <Object>[];
 
     await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
         throwsA(isA<BackupFormatException>()));
     expect((await db.select(db.transactions).get()).single.localId, 'keep-me');
+  });
+
+  test('editing one transaction in a new backup invalidates its checksum',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: 'keep-me', type: 'expense', amount: 1000,
+          occurredAt: now, createdAt: now, lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    final data = decoded['data'] as Map<String, dynamic>;
+    final transaction = (data['transactions'] as List).single as Map<String, dynamic>;
+    transaction['amount'] = 9000;
+
+    await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
+        throwsA(isA<BackupFormatException>()));
+    expect((await db.select(db.transactions).get()).single.amount, 1000);
+  });
+
+  test('a legacy transaction missing deletedAt is rejected before restore',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: 'deleted', type: 'expense', amount: 1000,
+          occurredAt: now, deletedAt: drift.Value(now),
+          createdAt: now, lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
+    final data = decoded['data'] as Map<String, dynamic>;
+    final transaction = (data['transactions'] as List).single as Map<String, dynamic>;
+    transaction.remove('deletedAt');
+
+    await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
+        throwsA(isA<BackupFormatException>()));
+    expect((await db.select(db.transactions).get()).single.deletedAt, isNotNull);
+  });
+
+  test('restore stops if new data arrives after the safety backup', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    Future<void> insert(String id) => db.into(db.transactions).insert(
+          TransactionsCompanion.insert(
+            localId: id, type: 'expense', amount: 1000,
+            occurredAt: now, createdAt: now, lastModifiedAt: now,
+          ),
+        ).then((_) {});
+    await insert('before-snapshot');
+    final service = BackupService(db);
+    final snapshot = await service.exportJsonBackup();
+    await insert('arrived-after-snapshot');
+
+    await expectLater(
+      service.restoreJsonBackup(snapshot.json, expectedCurrentJson: snapshot.json),
+      throwsA(isA<BackupFormatException>()),
+    );
+    expect((await db.select(db.transactions).get()).map((tx) => tx.localId),
+        containsAll(['before-snapshot', 'arrived-after-snapshot']));
   });
 }

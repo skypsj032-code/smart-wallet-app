@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:smart_wallet_app/core/database/app_database.dart';
 
 import '../../test_support/sqlite_test_setup.dart';
@@ -84,6 +87,54 @@ void main() {
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
     expect((await database.customSelect('SELECT local_id FROM recurring_expenses').get())
         .single.data['local_id'], 'keep-schedule');
+  });
+
+  test('a failed upgrade rolls back earlier changes to the original database',
+      () async {
+    final directory = await Directory.systemTemp.createTemp('wallet-migration-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}${Platform.pathSeparator}wallet.sqlite');
+    final raw = sqlite.sqlite3.open(file.path);
+    _createSharedVersion4Tables(raw);
+    raw.execute('CREATE TABLE recurring_expenses (local_id TEXT NOT NULL PRIMARY KEY)');
+    raw.execute("INSERT INTO recurring_expenses VALUES ('keep-schedule')");
+    raw.execute('PRAGMA user_version = 4');
+    raw.dispose();
+
+    final database = AppDatabase.forTesting(NativeDatabase(file));
+    await expectLater(database.customSelect('SELECT 1').get(),
+        throwsA(isA<StateError>()));
+    try {
+      await database.close();
+    } catch (_) {
+      // The connection may already be closed after a failed open.
+    }
+
+    final reopened = sqlite.sqlite3.open(file.path);
+    addTearDown(reopened.dispose);
+    final names = reopened.select('PRAGMA table_info(app_settings)')
+        .map((row) => row['name']).toList();
+    expect(names, isNot(contains('default_category_seed_version')));
+    expect(reopened.select('PRAGMA user_version').single.values.single, 4);
+    expect(reopened.select('SELECT local_id FROM transactions').single['local_id'],
+        'transaction-before-upgrade');
+  });
+
+  test('a previously added seed column survives a retried version 4 upgrade',
+      () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory(setup: (db) {
+      _createSharedVersion4Tables(db);
+      db.execute('ALTER TABLE app_settings ADD COLUMN default_category_seed_version INTEGER NOT NULL DEFAULT 0');
+      db.execute('INSERT INTO app_settings VALUES (1, 7)');
+      db.execute('PRAGMA user_version = 4');
+    }));
+    addTearDown(database.close);
+
+    final rows = await database.customSelect(
+      'SELECT default_category_seed_version FROM app_settings WHERE id = 1',
+    ).get();
+    expect(rows.single.data['default_category_seed_version'], 7);
+    expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
   });
 }
 

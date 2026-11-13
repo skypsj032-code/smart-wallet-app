@@ -224,7 +224,10 @@ class BackupService {
     );
   }
 
-  Future<BackupSummary> restoreJsonBackup(String jsonText) async {
+  Future<BackupSummary> restoreJsonBackup(
+    String jsonText, {
+    String? expectedCurrentJson,
+  }) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
     final data = decoded['data'] as Map<String, dynamic>;
 

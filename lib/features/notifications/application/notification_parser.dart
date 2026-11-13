@@ -55,33 +55,18 @@ ParsedNotificationTransaction? parseNotification(Map<String, dynamic> event) {
   final combined = '$title $text';
 
   // ── 금액 추출 ──────────────────────────────────────────────────
-  // 1순위: 한국 원화 (5,000원 / 50000원)
-  // 2순위: 외화 → 원화 환산 없이 그대로 정수로 저장
-  //   USD $12.50  → 12 (달러 부분만)
-  //   JPY ¥1,200  → 1200
-  //   EUR €9.99   → 9
+  // 원화 금액이 명시된 알림만 사용한다. 외화 숫자를 환율 없이
+  // 원화로 기록하면 실제 금액을 왜곡한다.
   // 파싱된 순수 숫자 문자열 (콤마 제거) — _extractMerchant에서 잔여 텍스트 정리에 사용
   String parsedAmountDigits;
   final int amount;
 
   final amountMatch = RegExp(r'([\d,]+)원').firstMatch(combined);
-  if (amountMatch != null) {
-    parsedAmountDigits = amountMatch.group(1)!.replaceAll(',', '');
-    final parsed = int.tryParse(parsedAmountDigits);
-    if (parsed == null || parsed <= 0) return null;
-    amount = parsed;
-  } else {
-    // 외화 패턴: $12.50 / USD 12.50 / ¥1,200 / €9.99 / £15
-    final foreignMatch = RegExp(
-      r'(?:USD|EUR|JPY|GBP|CNY|AUD|CAD|CHF|\$|€|¥|£)\s*([\d,]+)',
-      caseSensitive: false,
-    ).firstMatch(combined);
-    if (foreignMatch == null) return null;
-    parsedAmountDigits = foreignMatch.group(1)!.replaceAll(',', '');
-    final parsed = int.tryParse(parsedAmountDigits);
-    if (parsed == null || parsed <= 0) return null;
-    amount = parsed;
-  }
+  if (amountMatch == null) return null;
+  parsedAmountDigits = amountMatch.group(1)!.replaceAll(',', '');
+  final parsed = int.tryParse(parsedAmountDigits);
+  if (parsed == null || parsed <= 0) return null;
+  amount = parsed;
 
   // ── 거래 유형 판단 ─────────────────────────────────────────────
   final isIncome = _containsAny(combined, ['입금', '수신', '급여', '환급', '이자']);
