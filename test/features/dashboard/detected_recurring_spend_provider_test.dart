@@ -58,6 +58,19 @@ void main() {
       ),
     );
     expect(february.groups.single.currentMonthAmount, 10000);
+
+    final groupKey = february.groups.single.groupKey;
+    await database.markRecurringSpendGroupNotRecurring(groupKey);
+    final hidden = await _waitForSnapshot(
+      container, when: (value) => value.excludedKeys.contains(groupKey),
+    );
+    expect(hidden.groups, isEmpty);
+    await database.unmarkRecurringSpendGroupNotRecurring(groupKey);
+    final restored = await _waitForSnapshot(
+      container,
+      when: (value) => !value.excludedKeys.contains(groupKey) && value.groups.isNotEmpty,
+    );
+    expect(restored.groups.single.groupKey, groupKey);
   });
 }
 

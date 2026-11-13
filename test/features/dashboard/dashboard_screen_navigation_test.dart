@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
-import 'package:smart_wallet_app/core/database/providers/database_providers.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
 import 'package:smart_wallet_app/features/dashboard/application/detected_recurring_spend_provider.dart';
@@ -19,14 +16,7 @@ import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_scree
 import 'package:smart_wallet_app/features/recurring_expenses/application/recurring_expense_service.dart';
 import 'package:smart_wallet_app/features/statistics/application/statistics_provider.dart';
 
-import '../../test_support/sqlite_test_setup.dart';
-
 void main() {
-  setUpAll(configureSqliteForTests);
-  late AppDatabase database;
-  setUp(() => database = AppDatabase.forTesting(NativeDatabase.memory()));
-  tearDown(() async => database.close());
-
   testWidgets('dashboard calendar card opens the calendar route',
       (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
@@ -38,7 +28,6 @@ void main() {
     await tester.pumpWidget(
       _DashboardTestApp(
         router: router,
-        database: database,
       ),
     );
     await tester.pumpAndSettle();
@@ -61,7 +50,6 @@ void main() {
     await tester.pumpWidget(
       _DashboardTestApp(
         router: router,
-        database: database,
       ),
     );
     await tester.pumpAndSettle();
@@ -80,31 +68,25 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final now = DateTime.now();
+    final transactions = <Transaction>[];
     for (var monthOffset = 0; monthOffset < 3; monthOffset++) {
       final date = DateTime(now.year, now.month - monthOffset, 1);
-      await database.into(database.transactions).insert(
-            TransactionsCompanion.insert(
-              localId: 'rent-$monthOffset',
-              type: 'expense',
-              amount: 700000,
-              occurredAt: date,
-              merchantName: const drift.Value('월세'),
-              accountId: const drift.Value('bank'),
-              createdAt: date,
-              lastModifiedAt: date,
-            ),
-          );
+      transactions.add(Transaction(
+        localId: 'rent-$monthOffset', type: 'expense', amount: 700000,
+        occurredAt: date, merchantName: '월세', accountId: 'bank',
+        createdAt: date, lastModifiedAt: date,
+      ));
     }
-    final transactions = await database.select(database.transactions).get();
     final detected = detectRecurringSpendInsight(transactions, now: now);
     final snapshot = DetectedRecurringSpendSnapshot(
       groups: detected.groups, excludedKeys: const {},
+      accountNames: const {'bank': '생활비 통장'},
     );
     final router = _buildRouter();
     addTearDown(router.dispose);
     try {
       await tester.pumpWidget(_DashboardTestApp(
-        router: router, database: database, snapshot: snapshot,
+        router: router, snapshot: snapshot,
       ));
       await tester.pumpAndSettle();
 
@@ -114,6 +96,7 @@ void main() {
       expect(headers.any((header) => header.pinned), isTrue);
       expect(find.text('거래에서 감지한 반복 지출'), findsOneWidget);
       expect(find.text('월세'), findsOneWidget);
+      expect(find.textContaining('생활비 통장'), findsOneWidget);
 
       const visibleKey = Key('recurring-spend-visible-bank|월세');
       expect(find.byKey(visibleKey), findsOneWidget);
@@ -134,24 +117,22 @@ void main() {
 class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
-    required this.database,
     this.snapshot = const DetectedRecurringSpendSnapshot(groups: [], excludedKeys: {}),
   });
 
   final GoRouter router;
-  final AppDatabase database;
   final DetectedRecurringSpendSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
-        appDatabaseProvider.overrideWithValue(database),
         detectedRecurringSpendProvider.overrideWith((ref) {
           final excluded = ref.watch(_testExcludedProvider);
           return AsyncData(DetectedRecurringSpendSnapshot(
             groups: snapshot.groups.where((group) => !excluded.contains(group.groupKey)).toList(),
             excludedKeys: excluded,
+            accountNames: snapshot.accountNames,
           ));
         }),
         recurringSpendOverrideStoreProvider.overrideWith((ref) => _TestRecurringStore(

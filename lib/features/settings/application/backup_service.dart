@@ -216,6 +216,9 @@ class BackupService {
     final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
     final data = decoded['data'] as Map<String, dynamic>;
     final warnings = <String>[];
+    if (decoded['backupVersion'] == 1) {
+      warnings.add('이전 백업은 파일 손상 여부를 완전히 확인할 수 없습니다.');
+    }
     if (const [
       'recurringExpenses', 'recurringSpendOverrides', 'notificationHistories', 'ocrDrafts',
     ].any((key) => !data.containsKey(key))) {

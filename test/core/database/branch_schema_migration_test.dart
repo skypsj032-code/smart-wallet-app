@@ -136,6 +136,22 @@ void main() {
     expect(rows.single.data['default_category_seed_version'], 7);
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
   });
+
+  test('excluded recurring groups survive reopening and can be restored',
+      () async {
+    final directory = await Directory.systemTemp.createTemp('wallet-exclusion-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}${Platform.pathSeparator}wallet.sqlite');
+    final first = AppDatabase.forTesting(NativeDatabase(file));
+    await first.markRecurringSpendGroupNotRecurring('bank|월세');
+    await first.close();
+
+    final reopened = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(reopened.close);
+    expect(await reopened.watchNotRecurringGroupKeys().first, contains('bank|월세'));
+    await reopened.unmarkRecurringSpendGroupNotRecurring('bank|월세');
+    expect(await reopened.watchNotRecurringGroupKeys().first, isEmpty);
+  });
 }
 
 void _createSharedVersion4Tables(dynamic db) {

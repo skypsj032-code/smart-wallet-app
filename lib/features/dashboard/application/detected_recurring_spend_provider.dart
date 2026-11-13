@@ -10,10 +10,12 @@ class DetectedRecurringSpendSnapshot {
   const DetectedRecurringSpendSnapshot({
     required this.groups,
     required this.excludedKeys,
+    this.accountNames = const {},
   });
 
   final List<RecurringSpendGroup> groups;
   final Set<String> excludedKeys;
+  final Map<String, String> accountNames;
 }
 
 final detectedRecurringClockProvider = StreamProvider.autoDispose<DateTime>(

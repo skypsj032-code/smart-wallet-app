@@ -157,4 +157,21 @@ void main() {
     expect((await db.select(db.transactions).get()).map((tx) => tx.localId),
         containsAll(['before-snapshot', 'arrived-after-snapshot']));
   });
+
+  test('preview counts actual records even when the summary is absent', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: 'one', type: 'expense', amount: 1000,
+          occurredAt: now, createdAt: now, lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    decoded.remove('summary');
+
+    final preview = await service.inspectJsonBackup(jsonEncode(decoded));
+    expect(preview.summary.transactionCount, 1);
+  });
 }
