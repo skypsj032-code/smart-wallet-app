@@ -11,6 +11,32 @@ import '../../test_support/sqlite_test_setup.dart';
 void main() {
   setUpAll(configureSqliteForTests);
 
+  test('version 1 upgrade retains the legacy profile and ledger', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory(setup: (db) {
+      _createSharedVersion4Tables(db);
+      db.execute('''
+        CREATE TABLE local_user_profile (
+          local_user_id TEXT NOT NULL PRIMARY KEY,
+          mode TEXT NOT NULL,
+          device_id TEXT NOT NULL
+        )
+      ''');
+      db.execute("INSERT INTO local_user_profile VALUES ('guest', 'guest', 'device-before-upgrade')");
+      db.execute('PRAGMA user_version = 1');
+    }));
+    addTearDown(database.close);
+
+    expect(await _tableExists(database, 'local_user_profile'), isTrue);
+    final profile = await database.customSelect(
+      'SELECT device_id FROM local_user_profile WHERE local_user_id = ?',
+      variables: [Variable.withString('guest')],
+    ).getSingle();
+    expect(profile.data['device_id'], 'device-before-upgrade');
+    expect((await database.customSelect('SELECT local_id FROM transactions').get())
+        .single.data['local_id'], 'transaction-before-upgrade');
+    expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
+  });
+
   test('Korean version 4 keeps exclusions while creating scheduled expenses',
       () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory(setup: (db) {
