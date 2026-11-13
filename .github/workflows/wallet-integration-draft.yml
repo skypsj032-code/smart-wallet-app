@@ -8,7 +8,7 @@ permissions:
 jobs:
   flutter-tests:
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - name: Download pull request source
         shell: pwsh
@@ -62,5 +62,84 @@ jobs:
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded test/features/settings/presentation/pin_recovery_test.dart test/features/settings/presentation/pin_recovery_flow_test.dart test/features/transactions/quick_entry_exit_test.dart test/features/transactions/transaction_repository_test.dart test/app/router/lock_routing_regression_test.dart
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  android-preview:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download pull request source
+        shell: pwsh
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          New-Item -ItemType Directory -Force -Path 'C:\smart wallet' | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP 'wallet-source.zip'
+          Invoke-WebRequest -Uri "https://github.com/skypsj032-code/smart-wallet-app/archive/$env:PR_HEAD_SHA.zip" -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath 'C:\smart wallet'
+          Rename-Item -Path "C:\smart wallet\smart-wallet-app-$env:PR_HEAD_SHA" -NewName 'app'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.4'
+          channel: stable
+          cache: false
+          pub-cache-path: 'C:\smart wallet\.pub-cache'
+      - name: Prepare project wrappers
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'C:\dev' | Out-Null
+          New-Item -ItemType Junction -Path 'C:\dev\flutter' -Target $env:FLUTTER_ROOT | Out-Null
+          $wrapper = @'
+          @echo off
+          setlocal
+          cd /d "C:\smart wallet\app"
+          set "PUB_CACHE=C:\smart wallet\.pub-cache"
+          call "C:\dev\flutter\bin\flutter.bat" %*
+          exit /b %ERRORLEVEL%
+          '@
+          Set-Content -LiteralPath 'C:\smart wallet\flutterw.bat' -Value $wrapper -Encoding ascii
+      - name: Install locked packages
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' pub get --enforce-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Generate database sources
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' pub run build_runner build --delete-conflicting-outputs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare separate preview identity
+        shell: pwsh
+        run: |
+          $gradlePath = 'C:\smart wallet\app\android\app\build.gradle.kts'
+          $gradle = Get-Content -LiteralPath $gradlePath -Raw
+          if (-not $gradle.Contains('applicationId = "com.example.smart_wallet_app"')) { throw 'Original application ID not found' }
+          $gradle = $gradle.Replace('applicationId = "com.example.smart_wallet_app"', 'applicationId = "com.example.smart_wallet_app.preview"')
+          Set-Content -LiteralPath $gradlePath -Value $gradle -Encoding utf8
+          $manifestPath = 'C:\smart wallet\app\android\app\src\main\AndroidManifest.xml'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw
+          if (-not $manifest.Contains('android:label="smart_wallet_app"')) { throw 'Original label not found' }
+          $manifest = $manifest.Replace('android:label="smart_wallet_app"', 'android:label="Smart Wallet Preview"')
+          Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding utf8
+      - name: Build separate Android preview
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' build apk --release --target-platform android-arm64 --split-per-abi --no-pub
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify preview identity
+        shell: pwsh
+        run: |
+          $apk = 'C:\smart wallet\app\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk'
+          if (-not (Test-Path -LiteralPath $apk)) { throw 'Preview APK missing' }
+          $aapt = Get-ChildItem -Path "$env:ANDROID_HOME\build-tools" -Filter aapt.exe -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $aapt) { throw 'Android build tools not found' }
+          $badging = & $aapt dump badging $apk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not ($badging | Select-String -Pattern "package: name='com\.example\.smart_wallet_app\.preview'")) { throw 'Unexpected application ID' }
+          if (-not ($badging | Select-String -Pattern "launchable-activity: name='com\.example\.smart_wallet_app\.MainActivity'")) { throw 'Unexpected launch activity' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smart-wallet-preview-arm64
+          path: 'C:\smart wallet\app\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk'
+          retention-days: 7
