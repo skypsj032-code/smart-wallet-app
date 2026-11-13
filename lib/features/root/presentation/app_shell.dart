@@ -15,6 +15,7 @@ import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -317,7 +318,12 @@ class _AppShellState extends ConsumerState<AppShell>
                           selectedIndex: currentIndex,
                           labelBehavior:
                               NavigationDestinationLabelBehavior.alwaysShow,
-                          onDestinationSelected: (index) {
+                          onDestinationSelected: (index) async {
+                            if (ref.read(quickEntryFormProvider).editingId != null &&
+                                !await ref.read(quickEntryExitCoordinatorProvider).confirmExit()) {
+                              return;
+                            }
+                            if (!context.mounted) return;
                             switch (index) {
                               case 0:
                                 context.go('/');
@@ -415,6 +421,12 @@ class _AppShellState extends ConsumerState<AppShell>
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
     final router = GoRouter.of(context);
+
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return false;
+    }
 
     if (router.canPop()) {
       router.pop();

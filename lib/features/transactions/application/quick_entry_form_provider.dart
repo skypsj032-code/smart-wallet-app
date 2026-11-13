@@ -94,6 +94,8 @@ class QuickEntryFormState {
 }
 
 class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> {
+  void Function()? _releaseEdit;
+
   @override
   QuickEntryFormState build() {
     return const QuickEntryFormState();
@@ -143,10 +145,16 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void setEditingId(String? editingId) {
+    if (editingId == null) {
+      _stopRetainingEdit();
+    } else {
+      _retainEdit();
+    }
     state = state.copyWith(editingId: editingId);
   }
 
   void loadTransaction(Transaction transaction) {
+    _retainEdit();
     state = QuickEntryFormState(
       type: _mapTransactionType(transaction.type),
       amount: transaction.amount.toString(),
@@ -161,6 +169,7 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void loadTemplate(Transaction transaction) {
+    _stopRetainingEdit();
     final type = _mapTransactionType(transaction.type);
     state = QuickEntryFormState(
       type: type,
@@ -180,6 +189,21 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
 
   void reset() {
     state = const QuickEntryFormState();
+    _stopRetainingEdit();
+  }
+
+  /// Holds the form until an asynchronous write finishes, even if the app
+  /// becomes locked and the editor widget is temporarily removed.
+  void Function() retainDuringSave() => ref.keepAlive().close;
+
+  void _retainEdit() {
+    _releaseEdit ??= ref.keepAlive().close;
+  }
+
+  void _stopRetainingEdit() {
+    final release = _releaseEdit;
+    _releaseEdit = null;
+    release?.call();
   }
 
   TransactionEntryType _mapTransactionType(String type) {
@@ -195,10 +219,10 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 }
 
-/// 제출 진행 중 플래그 — QuickEntryScreen 생명주기와 동기화.
-/// autoDispose: 화면이 닫히면 자동으로 false로 초기화 (좀비 상태 방지).
+/// Keep the submission flag across a temporary lock screen to prevent a
+/// second write while the original save is still running.
 final quickEntrySubmitStateProvider =
-    StateProvider.autoDispose<bool>((ref) => false);
+    StateProvider<bool>((ref) => false);
 
 final quickEntryFormProvider =
     NotifierProvider.autoDispose<QuickEntryFormController, QuickEntryFormState>(

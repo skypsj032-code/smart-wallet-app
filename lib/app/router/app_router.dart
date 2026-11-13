@@ -19,6 +19,7 @@ import '../../features/settings/presentation/lock_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
+import '../../features/transactions/application/quick_entry_form_provider.dart';
 import '../../features/transactions/presentation/quick_entry_screen.dart';
 import '../../features/tools/presentation/tools_screen.dart';
 
@@ -71,6 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLockRoute) {
+        if (ref.read(quickEntryFormProvider).editingId != null) {
+          return '/quick-entry';
+        }
         return '/';
       }
 

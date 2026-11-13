@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/utils/currency_formatter.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../transactions/application/quick_entry_options_provider.dart';
 import '../application/notification_parser.dart';
@@ -40,6 +41,12 @@ class NotificationTransactionBanner extends ConsumerWidget {
     WidgetRef ref,
     ParsedNotificationTransaction tx,
   ) async {
+    if (ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return;
+    }
+    if (!context.mounted) return;
+    final alreadyEditingPage = GoRouterState.of(context).uri.path == '/quick-entry';
     // 배너 닫기
     ref.read(detectedNotificationTransactionProvider.notifier).state = null;
 
@@ -64,7 +71,7 @@ class NotificationTransactionBanner extends ConsumerWidget {
           .read(quickEntryCategoriesProvider(categoryType))
           .asData
           ?.value;
-      if (categories != null) {
+      if (categories != null && categories.isNotEmpty) {
         final match = categories.firstWhere(
           (c) => c.name.contains(keyword),
           orElse: () => categories.first,
@@ -76,7 +83,7 @@ class NotificationTransactionBanner extends ConsumerWidget {
       }
     }
 
-    if (context.mounted) {
+    if (context.mounted && !alreadyEditingPage) {
       context.push('/quick-entry');
     }
   }

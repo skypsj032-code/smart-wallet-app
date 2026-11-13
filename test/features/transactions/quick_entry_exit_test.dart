@@ -94,6 +94,47 @@ void main() {
     expect(harness.container.read(quickEntryFormProvider).editingId, 'tx-original');
   });
 
+  testWidgets('app bar back offers to keep editing', (tester) async {
+    final harness = await _Harness.open(tester);
+    await harness.edit(tester);
+    await harness.enterAmount(tester, '6500');
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정'));
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider).amount, '6500');
+  });
+
+  testWidgets('switching tabs from an opened subpage protects the edit',
+      (tester) async {
+    final harness = await _Harness.open(tester);
+    await harness.edit(tester);
+    await harness.enterAmount(tester, '6300');
+    harness.router.push('/accounts');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('도구'));
+    await tester.pumpAndSettle();
+    expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정'));
+    await tester.pumpAndSettle();
+    expect(find.text('accounts screen'), findsOneWidget);
+    expect(harness.container.read(quickEntryFormProvider).amount, '6300');
+  });
+
+  testWidgets('the normal save button still saves once and leaves', (tester) async {
+    final harness = await _Harness.open(tester);
+    await harness.edit(tester);
+    await harness.enterAmount(tester, '9400');
+    await tester.ensureVisible(find.text('거래 수정하기'));
+    await tester.tap(find.text('거래 수정하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('home screen'), findsOneWidget);
+    expect(harness.repository.updates, hasLength(1));
+    expect(harness.repository.updates.single.amount, '9400');
+    expect(find.text('수정 내용을 저장할까요?'), findsNothing);
+  });
+
   testWidgets('locked screen preserves the pending edit until it is reopened',
       (tester) async {
     final harness = await _Harness.open(tester);
@@ -108,6 +149,9 @@ void main() {
     expect(harness.container.read(quickEntryFormProvider).editingId, 'tx-original');
     expect(harness.container.read(quickEntryFormProvider).amount, '7800');
     expect(find.byType(QuickEntryScreen), findsOneWidget);
+    final amountField = tester.widget<TextField>(find.byWidgetPredicate((widget) =>
+        widget is TextField && widget.decoration?.hintText == '0'));
+    expect(amountField.controller?.text, '7800');
   });
 }
 

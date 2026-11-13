@@ -11,6 +11,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../transactions/application/quick_entry_options_provider.dart';
 
@@ -58,6 +59,11 @@ class NotificationHistoryScreen extends ConsumerWidget {
     WidgetRef ref,
     NotificationHistory item,
   ) async {
+    if (ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return;
+    }
+    if (!context.mounted) return;
     final notifier = ref.read(quickEntryFormProvider.notifier);
     notifier.reset();
     notifier.setType(
