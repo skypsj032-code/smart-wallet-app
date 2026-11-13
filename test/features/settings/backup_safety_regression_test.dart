@@ -195,4 +195,18 @@ void main() {
         throwsA(isA<BackupFormatException>()));
     expect((await db.select(db.transactions).get()).single.localId, 'keep');
   });
+
+  test('legacy backup missing its settings section is rejected', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
+    (decoded['data'] as Map<String, dynamic>).remove('settings');
+
+    await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
+        throwsA(isA<BackupFormatException>()));
+  });
 }
