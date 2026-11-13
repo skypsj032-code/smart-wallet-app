@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_wallet_app/app/bootstrap/app_bootstrap_provider.dart';
 import 'package:smart_wallet_app/app/router/app_router.dart';
+import 'package:smart_wallet_app/app/smart_wallet_app.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
+import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/settings/application/settings_provider.dart';
 import 'package:smart_wallet_app/features/settings/presentation/lock_screen.dart';
 
@@ -23,6 +26,7 @@ void main() {
     final settings = StreamController<AppSetting>();
     final container = ProviderContainer(overrides: [
       appSettingsProvider.overrideWith((ref) => settings.stream),
+      calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
     ]);
     final subscription = container.listen(appSettingsProvider, (_, __) {});
     addTearDown(() async {
@@ -49,8 +53,33 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(LockScreen), findsOneWidget);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/lock');
     expect(container.read(sessionUnlockedProvider), isFalse);
 
+  });
+
+  testWidgets('settings loading keeps the protected route locked',
+      (tester) async {
+    final settings = StreamController<AppSetting>();
+    final container = ProviderContainer(overrides: [
+      appSettingsProvider.overrideWith((ref) => settings.stream),
+      calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
+    ]);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await settings.close();
+    });
+    final router = container.read(appRouterProvider);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(LockScreen), findsOneWidget);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/lock');
+    expect(container.read(sessionUnlockedProvider), isFalse);
   });
 
   testWidgets('PIN input while settings are loading cannot unlock',
@@ -82,6 +111,33 @@ void main() {
     await tester.pump();
     expect(container.read(sessionUnlockedProvider), isFalse);
 
+  });
+
+  testWidgets('backgrounding with unknown settings locks the session',
+      (tester) async {
+    final settings = StreamController<AppSetting>();
+    final container = ProviderContainer(overrides: [
+      appBootstrapProvider.overrideWith((ref) async {}),
+      appSettingsProvider.overrideWith((ref) => settings.stream),
+      calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
+    ]);
+    addTearDown(() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await settings.close();
+    });
+    container.read(sessionUnlockedProvider.notifier).state = true;
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const SmartWalletApp(),
+    ));
+    await tester.pump();
+    await tester.pump();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(container.read(sessionUnlockedProvider), isFalse);
   });
 }
 
