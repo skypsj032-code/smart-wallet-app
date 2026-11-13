@@ -95,7 +95,9 @@ class _AppShellState extends ConsumerState<AppShell>
     });
     final location = GoRouterState.of(context).uri.toString();
     final hideGlobalQuickPanel =
-        location.startsWith('/quick-entry') || location.startsWith('/lock');
+        location.startsWith('/quick-entry') ||
+        location.startsWith('/lock') ||
+        form.editingId != null;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 

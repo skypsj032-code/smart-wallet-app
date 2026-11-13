@@ -126,6 +126,8 @@ void main() {
     await harness.enterAmount(tester, '6300');
     harness.router.push('/accounts');
     await tester.pumpAndSettle();
+    expect(find.text('기록'), findsNothing);
+    expect(harness.container.read(quickEntryFormProvider).amount, '6300');
     await tester.tap(find.text('도구'));
     await tester.pumpAndSettle();
     expect(find.text('수정 내용을 저장할까요?'), findsOneWidget);
@@ -171,6 +173,44 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(harness.container.read(quickEntryFormProvider).amount, '8200');
     expect(harness.container.read(quickEntryFormProvider).editingId, 'tx-original');
+  });
+
+  testWidgets('a notification cannot replace a new entry while it is saving',
+      (tester) async {
+    final pendingSave = Completer<void>();
+    final harness = await _Harness.open(tester, pendingCreate: pendingSave);
+    addTearDown(() {
+      if (!pendingSave.isCompleted) pendingSave.complete();
+    });
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    await harness.enterAmount(tester, '4200');
+    await tester.ensureVisible(find.text('거래 저장하기'));
+    await tester.tap(find.text('거래 저장하기'));
+    await tester.pump();
+    expect(harness.container.read(quickEntrySubmitStateProvider), isTrue);
+
+    harness.container.read(detectedNotificationTransactionProvider.notifier).state =
+        ParsedNotificationTransaction(
+      amount: 2000,
+      type: 'expense',
+      merchant: '저장 중 알림',
+      rawTitle: 'card',
+      rawText: 'payment',
+      detectedAt: DateTime(2026, 5, 5),
+    );
+    await tester.pump();
+    await tester.tap(find.text('저장 중 알림'));
+    await tester.pump();
+    expect(harness.container.read(quickEntryFormProvider).amount, '4200');
+    expect(harness.container.read(detectedNotificationTransactionProvider), isNotNull);
+
+    harness.container.read(detectedNotificationTransactionProvider.notifier).state = null;
+    await tester.pump();
+    pendingSave.complete();
+    await tester.pumpAndSettle();
+    expect(harness.repository.creates, hasLength(1));
+    expect(harness.repository.creates.single.amount, '4200');
   });
 
   testWidgets('locked screen preserves the pending edit until it is reopened',
@@ -223,9 +263,10 @@ class _Harness {
   final GoRouter router;
   final _FakeRepository repository;
 
-  static Future<_Harness> open(WidgetTester tester, {bool failSave = false}) async {
+  static Future<_Harness> open(WidgetTester tester,
+      {bool failSave = false, Completer<void>? pendingCreate}) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
-    final repository = _FakeRepository(failSave: failSave);
+    final repository = _FakeRepository(failSave: failSave, pendingCreate: pendingCreate);
     final container = ProviderContainer(overrides: [
       transactionRepositoryProvider.overrideWithValue(repository),
       quickEntryAccountsProvider.overrideWith((ref) => Stream.value(const [
@@ -297,8 +338,10 @@ class _Harness {
 }
 
 class _FakeRepository implements ITransactionRepository {
-  _FakeRepository({required this.failSave});
+  _FakeRepository({required this.failSave, this.pendingCreate});
   final bool failSave;
+  final Completer<void>? pendingCreate;
+  final creates = <QuickEntryFormState>[];
   final updates = <QuickEntryFormState>[];
 
   @override
@@ -308,7 +351,10 @@ class _FakeRepository implements ITransactionRepository {
   }
 
   @override
-  Future<void> createFromQuickEntry(QuickEntryFormState form) async {}
+  Future<void> createFromQuickEntry(QuickEntryFormState form) async {
+    creates.add(form);
+    if (pendingCreate != null) await pendingCreate!.future;
+  }
   @override
   Future<void> softDeleteTransaction(String localId) async {}
   @override
