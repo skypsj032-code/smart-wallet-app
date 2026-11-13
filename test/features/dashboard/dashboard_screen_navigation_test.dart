@@ -10,6 +10,8 @@ import 'package:smart_wallet_app/core/database/providers/database_providers.dart
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
 import 'package:smart_wallet_app/features/dashboard/application/detected_recurring_spend_provider.dart';
+import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_detector.dart';
+import 'package:smart_wallet_app/features/dashboard/application/recurring_spend_override_store.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_transaction_suggestion_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_summary_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/wealth_hero_motion.dart';
@@ -93,11 +95,16 @@ void main() {
             ),
           );
     }
+    final transactions = await database.select(database.transactions).get();
+    final detected = detectRecurringSpendInsight(transactions, now: now);
+    final snapshot = DetectedRecurringSpendSnapshot(
+      groups: detected.groups, excludedKeys: const {},
+    );
     final router = _buildRouter();
     addTearDown(router.dispose);
     try {
       await tester.pumpWidget(_DashboardTestApp(
-        router: router, database: database, realInsight: true,
+        router: router, database: database, snapshot: snapshot,
       ));
       await tester.pumpAndSettle();
 
@@ -128,24 +135,35 @@ class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
     required this.database,
-    this.realInsight = false,
+    this.snapshot = const DetectedRecurringSpendSnapshot(groups: [], excludedKeys: {}),
   });
 
   final GoRouter router;
   final AppDatabase database;
-  final bool realInsight;
+  final DetectedRecurringSpendSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
         appDatabaseProvider.overrideWithValue(database),
-        if (!realInsight)
-          detectedRecurringSpendProvider.overrideWith(
-            (ref) => const AsyncData(DetectedRecurringSpendSnapshot(
-              groups: [], excludedKeys: {},
-            )),
-          ),
+        detectedRecurringSpendProvider.overrideWith((ref) {
+          final excluded = ref.watch(_testExcludedProvider);
+          return AsyncData(DetectedRecurringSpendSnapshot(
+            groups: snapshot.groups.where((group) => !excluded.contains(group.groupKey)).toList(),
+            excludedKeys: excluded,
+          ));
+        }),
+        recurringSpendOverrideStoreProvider.overrideWith((ref) => _TestRecurringStore(
+          exclude: (key) {
+            final state = ref.read(_testExcludedProvider.notifier);
+            state.state = {...state.state, key};
+          },
+          restore: (key) {
+            final state = ref.read(_testExcludedProvider.notifier);
+            state.state = {...state.state}..remove(key);
+          },
+        )),
         dashboardSummaryProvider.overrideWith(
           (ref) => Stream.value(_fakeDashboardSummary()),
         ),
@@ -201,6 +219,24 @@ class _DashboardTestApp extends StatelessWidget {
       ),
     );
   }
+}
+
+final _testExcludedProvider = StateProvider<Set<String>>((ref) => {});
+
+class _TestRecurringStore implements RecurringSpendOverrideStore {
+  _TestRecurringStore({required this.exclude, required this.restore});
+
+  final void Function(String) exclude;
+  final void Function(String) restore;
+
+  @override
+  Future<void> markGroupNotRecurring(String groupKey) async => exclude(groupKey);
+
+  @override
+  Future<void> unmarkGroupNotRecurring(String groupKey) async => restore(groupKey);
+
+  @override
+  Stream<Set<String>> watchNotRecurringGroupKeys() => Stream.value(const {});
 }
 
 GoRouter _buildRouter() {

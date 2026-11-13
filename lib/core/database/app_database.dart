@@ -39,10 +39,14 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON;');
         },
         onCreate: (Migrator m) async {
-          await m.createAll();
+          await transaction(() async {
+            await m.createAll();
+            await customStatement('PRAGMA user_version = $schemaVersion');
+          });
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
+          await transaction(() async {
+          if (from < 2 && !await _appSettingsHasColumn('pin_code')) {
             await m.addColumn(appSettings, appSettings.pinCode);
           }
           if (from < 3) {
@@ -65,10 +69,11 @@ class AppDatabase extends _$AppDatabase {
               );
             }
           }
-          if (from < 4) {
+          if (from < 4 && !await _tableExists('recurring_expenses')) {
             await m.createTable(recurringExpenses);
           }
-          if (from < 5) {
+          if (from < 5 &&
+              !await _appSettingsHasColumn('default_category_seed_version')) {
             await m.addColumn(
               appSettings,
               appSettings.defaultCategorySeedVersion,
@@ -156,7 +161,7 @@ class AppDatabase extends _$AppDatabase {
               }
             }
           }
-          if (from < 7) {
+          if (from < 7 && !await _tableExists('notification_histories')) {
             await m.createTable(notificationHistories);
           }
           if (from < 8) {
@@ -173,8 +178,17 @@ class AppDatabase extends _$AppDatabase {
               !await _tableExists('recurring_spend_overrides')) {
             await m.createTable(recurringSpendOverrides);
           }
+          // Persist the version in the same transaction as the schema. This
+          // makes an interrupted upgrade safe to retry on the next launch.
+          await customStatement('PRAGMA user_version = $to');
+          });
         },
       );
+
+  Future<bool> _appSettingsHasColumn(String column) async {
+    final rows = await customSelect('PRAGMA table_info(app_settings)').get();
+    return rows.any((row) => row.data['name'] == column);
+  }
 
   Future<bool> _tableExists(String name) async {
     final rows = await customSelect(

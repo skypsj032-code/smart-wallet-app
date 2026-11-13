@@ -416,7 +416,10 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      final summary = await backupService.restoreJsonBackup(jsonStr);
+      final summary = await backupService.restoreJsonBackup(
+        jsonStr,
+        expectedCurrentJson: safetyBackup.payload.json,
+      );
 
       if (!context.mounted) {
         return;
@@ -472,7 +475,8 @@ class SettingsScreen extends ConsumerWidget {
               '- 거래 ${preview.summary.transactionCount}개\n'
               '- 카테고리 ${preview.summary.categoryCount}개\n'
               '- 예산 ${preview.summary.budgetCount}개\n'
-              '- 계좌 ${preview.summary.accountCount}개',
+              '- 계좌 ${preview.summary.accountCount}개'
+              '${preview.warnings.isEmpty ? '' : '\n\n${preview.warnings.join('\n')}'}',
             ),
           ),
           actions: [

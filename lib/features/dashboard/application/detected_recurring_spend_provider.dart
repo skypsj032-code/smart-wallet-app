@@ -16,6 +16,10 @@ class DetectedRecurringSpendSnapshot {
   final Set<String> excludedKeys;
 }
 
+final detectedRecurringClockProvider = StreamProvider.autoDispose<DateTime>(
+  (ref) => Stream.value(DateTime.now()),
+);
+
 final _recentSpendingProvider = StreamProvider<List<Transaction>>((ref) {
   final database = ref.watch(appDatabaseProvider);
   final now = DateTime.now();

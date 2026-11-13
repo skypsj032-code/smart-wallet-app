@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -56,6 +57,7 @@ class BackupPreview {
     required this.createdAt,
     required this.appVersion,
     required this.summary,
+    this.warnings = const [],
   });
 
   final int backupVersion;
@@ -63,6 +65,7 @@ class BackupPreview {
   final DateTime createdAt;
   final String appVersion;
   final BackupSummary summary;
+  final List<String> warnings;
 }
 
 class BackupFormatException implements Exception {
@@ -78,30 +81,16 @@ class BackupService {
   BackupService(this._database);
 
   final AppDatabase _database;
-  static const int backupVersion = 1;
+  static const int backupVersion = 2;
 
   Future<BackupPayload> exportJsonBackup() async {
     // Read every section from the same SQLite snapshot.
-    final snapshot = await _database.transaction(() async => (
-          transactions: await _database.select(_database.transactions).get(),
-          categories: await _database.select(_database.categories).get(),
-          budgets: await _database.select(_database.budgets).get(),
-          accounts: await _database.select(_database.accounts).get(),
-          recurringExpenses:
-              await _database.select(_database.recurringExpenses).get(),
-          recurringSpendOverrides:
-              await _database.select(_database.recurringSpendOverrides).get(),
-          notificationHistories:
-              await _database.select(_database.notificationHistories).get(),
-          ocrDrafts: await _database.select(_database.ocrDrafts).get(),
-          settings: await _database.select(_database.appSettings).get(),
-        ));
-    final transactionsData = snapshot.transactions;
-    final categoriesData = snapshot.categories;
-    final budgetsData = snapshot.budgets;
-    final accountsData = snapshot.accounts;
-    final recurringExpensesData = snapshot.recurringExpenses;
-    final settingsData = snapshot.settings;
+    final data = await _database.transaction(_readBackupData);
+    final transactionsData = data['transactions'] as List<dynamic>;
+    final categoriesData = data['categories'] as List<dynamic>;
+    final budgetsData = data['budgets'] as List<dynamic>;
+    final accountsData = data['accounts'] as List<dynamic>;
+    final recurringExpensesData = data['recurringExpenses'] as List<dynamic>;
 
     final createdAt = DateTime.now().toUtc();
     final payload = {
@@ -110,27 +99,20 @@ class BackupService {
       'createdAt': createdAt.toIso8601String(),
       'appVersion': '0.1.0',
       'deviceId': 'local-device',
+      'dataChecksum': sha256.convert(utf8.encode(jsonEncode(data))).toString(),
       'summary': {
         'transactionCount': transactionsData.length,
         'categoryCount': categoriesData.length,
         'budgetCount': budgetsData.length,
         'accountCount': accountsData.length,
         'recurringExpenseCount': recurringExpensesData.length,
+        'recurringSpendOverrideCount':
+            (data['recurringSpendOverrides'] as List<dynamic>).length,
+        'notificationHistoryCount':
+            (data['notificationHistories'] as List<dynamic>).length,
+        'ocrDraftCount': (data['ocrDrafts'] as List<dynamic>).length,
       },
-      'data': {
-        'transactions': transactionsData.map(_transactionToJson).toList(),
-        'categories': categoriesData.map(_categoryToJson).toList(),
-        'budgets': budgetsData.map(_budgetToJson).toList(),
-        'accounts': accountsData.map(_accountToJson).toList(),
-        'recurringExpenses':
-            recurringExpensesData.map(_recurringExpenseToJson).toList(),
-        'recurringSpendOverrides': snapshot.recurringSpendOverrides
-            .map(_recurringSpendOverrideToJson).toList(),
-        'notificationHistories': snapshot.notificationHistories
-            .map(_notificationHistoryToJson).toList(),
-        'ocrDrafts': snapshot.ocrDrafts.map(_ocrDraftToJson).toList(),
-        'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
-      },
+      'data': data,
     };
 
     final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
@@ -149,6 +131,31 @@ class BackupService {
       ),
       fileName: fileName,
     );
+  }
+
+  Future<Map<String, dynamic>> _readBackupData() async {
+    final transactions = await _database.select(_database.transactions).get();
+    final categories = await _database.select(_database.categories).get();
+    final budgets = await _database.select(_database.budgets).get();
+    final accounts = await _database.select(_database.accounts).get();
+    final recurring = await _database.select(_database.recurringExpenses).get();
+    final overrides =
+        await _database.select(_database.recurringSpendOverrides).get();
+    final notifications =
+        await _database.select(_database.notificationHistories).get();
+    final ocrDrafts = await _database.select(_database.ocrDrafts).get();
+    final settings = await _database.select(_database.appSettings).get();
+    return {
+      'transactions': transactions.map(_transactionToJson).toList(),
+      'categories': categories.map(_categoryToJson).toList(),
+      'budgets': budgets.map(_budgetToJson).toList(),
+      'accounts': accounts.map(_accountToJson).toList(),
+      'recurringExpenses': recurring.map(_recurringExpenseToJson).toList(),
+      'recurringSpendOverrides': overrides.map(_recurringSpendOverrideToJson).toList(),
+      'notificationHistories': notifications.map(_notificationHistoryToJson).toList(),
+      'ocrDrafts': ocrDrafts.map(_ocrDraftToJson).toList(),
+      'settings': settings.isEmpty ? null : _settingsToJson(settings.first),
+    };
   }
 
   Future<File> saveBackupFile(BackupPayload payload) async {
@@ -207,12 +214,23 @@ class BackupService {
   Future<BackupPreview> inspectJsonBackup(String jsonText) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
     final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
+    final data = decoded['data'] as Map<String, dynamic>;
+    final warnings = <String>[];
+    if (const [
+      'recurringExpenses', 'recurringSpendOverrides', 'notificationHistories', 'ocrDrafts',
+    ].any((key) => !data.containsKey(key))) {
+      warnings.add('이전 백업에 없는 항목은 현재 기기의 데이터를 유지합니다.');
+    }
+    if ((data['ocrDrafts'] as List<dynamic>?)?.isNotEmpty == true) {
+      warnings.add('영수증 사진 원본은 백업에 포함되지 않습니다.');
+    }
 
     return BackupPreview(
       backupVersion: decoded['backupVersion'] as int,
       schemaVersion: decoded['schemaVersion'] as int,
       createdAt: DateTime.parse(decoded['createdAt'] as String),
       appVersion: decoded['appVersion'] as String? ?? 'unknown',
+      warnings: warnings,
       summary: BackupSummary(
         transactionCount: (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
         categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
@@ -229,6 +247,9 @@ class BackupService {
     String? expectedCurrentJson,
   }) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
+    final expectedCurrent = expectedCurrentJson == null
+        ? null
+        : await _decodeAndValidateBackup(expectedCurrentJson);
     final data = decoded['data'] as Map<String, dynamic>;
 
     final transactionsData = (data['transactions'] as List<dynamic>? ?? const []);
@@ -245,6 +266,17 @@ class BackupService {
     var retainedRecurringExpenseCount = 0;
 
     await _database.transaction(() async {
+      // The safety file is written before the restore transaction starts.
+      // Stop if anything changed in that interval so newer records are not
+      // replaced without being present in the safety backup.
+      if (expectedCurrent != null) {
+        final currentData = await _readBackupData();
+        if (jsonEncode(currentData) != jsonEncode(expectedCurrent['data'])) {
+          throw const BackupFormatException(
+            '안전 백업을 만든 뒤 새 기록이 생겨 복원을 멈췄어요. 다시 시도해 주세요.',
+          );
+        }
+      }
       // The PIN never leaves the device as part of a shareable backup.
       final localSettings =
           await _database.select(_database.appSettings).getSingleOrNull();
@@ -258,7 +290,7 @@ class BackupService {
           if (!accountIds.contains(item.accountId) ||
               (item.categoryId != null && !categoryIds.contains(item.categoryId))) {
             throw const BackupFormatException(
-              'This older backup would disconnect an existing scheduled transaction.',
+              '기존 정기거래와 연결된 계좌 또는 카테고리가 백업에 없어 복원을 멈췄어요.',
             );
           }
         }
@@ -471,7 +503,12 @@ class BackupService {
 
   Future<Map<String, dynamic>> _decodeAndValidateBackup(String jsonText) async {
     // JSON 디코딩은 대형 파일에서 CPU 집약적이므로 별도 Isolate에서 실행.
-    final decodedDynamic = await _decodeBackupJson(jsonText);
+    final dynamic decodedDynamic;
+    try {
+      decodedDynamic = await _decodeBackupJson(jsonText);
+    } on FormatException {
+      throw const BackupFormatException('Backup JSON is invalid.');
+    }
     if (decodedDynamic is! Map<String, dynamic>) {
       throw const BackupFormatException('Backup file top-level structure is invalid.');
     }
@@ -486,9 +523,9 @@ class BackupService {
       throw const BackupFormatException('backupVersion is missing or invalid.');
     }
 
-    if (backupVersionValue != backupVersion) {
+    if (backupVersionValue != 1 && backupVersionValue != backupVersion) {
       throw BackupFormatException(
-        'Unsupported backup version: $backupVersionValue. Current app supports version $backupVersion only.',
+        'Unsupported backup version: $backupVersionValue.',
       );
     }
 
@@ -496,7 +533,7 @@ class BackupService {
       throw const BackupFormatException('schemaVersion is missing or invalid.');
     }
 
-    if (schemaVersionValue > _database.schemaVersion) {
+    if (schemaVersionValue < 1 || schemaVersionValue > _database.schemaVersion) {
       throw BackupFormatException(
         'Backup was created with newer schema version $schemaVersionValue.',
       );
@@ -514,6 +551,14 @@ class BackupService {
 
     if (dataValue is! Map<String, dynamic>) {
       throw const BackupFormatException('data payload is invalid.');
+    }
+
+    if (backupVersionValue == 2) {
+      final checksum = decoded['dataChecksum'];
+      final actual = sha256.convert(utf8.encode(jsonEncode(dataValue))).toString();
+      if (checksum is! String || checksum != actual) {
+        throw const BackupFormatException('백업 파일의 내용이 손상되었거나 변경됐어요.');
+      }
     }
 
     for (final key in const [
@@ -551,6 +596,9 @@ class BackupService {
         'budgets': 'budgetCount',
         'accounts': 'accountCount',
         'recurringExpenses': 'recurringExpenseCount',
+        'recurringSpendOverrides': 'recurringSpendOverrideCount',
+        'notificationHistories': 'notificationHistoryCount',
+        'ocrDrafts': 'ocrDraftCount',
       };
       for (final entry in sectionCounts.entries) {
         if (!summary.containsKey(entry.value)) continue;
@@ -569,7 +617,115 @@ class BackupService {
       throw const BackupFormatException('settings payload is invalid.');
     }
 
+    for (final section in _recordFields.keys) {
+      final value = dataValue[section];
+      if (value == null) continue;
+      final records = section == 'settings' ? [value] : value as List<dynamic>;
+      final ids = <Object>{};
+      for (final record in records) {
+        if (record is! Map<String, dynamic>) {
+          throw BackupFormatException('$section contains an invalid record.');
+        }
+        _validateBackupRecord(section, record);
+        if (section == 'recurringExpenses') {
+          if (schemaVersionValue >= 6) {
+            _validateBackupRecord(section, record, fields: _modernRecurringFields);
+          } else if (schemaVersionValue >= 4) {
+            _validateBackupRecord(section, record, fields: const {
+              'lastCreatedMonthKey': 'string?',
+            });
+          }
+        }
+        final idKey = section == 'notificationHistories' ? 'id' :
+            section == 'recurringSpendOverrides' ? 'groupKey' :
+            section == 'settings' ? 'id' : 'localId';
+        if (!ids.add(record[idKey] as Object)) {
+          throw BackupFormatException('$section contains duplicate identifiers.');
+        }
+      }
+    }
+
     return decoded;
+  }
+
+  static const _recordFields = <String, Map<String, String>>{
+    'transactions': {
+      'localId': 'string', 'type': 'string', 'amount': 'int', 'occurredAt': 'date',
+      'accountId': 'string?', 'fromAccountId': 'string?', 'toAccountId': 'string?',
+      'categoryId': 'string?', 'merchantName': 'string?', 'paymentMethod': 'string?',
+      'memo': 'string?', 'tagJson': 'string?', 'createdAt': 'date',
+      'lastModifiedAt': 'date', 'deletedAt': 'date?',
+    },
+    'categories': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'iconName': 'string?',
+      'colorHex': 'string?', 'isDefault': 'bool', 'isActive': 'bool', 'sortOrder': 'int',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'budgets': {
+      'localId': 'string', 'monthKey': 'string', 'categoryId': 'string?',
+      'amountLimit': 'int', 'alert50Enabled': 'bool', 'alert80Enabled': 'bool',
+      'alert100Enabled': 'bool', 'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'accounts': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'colorHex': 'string?',
+      'includeInNetWorth': 'bool', 'isActive': 'bool', 'createdAt': 'date',
+      'lastModifiedAt': 'date',
+    },
+    'recurringExpenses': {
+      'localId': 'string', 'name': 'string', 'amount': 'int',
+      'dayOfMonth': 'int?', 'accountId': 'string', 'categoryId': 'string?',
+      'isActive': 'bool', 'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'settings': {
+      'id': 'int', 'currencyCode': 'string', 'weekStart': 'string', 'themeMode': 'string',
+      'appLockEnabled': 'bool', 'biometricEnabled': 'bool', 'exportIncludeDeleted': 'bool',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'recurringSpendOverrides': {
+      'groupKey': 'string', 'actionType': 'string', 'createdAt': 'date',
+      'lastModifiedAt': 'date',
+    },
+    'notificationHistories': {
+      'id': 'int', 'packageName': 'string', 'amount': 'int', 'type': 'string',
+      'merchant': 'string?', 'suggestedCategory': 'string?', 'detectedAt': 'date',
+    },
+    'ocrDrafts': {
+      'localId': 'string', 'sourceImagePath': 'string?', 'ocrRawText': 'string?',
+      'ocrConfidence': 'number?', 'ocrStatus': 'string', 'parsedStoreName': 'string?',
+      'parsedTotalAmount': 'int?', 'parsedTransactionDate': 'date?',
+      'parsedCategoryGuess': 'string?', 'errorMessage': 'string?',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+  };
+
+  static const _modernRecurringFields = <String, String>{
+    'type': 'string', 'cadence': 'string', 'weekday': 'int?',
+    'lastSuggestedCycleKey': 'string?', 'lastCompletedCycleKey': 'string?',
+    'lastDismissedCycleKey': 'string?',
+  };
+
+  void _validateBackupRecord(String section, Map<String, dynamic> record,
+      {Map<String, String>? fields}) {
+    for (final field in (fields ?? _recordFields[section]!).entries) {
+      if (!record.containsKey(field.key)) {
+        throw BackupFormatException('$section record is missing ${field.key}.');
+      }
+      final value = record[field.key];
+      final valid = switch (field.value) {
+        'string' => value is String,
+        'string?' => value == null || value is String,
+        'int' => value is int,
+        'int?' => value == null || value is int,
+        'number?' => value == null || value is num,
+        'bool' => value is bool,
+        'date' => value is String && DateTime.tryParse(value) != null,
+        'date?' => value == null || (value is String && DateTime.tryParse(value) != null),
+        _ => false,
+      };
+      if (!valid) {
+        throw BackupFormatException('$section record has an invalid ${field.key}.');
+      }
+    }
   }
 
   Map<String, dynamic> _transactionToJson(Transaction transaction) => {
