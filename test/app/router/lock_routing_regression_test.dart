@@ -25,8 +25,16 @@ void main() {
       appSettingsProvider.overrideWith((ref) => settings.stream),
     ]);
     final subscription = container.listen(appSettingsProvider, (_, __) {});
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      subscription.close();
+      container.dispose();
+      await settings.close();
+    });
     settings.add(_lockedSettings());
-    await container.read(appSettingsProvider.future);
+    await tester.pump();
+    await tester.pump();
+    expect(container.read(appSettingsProvider).asData?.value.appLockEnabled, isTrue);
     final router = container.read(appRouterProvider);
 
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -43,10 +51,6 @@ void main() {
     expect(find.byType(LockScreen), findsOneWidget);
     expect(container.read(sessionUnlockedProvider), isFalse);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    subscription.close();
-    container.dispose();
-    await settings.close();
   });
 
   testWidgets('PIN input while settings are loading cannot unlock',
@@ -55,6 +59,11 @@ void main() {
     final container = ProviderContainer(overrides: [
       appSettingsProvider.overrideWith((ref) => settings.stream),
     ]);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await settings.close();
+    });
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child: MaterialApp(theme: AppTheme.light(), home: const LockScreen()),
@@ -73,9 +82,6 @@ void main() {
     await tester.pump();
     expect(container.read(sessionUnlockedProvider), isFalse);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    container.dispose();
-    await settings.close();
   });
 }
 
