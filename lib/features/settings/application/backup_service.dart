@@ -136,9 +136,7 @@ class BackupService {
     final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
 
     // JSON 직렬화는 CPU 집약적이므로 별도 Isolate에서 실행해 UI 프레임 드롭 방지.
-    final jsonString = await Isolate.run(
-      () => const JsonEncoder.withIndent('  ').convert(payload),
-    );
+    final jsonString = await _encodeBackupJson(payload);
 
     return BackupPayload(
       json: jsonString,
@@ -470,7 +468,7 @@ class BackupService {
 
   Future<Map<String, dynamic>> _decodeAndValidateBackup(String jsonText) async {
     // JSON 디코딩은 대형 파일에서 CPU 집약적이므로 별도 Isolate에서 실행.
-    final decodedDynamic = await Isolate.run(() => jsonDecode(jsonText));
+    final decodedDynamic = await _decodeBackupJson(jsonText);
     if (decodedDynamic is! Map<String, dynamic>) {
       throw const BackupFormatException('Backup file top-level structure is invalid.');
     }
@@ -666,6 +664,15 @@ class BackupService {
         'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
       };
 }
+
+// Keep isolate closures outside BackupService so they only capture transferable
+// JSON data and never capture the database connection or its async locks.
+Future<String> _encodeBackupJson(Map<String, dynamic> payload) => Isolate.run(
+      () => const JsonEncoder.withIndent('  ').convert(payload),
+    );
+
+Future<dynamic> _decodeBackupJson(String jsonText) =>
+    Isolate.run(() => jsonDecode(jsonText));
 
 final backupServiceProvider = Provider<BackupService>((ref) {
   final database = ref.watch(appDatabaseProvider);

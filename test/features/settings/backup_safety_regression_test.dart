@@ -64,4 +64,27 @@ void main() {
     expect(settings.appLockEnabled, isTrue);
     expect(settings.biometricEnabled, isTrue);
   });
+
+  test('a section count mismatch stops restoration before current data changes',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: 'keep-me',
+          type: 'expense',
+          amount: 1000,
+          occurredAt: now,
+          createdAt: now,
+          lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    (decoded['data'] as Map<String, dynamic>)['transactions'] = <Object>[];
+
+    await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
+        throwsA(isA<BackupFormatException>()));
+    expect((await db.select(db.transactions).get()).single.localId, 'keep-me');
+  });
 }

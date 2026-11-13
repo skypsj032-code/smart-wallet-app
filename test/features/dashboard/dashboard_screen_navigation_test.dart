@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
+import 'package:smart_wallet_app/core/database/providers/database_providers.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
 import 'package:smart_wallet_app/features/dashboard/application/recurring_transaction_suggestion_provider.dart';
@@ -13,7 +16,14 @@ import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_scree
 import 'package:smart_wallet_app/features/recurring_expenses/application/recurring_expense_service.dart';
 import 'package:smart_wallet_app/features/statistics/application/statistics_provider.dart';
 
+import '../../test_support/sqlite_test_setup.dart';
+
 void main() {
+  setUpAll(configureSqliteForTests);
+  late AppDatabase database;
+  setUp(() => database = AppDatabase.forTesting(NativeDatabase.memory()));
+  tearDown(() async => database.close());
+
   testWidgets('dashboard calendar card opens the calendar route',
       (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
@@ -25,6 +35,7 @@ void main() {
     await tester.pumpWidget(
       _DashboardTestApp(
         router: router,
+        database: database,
       ),
     );
     await tester.pumpAndSettle();
@@ -47,6 +58,7 @@ void main() {
     await tester.pumpWidget(
       _DashboardTestApp(
         router: router,
+        database: database,
       ),
     );
     await tester.pumpAndSettle();
@@ -59,19 +71,55 @@ void main() {
 
     expect(find.text('Statistics Route'), findsOneWidget);
   });
+
+  testWidgets('weather header and detected recurring spending coexist',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final now = DateTime.now();
+    for (var monthOffset = 0; monthOffset < 3; monthOffset++) {
+      final date = DateTime(now.year, now.month - monthOffset, 1);
+      await database.into(database.transactions).insert(
+            TransactionsCompanion.insert(
+              localId: 'rent-$monthOffset',
+              type: 'expense',
+              amount: 700000,
+              occurredAt: date,
+              merchantName: const drift.Value('월세'),
+              accountId: const drift.Value('bank'),
+              createdAt: date,
+              lastModifiedAt: date,
+            ),
+          );
+    }
+    final router = _buildRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_DashboardTestApp(router: router, database: database));
+    await tester.pumpAndSettle();
+
+    final headers = tester.widgetList<SliverPersistentHeader>(
+      find.byType(SliverPersistentHeader),
+    );
+    expect(headers.any((header) => header.pinned), isTrue);
+    expect(find.text('거래에서 감지한 반복 지출'), findsOneWidget);
+    expect(find.text('월세'), findsOneWidget);
+  });
 }
 
 class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
+    required this.database,
   });
 
   final GoRouter router;
+  final AppDatabase database;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
+        appDatabaseProvider.overrideWithValue(database),
         dashboardSummaryProvider.overrideWith(
           (ref) => Stream.value(_fakeDashboardSummary()),
         ),
