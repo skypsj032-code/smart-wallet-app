@@ -74,6 +74,7 @@ class _AppShellState extends ConsumerState<AppShell>
   Widget build(BuildContext context) {
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
+    final isSubmitting = ref.watch(quickEntrySubmitStateProvider);
 
     // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
     ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
@@ -97,7 +98,8 @@ class _AppShellState extends ConsumerState<AppShell>
     final hideGlobalQuickPanel =
         location.startsWith('/quick-entry') ||
         location.startsWith('/lock') ||
-        form.editingId != null;
+        form.editingId != null ||
+        isSubmitting;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -321,6 +323,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           labelBehavior:
                               NavigationDestinationLabelBehavior.alwaysShow,
                           onDestinationSelected: (index) async {
+                            if (ref.read(quickEntrySubmitStateProvider)) return;
                             if (ref.read(quickEntryFormProvider).editingId != null &&
                                 !await ref.read(quickEntryExitCoordinatorProvider).confirmExit()) {
                               return;
@@ -409,7 +412,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   void _submit(BuildContext context, QuickEntryFormState form) {
-    if (!context.mounted) {
+    if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) {
       return;
     }
 
@@ -422,6 +425,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
+    if (ref.read(quickEntrySubmitStateProvider)) return false;
     final router = GoRouter.of(context);
 
     if (location.startsWith('/quick-entry') &&

@@ -41,11 +41,17 @@ class NotificationTransactionBanner extends ConsumerWidget {
     WidgetRef ref,
     ParsedNotificationTransaction tx,
   ) async {
+    if (ref.read(quickEntrySubmitStateProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('기록을 저장 중이에요. 잠시 후 다시 시도해 주세요.')),
+      );
+      return;
+    }
     if (ref.read(quickEntryFormProvider).editingId != null) {
       final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
       if (!allowed || !context.mounted) return;
     }
-    if (!context.mounted) return;
+    if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) return;
     final alreadyEditingPage = GoRouterState.of(context).uri.path == '/quick-entry';
     // 배너 닫기
     ref.read(detectedNotificationTransactionProvider.notifier).state = null;

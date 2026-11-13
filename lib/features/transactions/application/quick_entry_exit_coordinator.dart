@@ -5,22 +5,29 @@ typedef QuickEntryExitHandler = Future<bool> Function();
 /// Lets shell navigation ask the active editor before replacing its draft.
 class QuickEntryExitCoordinator {
   final Map<Object, QuickEntryExitHandler> _handlers = {};
-  bool _asking = false;
+  Object? _askingOwner;
 
   void attach(Object owner, QuickEntryExitHandler handler) {
     _handlers.remove(owner);
     _handlers[owner] = handler;
   }
 
-  void detach(Object owner) => _handlers.remove(owner);
+  void detach(Object owner) {
+    _handlers.remove(owner);
+    // A lock redirect can dispose the editor while its dialog is open.
+    // Do not let the abandoned dialog block a newly mounted editor.
+    if (identical(_askingOwner, owner)) _askingOwner = null;
+  }
 
   Future<bool> confirmExit() async {
-    if (_asking || _handlers.isEmpty) return false;
-    _asking = true;
+    if (_askingOwner != null || _handlers.isEmpty) return false;
+    final owner = _handlers.keys.last;
+    final handler = _handlers[owner]!;
+    _askingOwner = owner;
     try {
-      return await _handlers.values.last();
+      return await handler();
     } finally {
-      _asking = false;
+      if (identical(_askingOwner, owner)) _askingOwner = null;
     }
   }
 }

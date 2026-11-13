@@ -441,9 +441,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
       ),
     );
     return PopScope<void>(
-      canPop: !isEditing || _allowDirectPop,
+      canPop: (!isEditing && !isSubmitting) || _allowDirectPop,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !_allowDirectPop) _requestExitAndLeave();
+        if (!didPop && !_allowDirectPop && !isSubmitting) _requestExitAndLeave();
       },
       child: AbsorbPointer(absorbing: isSubmitting, child: screen),
     );
@@ -1015,7 +1015,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         await repository.createFromQuickEntry(form);
       }
       developer.log('quick_entry_submit_success', name: 'quick_entry');
-      formController.reset();
+      final cleared = formController.clearIfCurrent(form);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1029,8 +1029,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         );
 
       }
-      return true;
+      return cleared;
     } catch (error, stackTrace) {
+      formController.retainAfterFailedSave();
       developer.log(
         'quick_entry_submit_failed error=$error',
         name: 'quick_entry',

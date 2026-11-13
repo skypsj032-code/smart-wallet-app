@@ -72,7 +72,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLockRoute) {
-        if (ref.read(quickEntryFormProvider).editingId != null) {
+        if (ref.read(quickEntryFormProvider.notifier).needsRestoreAfterLock) {
           return '/quick-entry';
         }
         return '/';

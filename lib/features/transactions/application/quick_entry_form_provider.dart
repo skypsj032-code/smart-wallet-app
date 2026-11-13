@@ -95,6 +95,7 @@ class QuickEntryFormState {
 
 class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> {
   void Function()? _releaseEdit;
+  bool _failedSaveNeedsRestore = false;
 
   @override
   QuickEntryFormState build() {
@@ -102,6 +103,7 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void setType(TransactionEntryType type) {
+    if (_isSubmitting) return;
     state = QuickEntryFormState(
       type: type,
       amount: state.amount,
@@ -117,34 +119,43 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void setAmount(String amount) {
+    if (_isSubmitting) return;
     state = state.copyWith(amount: amount);
   }
 
   void setMemo(String memo) {
+    if (_isSubmitting) return;
     state = state.copyWith(memo: memo);
   }
 
   void setOccurredAt(DateTime? occurredAt) {
+    if (_isSubmitting) return;
     state = state.copyWith(occurredAt: occurredAt);
   }
 
   void setAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(accountId: accountId);
   }
 
   void setFromAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(fromAccountId: accountId);
   }
 
   void setToAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(toAccountId: accountId);
   }
 
   void setCategory(String? categoryId) {
+    if (_isSubmitting) return;
     state = state.copyWith(categoryId: categoryId);
   }
 
   void setEditingId(String? editingId) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
     if (editingId == null) {
       _stopRetainingEdit();
     } else {
@@ -154,6 +165,8 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void loadTransaction(Transaction transaction) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
     _retainEdit();
     state = QuickEntryFormState(
       type: _mapTransactionType(transaction.type),
@@ -169,6 +182,8 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void loadTemplate(Transaction transaction) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
     _stopRetainingEdit();
     final type = _mapTransactionType(transaction.type);
     state = QuickEntryFormState(
@@ -188,9 +203,31 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void reset() {
+    if (_isSubmitting) return;
     state = const QuickEntryFormState();
+    _failedSaveNeedsRestore = false;
     _stopRetainingEdit();
   }
+
+  /// Clear only the exact snapshot that was successfully saved.
+  bool clearIfCurrent(QuickEntryFormState submitted) {
+    if (!identical(state, submitted)) return false;
+    state = const QuickEntryFormState();
+    _failedSaveNeedsRestore = false;
+    _stopRetainingEdit();
+    return true;
+  }
+
+  bool get _isSubmitting => ref.read(quickEntrySubmitStateProvider);
+
+  /// Keep a failed new entry available if the editor was covered by the lock.
+  void retainAfterFailedSave() {
+    _failedSaveNeedsRestore = true;
+    _retainEdit();
+  }
+
+  bool get needsRestoreAfterLock =>
+      state.editingId != null || _failedSaveNeedsRestore || _isSubmitting;
 
   /// Holds the form until an asynchronous write finishes, even if the app
   /// becomes locked and the editor widget is temporarily removed.

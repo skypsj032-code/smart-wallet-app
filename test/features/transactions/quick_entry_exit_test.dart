@@ -213,6 +213,35 @@ void main() {
     expect(harness.repository.creates.single.amount, '4200');
   });
 
+  testWidgets('failed save while locked retains a new entry for recovery',
+      (tester) async {
+    final pendingSave = Completer<void>();
+    final harness = await _Harness.open(tester, pendingCreate: pendingSave);
+    addTearDown(() {
+      if (!pendingSave.isCompleted) pendingSave.complete();
+    });
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    await harness.enterAmount(tester, '5300');
+    await tester.ensureVisible(find.text('거래 저장하기'));
+    await tester.tap(find.text('거래 저장하기'));
+    await tester.pump();
+    expect(harness.container.read(quickEntrySubmitStateProvider), isTrue);
+
+    harness.router.go('/lock');
+    await tester.pumpAndSettle();
+    pendingSave.completeError(StateError('save failed while locked'));
+    await tester.pump();
+    await tester.pump();
+    expect(harness.container.read(quickEntrySubmitStateProvider), isFalse);
+    expect(harness.container.read(quickEntryFormProvider).amount, '5300');
+    expect(harness.container.read(quickEntryFormProvider.notifier).needsRestoreAfterLock, isTrue);
+
+    harness.router.go('/quick-entry');
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider).amount, '5300');
+  });
+
   testWidgets('locked screen preserves the pending edit until it is reopened',
       (tester) async {
     final harness = await _Harness.open(tester);
