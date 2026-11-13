@@ -10,9 +10,16 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+      - name: Download pull request source
+        shell: pwsh
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          New-Item -ItemType Directory -Force -Path 'C:\smart wallet' | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP 'wallet-source.zip'
+          Invoke-WebRequest -Uri "https://github.com/skypsj032-code/smart-wallet-app/archive/$env:PR_HEAD_SHA.zip" -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath 'C:\smart wallet'
+          Rename-Item -Path "C:\smart wallet\smart-wallet-app-$env:PR_HEAD_SHA" -NewName 'app'
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.4'
@@ -20,8 +27,7 @@ jobs:
       - name: Prepare project wrappers
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path 'C:\smart wallet', 'C:\dev' | Out-Null
-          Copy-Item -Path $env:GITHUB_WORKSPACE -Destination 'C:\smart wallet\app' -Recurse
+          New-Item -ItemType Directory -Force -Path 'C:\dev' | Out-Null
           New-Item -ItemType Junction -Path 'C:\dev\flutter' -Target $env:FLUTTER_ROOT | Out-Null
           $wrapper = @'
           @echo off
