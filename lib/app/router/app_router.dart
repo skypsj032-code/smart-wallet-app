@@ -53,12 +53,11 @@ int routeTabIndex(String location) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final appSettings = ref.watch(appSettingsProvider).asData?.value;
-  final isSessionUnlocked = ref.watch(sessionUnlockedProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
+      final appSettings = ref.read(appSettingsProvider).asData?.value;
+      final isSessionUnlocked = ref.read(sessionUnlockedProvider);
       final isLockRoute = state.matchedLocation == '/lock';
 
       if (appSettings != null &&
@@ -183,6 +182,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Re-evaluate lock redirects without resetting the navigation stack when
+  // settings change (including after a backup restore).
+  ref.listen(appSettingsProvider, (_, __) => router.refresh());
+  ref.listen(sessionUnlockedProvider, (_, __) => router.refresh());
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 CustomTransitionPage<void> _buildShellPage({

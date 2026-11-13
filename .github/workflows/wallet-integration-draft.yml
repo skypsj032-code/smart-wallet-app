@@ -62,5 +62,5 @@ jobs:
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded test/features/settings/backup_safety_regression_test.dart test/app/router/router_stability_test.dart
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

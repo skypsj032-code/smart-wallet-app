@@ -625,6 +625,9 @@ class BackupService {
       }
     }
 
+    if (!dataValue.containsKey('settings')) {
+      throw const BackupFormatException('settings payload is missing.');
+    }
     final settingsValue = dataValue['settings'];
     if (settingsValue != null && settingsValue is! Map<String, dynamic>) {
       throw const BackupFormatException('settings payload is invalid.');

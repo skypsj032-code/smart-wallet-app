@@ -39,9 +39,12 @@ void main() {
     ]);
     addTearDown(container.dispose);
     final router = container.read(appRouterProvider);
+    var refreshes = 0;
+    router.routeInformationProvider.addListener(() => refreshes++);
     container.read(sessionUnlockedProvider.notifier).state = true;
     await Future<void>.delayed(Duration.zero);
     expect(identical(container.read(appRouterProvider), router), isTrue);
+    expect(refreshes, greaterThan(0));
   });
 }
 
