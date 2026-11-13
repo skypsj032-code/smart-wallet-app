@@ -8,11 +8,49 @@ import '../application/detected_recurring_spend_provider.dart';
 import '../application/recurring_spend_override_store.dart';
 
 /// Estimates recurring spending from transactions; it does not create bills.
-class DetectedRecurringSpendSection extends ConsumerWidget {
+class DetectedRecurringSpendSection extends StatelessWidget {
   const DetectedRecurringSpendSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return const SizedBox.shrink();
+    return const _ActiveDetectedRecurringSpendSection();
+  }
+}
+
+class _ActiveDetectedRecurringSpendSection extends ConsumerStatefulWidget {
+  const _ActiveDetectedRecurringSpendSection();
+
+  @override
+  ConsumerState<_ActiveDetectedRecurringSpendSection> createState() =>
+      _ActiveDetectedRecurringSpendSectionState();
+}
+
+class _ActiveDetectedRecurringSpendSectionState
+    extends ConsumerState<_ActiveDetectedRecurringSpendSection>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.invalidate(detectedRecurringClockProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final insight = ref.watch(detectedRecurringSpendProvider);
     return insight.when(
       loading: () => const SizedBox.shrink(),
@@ -50,14 +88,32 @@ class DetectedRecurringSpendSection extends ConsumerWidget {
                   Row(
                     key: ValueKey('recurring-spend-visible-${group.groupKey}'),
                     children: [
-                      Expanded(child: Text(group.displayName)),
-                      Text(formatCurrency(group.currentMonthAmount)),
-                      IconButton(
-                        tooltip: '반복 지출에서 제외',
-                        onPressed: () => _updateExclusion(
-                          context, ref, group.groupKey, exclude: true,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(group.displayName),
+                            Text(
+                              '${_accountLabel(group.transactions.first.accountId, snapshot.accountNames)} · 이번 달 기록',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.visibility_off_outlined),
+                      ),
+                      Text(formatCurrency(group.currentMonthAmount)),
+                      Semantics(
+                        button: true,
+                        excludeSemantics: true,
+                        label: '${group.displayName}, ${_accountLabel(group.transactions.first.accountId, snapshot.accountNames)}, 반복 지출에서 제외',
+                        child: IconButton(
+                          tooltip: '반복 지출에서 제외',
+                          onPressed: () => _updateExclusion(
+                            context, ref, group.groupKey, exclude: true,
+                          ),
+                          icon: const Icon(Icons.visibility_off_outlined),
+                        ),
                       ),
                     ],
                   ),
@@ -67,13 +123,18 @@ class DetectedRecurringSpendSection extends ConsumerWidget {
                   for (final key in excludedKeys)
                     Row(
                       children: [
-                        Expanded(child: Text(_readableGroupName(key))),
-                        IconButton(
-                          tooltip: '반복 지출 복구',
-                          onPressed: () => _updateExclusion(
-                            context, ref, key, exclude: false,
+                        Expanded(child: Text(_readableGroupName(key, snapshot.accountNames))),
+                        Semantics(
+                          button: true,
+                          excludeSemantics: true,
+                          label: '${_readableGroupName(key, snapshot.accountNames)}, 반복 지출 복구',
+                          child: IconButton(
+                            tooltip: '반복 지출 복구',
+                            onPressed: () => _updateExclusion(
+                              context, ref, key, exclude: false,
+                            ),
+                            icon: const Icon(Icons.restore_rounded),
                           ),
-                          icon: const Icon(Icons.restore_rounded),
                         ),
                       ],
                     ),
@@ -86,10 +147,16 @@ class DetectedRecurringSpendSection extends ConsumerWidget {
     );
   }
 
-  static String _readableGroupName(String key) {
-    final separator = key.lastIndexOf('|');
+  static String _readableGroupName(String key, Map<String, String> accountNames) {
+    final separator = key.indexOf('|');
     final name = separator < 0 ? key : key.substring(separator + 1);
-    return name.isEmpty ? '이름 없는 항목' : name;
+    final accountId = separator < 0 ? null : key.substring(0, separator);
+    return '${name.isEmpty ? '이름 없는 항목' : name} · ${_accountLabel(accountId, accountNames)}';
+  }
+
+  static String _accountLabel(String? id, Map<String, String> names) {
+    if (id == null || id.isEmpty) return '계좌 미지정';
+    return names[id] ?? '계좌 $id';
   }
 
   static Future<void> _updateExclusion(

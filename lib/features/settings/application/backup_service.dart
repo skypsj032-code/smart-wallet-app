@@ -213,7 +213,6 @@ class BackupService {
 
   Future<BackupPreview> inspectJsonBackup(String jsonText) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
-    final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
     final data = decoded['data'] as Map<String, dynamic>;
     final warnings = <String>[];
     if (decoded['backupVersion'] == 1) {
@@ -235,12 +234,11 @@ class BackupService {
       appVersion: decoded['appVersion'] as String? ?? 'unknown',
       warnings: warnings,
       summary: BackupSummary(
-        transactionCount: (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
-        categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
-        budgetCount: (summaryData['budgetCount'] as num?)?.toInt() ?? 0,
-        accountCount: (summaryData['accountCount'] as num?)?.toInt() ?? 0,
-        recurringExpenseCount:
-            (summaryData['recurringExpenseCount'] as num?)?.toInt() ?? 0,
+        transactionCount: (data['transactions'] as List<dynamic>).length,
+        categoryCount: (data['categories'] as List<dynamic>).length,
+        budgetCount: (data['budgets'] as List<dynamic>).length,
+        accountCount: (data['accounts'] as List<dynamic>).length,
+        recurringExpenseCount: (data['recurringExpenses'] as List<dynamic>?)?.length ?? 0,
       ),
     );
   }

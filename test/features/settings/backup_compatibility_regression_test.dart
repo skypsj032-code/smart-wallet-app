@@ -116,6 +116,31 @@ void main() {
     expect((await db.customSelect('SELECT group_key FROM recurring_spend_overrides').get())
         .single.data['group_key'], 'hidden');
   });
+
+  test('old settings keep the current default category seed version', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.appSettings).insert(AppSettingsCompanion.insert(
+          defaultCategorySeedVersion: const drift.Value(2),
+          createdAt: now,
+          lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded['schemaVersion'] = 3;
+    decoded.remove('dataChecksum');
+    final data = decoded['data'] as Map<String, dynamic>;
+    (data['settings'] as Map<String, dynamic>).remove('defaultCategorySeedVersion');
+    data.remove('recurringExpenses');
+    (decoded['summary'] as Map<String, dynamic>).remove('recurringExpenseCount');
+
+    await service.restoreJsonBackup(jsonEncode(decoded));
+
+    expect((await db.select(db.appSettings).getSingle()).defaultCategorySeedVersion, 2);
+  });
 }
 
 Future<void> _seedScheduledExpense(AppDatabase db) async {

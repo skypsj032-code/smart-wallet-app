@@ -174,4 +174,25 @@ void main() {
     final preview = await service.inspectJsonBackup(jsonEncode(decoded));
     expect(preview.summary.transactionCount, 1);
   });
+
+  test('legacy backup without counts is rejected before replacing records', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final now = DateTime.now();
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: 'keep', type: 'expense', amount: 1000,
+          occurredAt: now, createdAt: now, lastModifiedAt: now,
+        ));
+    final service = BackupService(db);
+    final decoded = jsonDecode((await service.exportJsonBackup()).json)
+        as Map<String, dynamic>;
+    decoded['backupVersion'] = 1;
+    decoded.remove('dataChecksum');
+    decoded.remove('summary');
+    (decoded['data'] as Map<String, dynamic>)['transactions'] = <Object>[];
+
+    await expectLater(service.restoreJsonBackup(jsonEncode(decoded)),
+        throwsA(isA<BackupFormatException>()));
+    expect((await db.select(db.transactions).get()).single.localId, 'keep');
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,42 +21,82 @@ class DetectedRecurringSpendSnapshot {
 }
 
 final detectedRecurringClockProvider = StreamProvider.autoDispose<DateTime>(
-  (ref) => Stream.value(DateTime.now()),
+  (ref) {
+    late StreamController<DateTime> controller;
+    Timer? timer;
+    void tick() {
+      final now = DateTime.now();
+      controller.add(now);
+      final nextDay = DateTime(now.year, now.month, now.day + 1);
+      timer = Timer(nextDay.difference(now) + const Duration(milliseconds: 50), tick);
+    }
+
+    controller = StreamController<DateTime>(
+      onListen: tick,
+      onCancel: () => timer?.cancel(),
+    );
+    return controller.stream;
+  },
 );
 
-final _recentSpendingProvider = StreamProvider<List<Transaction>>((ref) {
+final _recentSpendingProvider = StreamProvider.autoDispose<List<Transaction>>((ref) {
   final database = ref.watch(appDatabaseProvider);
-  final now = DateTime.now();
-  final start = now.subtract(const Duration(days: 90));
-  final tomorrow = DateTime(now.year, now.month, now.day + 1);
-  return (database.select(database.transactions)
-        ..where((tx) =>
-            tx.deletedAt.isNull() &
-            tx.occurredAt.isBiggerOrEqualValue(start) &
-            tx.occurredAt.isSmallerThanValue(tomorrow)))
-      .watch();
+  final clock = ref.watch(detectedRecurringClockProvider);
+  return clock.when<Stream<List<Transaction>>>(
+    data: (now) {
+      final start = now.subtract(const Duration(days: 90));
+      final tomorrow = DateTime(now.year, now.month, now.day + 1);
+      return (database.select(database.transactions)
+            ..where((tx) =>
+                tx.deletedAt.isNull() &
+                tx.occurredAt.isBiggerOrEqualValue(start) &
+                tx.occurredAt.isSmallerThanValue(tomorrow)))
+          .watch();
+    },
+    error: (error, stack) => Stream.error(error, stack),
+    loading: () => const Stream.empty(),
+  );
 });
 
-final _excludedRecurringKeysProvider = StreamProvider<Set<String>>((ref) {
+final _excludedRecurringKeysProvider = StreamProvider.autoDispose<Set<String>>((ref) {
   return ref.watch(recurringSpendOverrideStoreProvider)
       .watchNotRecurringGroupKeys();
 });
 
+final _recurringAccountNamesProvider =
+    StreamProvider.autoDispose<Map<String, String>>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.select(database.accounts).watch().map(
+        (rows) => {for (final account in rows) account.localId: account.name},
+      );
+});
+
 final detectedRecurringSpendProvider =
-    Provider<AsyncValue<DetectedRecurringSpendSnapshot>>((ref) {
+    Provider.autoDispose<AsyncValue<DetectedRecurringSpendSnapshot>>((ref) {
+  final clock = ref.watch(detectedRecurringClockProvider);
   final transactions = ref.watch(_recentSpendingProvider);
   final excluded = ref.watch(_excludedRecurringKeysProvider);
-  return transactions.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
-    data: (items) => excluded.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
-      data: (keys) {
-        final insight = detectRecurringSpendInsight(items, now: DateTime.now());
-        return AsyncData(DetectedRecurringSpendSnapshot(
-          groups: insight.groups
-              .where((group) => !keys.contains(group.groupKey))
-              .toList(),
-          excludedKeys: keys,
-        ));
-      },
+  final accounts = ref.watch(_recurringAccountNamesProvider);
+  return clock.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
+    data: (now) => transactions.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
+      data: (items) => excluded.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
+        data: (keys) => accounts.when<AsyncValue<DetectedRecurringSpendSnapshot>>(
+          data: (names) {
+            final insight = detectRecurringSpendInsight(items, now: now);
+            return AsyncData(DetectedRecurringSpendSnapshot(
+              groups: insight.groups
+                  .where((group) => !keys.contains(group.groupKey))
+                  .toList(),
+              excludedKeys: keys,
+              accountNames: names,
+            ));
+          },
+          error: (error, stack) => AsyncError(error, stack),
+          loading: () => const AsyncLoading(),
+        ),
+        error: (error, stack) => AsyncError(error, stack),
+        loading: () => const AsyncLoading(),
+      ),
       error: (error, stack) => AsyncError(error, stack),
       loading: () => const AsyncLoading(),
     ),
