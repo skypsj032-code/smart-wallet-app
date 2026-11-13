@@ -85,6 +85,10 @@ jobs:
           channel: stable
           cache: false
           pub-cache-path: 'C:\smart wallet\.pub-cache'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Prepare project wrappers
         shell: pwsh
         run: |
