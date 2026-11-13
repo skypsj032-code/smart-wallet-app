@@ -143,6 +143,42 @@ void main() {
     await tester.pump();
     expect(container.read(sessionUnlockedProvider), isFalse);
   });
+
+  testWidgets('unknown settings on resume lock the previous session',
+      (tester) async {
+    final settings = StreamController<AppSetting>();
+    final container = ProviderContainer(overrides: [
+      appBootstrapProvider.overrideWith((ref) async {}),
+      appSettingsProvider.overrideWith((ref) => settings.stream),
+      calendarTodayProvider.overrideWith((ref) => DateTime(2026, 1, 1)),
+    ]);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await settings.close();
+    });
+    container.read(sessionUnlockedProvider.notifier).state = true;
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const SmartWalletApp(),
+    ));
+    await tester.pump();
+    settings.add(_lockedSettings().copyWith(appLockEnabled: false));
+    await tester.pump();
+    await tester.pump();
+    expect(container.read(appSettingsProvider).asData?.value.appLockEnabled, isFalse);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    settings.addError(StateError('settings unavailable'));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(container.read(sessionUnlockedProvider), isFalse);
+  });
 }
 
 AppSetting _lockedSettings() {
