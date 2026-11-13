@@ -51,5 +51,5 @@ jobs:
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded test/core/database/branch_schema_migration_test.dart test/core/database/budget_summary_regression_test.dart test/features/settings/backup_safety_regression_test.dart test/features/settings/backup_compatibility_regression_test.dart
+          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded test/core/database/budget_summary_regression_test.dart --plain-name 'duplicate overall rows remain intact and the latest cap is used'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

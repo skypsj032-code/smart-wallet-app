@@ -89,4 +89,29 @@ void main() {
     final summary = await database.watchBudgetSummary().first;
     expect(summary.totalBudget, 400000);
   });
+
+  test('duplicate overall rows remain intact and the latest cap is used',
+      () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final now = DateTime.now();
+    final monthKey =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    for (final row in [
+      ('older', 1000000, now.subtract(const Duration(minutes: 1))),
+      ('newer', 900000, now),
+    ]) {
+      await database.into(database.budgets).insert(BudgetsCompanion.insert(
+            localId: row.$1,
+            monthKey: monthKey,
+            amountLimit: row.$2,
+            createdAt: row.$3,
+            lastModifiedAt: row.$3,
+          ));
+    }
+
+    final summary = await database.watchBudgetSummary().first;
+    expect(summary.totalBudget, 900000);
+    expect(await database.select(database.budgets).get(), hasLength(2));
+  });
 }
