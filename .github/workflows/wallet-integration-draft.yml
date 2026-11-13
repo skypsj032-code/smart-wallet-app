@@ -1,0 +1,44 @@
+name: Wallet integration test (draft)
+on:
+  pull_request:
+    branches:
+      - feat/design-system
+permissions:
+  contents: read
+jobs:
+  flutter-tests:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.4'
+          channel: stable
+      - name: Prepare project wrappers
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'C:\smart wallet', 'C:\dev' | Out-Null
+          Copy-Item -Path $env:GITHUB_WORKSPACE -Destination 'C:\smart wallet\app' -Recurse
+          New-Item -ItemType Junction -Path 'C:\dev\flutter' -Target $env:FLUTTER_ROOT | Out-Null
+          $wrapper = @'
+          @echo off
+          setlocal
+          cd /d "C:\smart wallet\app"
+          set "PUB_CACHE=C:\smart wallet\.pub-cache"
+          call "C:\dev\flutter\bin\flutter.bat" %*
+          exit /b %ERRORLEVEL%
+          '@
+          Set-Content -LiteralPath 'C:\smart wallet\flutterw.bat' -Value $wrapper -Encoding ascii
+      - name: Install locked packages
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' pub get --enforce-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run Flutter tests
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
