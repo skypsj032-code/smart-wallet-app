@@ -474,7 +474,9 @@ class BackupService {
                 weekStart: Value((settingsData['weekStart'] as String?) ?? 'monday'),
                 themeMode: Value((settingsData['themeMode'] as String?) ?? 'system'),
                 defaultCategorySeedVersion: Value(
-                  (settingsData['defaultCategorySeedVersion'] as int?) ?? 0,
+                  (settingsData['defaultCategorySeedVersion'] as int?) ??
+                      localSettings?.defaultCategorySeedVersion ??
+                      0,
                 ),
                 appLockEnabled: Value(localSettings?.appLockEnabled ?? false),
                 biometricEnabled: Value(localSettings?.biometricEnabled ?? false),
@@ -589,6 +591,16 @@ class BackupService {
     final summary = decoded['summary'];
     if (summary != null && summary is! Map<String, dynamic>) {
       throw const BackupFormatException('summary payload is invalid.');
+    }
+    if (backupVersionValue == 1 &&
+        (summary is! Map<String, dynamic> ||
+            !const [
+              'transactionCount',
+              'categoryCount',
+              'budgetCount',
+              'accountCount',
+            ].every(summary.containsKey))) {
+      throw const BackupFormatException('Legacy backup summary is incomplete.');
     }
     if (summary is Map<String, dynamic>) {
       const sectionCounts = {

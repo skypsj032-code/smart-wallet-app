@@ -117,48 +117,9 @@ class _AppShellState extends ConsumerState<AppShell>
         child: Scaffold(
           body: Stack(
             children: [
-              ClipRect(
-                child: AnimatedSwitcher(
-                  duration: AppMotion.normal,
-                  reverseDuration: AppMotion.fast,
-                  switchInCurve: AppMotion.decelerate,
-                  switchOutCurve: AppMotion.accelerate,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: AppMotion.decelerate,
-                      reverseCurve: AppMotion.accelerate,
-                    );
-
-                    return ColoredBox(
-                      color: theme.scaffoldBackgroundColor,
-                      child: FadeTransition(
-                        opacity: curved,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.025, 0),
-                            end: Offset.zero,
-                          ).animate(curved),
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey(location),
-                    child: widget.child,
-                  ),
-                ),
-              ),
+              // ShellRoute supplies one Navigator; keeping two copies during
+              // an AnimatedSwitcher transition duplicates its GlobalKey.
+              ClipRect(child: widget.child),
               // 알림 감지 배너 — 화면 최상단에 오버레이
               const Positioned(
                 top: 0,

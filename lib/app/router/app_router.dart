@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/app_motion.dart';
 import '../../features/accounts/presentation/accounts_screen.dart';
 import '../../features/budgets/presentation/budget_screen.dart';
 import '../../features/calendar/presentation/calendar_screen.dart';
@@ -184,13 +185,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-NoTransitionPage<void> _buildShellPage({
+CustomTransitionPage<void> _buildShellPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  return NoTransitionPage<void>(
+  return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
+    transitionDuration: AppMotion.normal,
+    reverseTransitionDuration: AppMotion.fast,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: AppMotion.decelerate,
+        reverseCurve: AppMotion.accelerate,
+      );
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.025, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -198,8 +221,7 @@ NoTransitionPage<void> _buildTransitionPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  // AppShell의 AnimatedSwitcher가 화면 전환 애니메이션을 담당하므로
-  // 라우터 레벨에서는 별도 트랜지션 없이 즉시 교체합니다.
+  // 잠금 화면은 즉시 표시해 기존 화면이 노출되는 시간을 줄입니다.
   return NoTransitionPage<void>(
     key: state.pageKey,
     child: child,
