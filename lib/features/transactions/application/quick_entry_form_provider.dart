@@ -229,6 +229,12 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   bool get needsRestoreAfterLock =>
       state.editingId != null || _failedSaveNeedsRestore || _isSubmitting;
 
+  void abandonFailedSaveRestoration() {
+    if (!_failedSaveNeedsRestore) return;
+    _failedSaveNeedsRestore = false;
+    if (state.editingId == null) _stopRetainingEdit();
+  }
+
   /// Holds the form until an asynchronous write finishes, even if the app
   /// becomes locked and the editor widget is temporarily removed.
   void Function() retainDuringSave() => ref.keepAlive().close;
@@ -260,6 +266,17 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
 /// second write while the original save is still running.
 final quickEntrySubmitStateProvider =
     StateProvider<bool>((ref) => false);
+
+class QuickEntrySaveNotice {
+  const QuickEntrySaveNotice({required this.message, required this.closeEditor});
+
+  final String message;
+  final bool closeEditor;
+}
+
+/// Delivers the result if a lock screen disposed the submitting widget.
+final quickEntrySaveNoticeProvider =
+    StateProvider<QuickEntrySaveNotice?>((ref) => null);
 
 final quickEntryFormProvider =
     NotifierProvider.autoDispose<QuickEntryFormController, QuickEntryFormState>(

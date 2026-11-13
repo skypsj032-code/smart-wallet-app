@@ -20,6 +20,7 @@ import '../../../test_support/sqlite_test_setup.dart';
 
 const _channel = MethodChannel('smart_wallet/device_auth');
 const _recoverButton = '휴대폰 잠금으로 PIN 복구';
+_Harness? _activeHarness;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,12 +30,7 @@ void main() {
     configureSqliteForTests();
   });
 
-  setUp(() {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-  });
-
   tearDown(() {
-    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, null);
   });
@@ -46,7 +42,7 @@ void main() {
     'error',
     'unexpected',
   ]) {
-    testWidgets('device authentication $result keeps data and session locked',
+    _testWithPlatform('device authentication $result keeps data and session locked',
         (tester) async {
       _mockDeviceAuth((_) async => result);
       final harness = await _open(tester);
@@ -66,7 +62,7 @@ void main() {
     });
   }
 
-  testWidgets('a platform error never grants recovery', (tester) async {
+  _testWithPlatform('a platform error never grants recovery', (tester) async {
     _mockDeviceAuth((_) async => throw PlatformException(code: 'failure'));
     final harness = await _open(tester);
 
@@ -78,7 +74,7 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('a non-Android platform never starts device authentication',
+  _testWithPlatform('a non-Android platform never starts device authentication',
       (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     var attempts = 0;
@@ -98,17 +94,22 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('successful recovery changes only the missing PIN',
+  _testWithPlatform('successful recovery changes only the missing PIN',
       (tester) async {
     _mockDeviceAuth((_) async => 'success');
     final harness = await _open(tester);
 
     await tester.tap(find.text(_recoverButton));
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
     expect(find.byType(TextField), findsNWidgets(2));
     await tester.enterText(find.byType(TextField).at(0), '1470');
     await tester.enterText(find.byType(TextField).at(1), '1470');
     await tester.tap(find.text('저장'));
+    await _pumpUntil(
+      tester,
+      () => find.byType(TextField).evaluate().isEmpty,
+      'PIN save to finish',
+    );
     await tester.pumpAndSettle();
 
     final settings = await harness.readSettings();
@@ -139,13 +140,13 @@ void main() {
     expect(harness.container.read(sessionUnlockedProvider), isTrue);
   });
 
-  testWidgets('cancelling PIN setup leaves the missing PIN and data intact',
+  _testWithPlatform('cancelling PIN setup leaves the missing PIN and data intact',
       (tester) async {
     _mockDeviceAuth((_) async => 'success');
     final harness = await _open(tester);
 
     await tester.tap(find.text(_recoverButton));
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
     await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
 
@@ -153,7 +154,7 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('only one device authentication request can run at a time',
+  _testWithPlatform('only one device authentication request can run at a time',
       (tester) async {
     final pending = Completer<Object?>();
     var attempts = 0;
@@ -175,7 +176,7 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('the OS prompt can suspend and resume the app during auth',
+  _testWithPlatform('the OS prompt can suspend and resume the app during auth',
       (tester) async {
     final pending = Completer<Object?>();
     _mockDeviceAuth((_) => pending.future);
@@ -186,14 +187,14 @@ void main() {
     _suspend(tester);
     _resume(tester);
     pending.complete('success');
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
 
     expect(find.byType(TextField), findsNWidgets(2));
     expect(harness.container.read(sessionUnlockedProvider), isFalse);
     await harness.expectUnchanged();
   });
 
-  testWidgets('a success delivered while the app is backgrounded is rejected',
+  _testWithPlatform('a success delivered while the app is backgrounded is rejected',
       (tester) async {
     final pending = Completer<Object?>();
     _mockDeviceAuth((_) => pending.future);
@@ -212,13 +213,13 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('backgrounding PIN setup expires the recovery approval',
+  _testWithPlatform('backgrounding PIN setup expires the recovery approval',
       (tester) async {
     _mockDeviceAuth((_) async => 'success');
     final harness = await _open(tester);
 
     await tester.tap(find.text(_recoverButton));
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
     await tester.enterText(find.byType(TextField).at(0), '1470');
     await tester.enterText(find.byType(TextField).at(1), '1470');
     _suspend(tester);
@@ -231,13 +232,13 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('losing focus during PIN setup expires the recovery approval',
+  _testWithPlatform('losing focus during PIN setup expires the recovery approval',
       (tester) async {
     _mockDeviceAuth((_) async => 'success');
     final harness = await _open(tester);
 
     await tester.tap(find.text(_recoverButton));
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
     await tester.enterText(find.byType(TextField).at(0), '1470');
     await tester.enterText(find.byType(TextField).at(1), '1470');
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -250,20 +251,27 @@ void main() {
     await harness.expectUnchanged();
   });
 
-  testWidgets('a PIN created during recovery is never overwritten',
+  _testWithPlatform('a PIN created during recovery is never overwritten',
       (tester) async {
     _mockDeviceAuth((_) async => 'success');
     final harness = await _open(tester);
 
     await tester.tap(find.text(_recoverButton));
-    await tester.pumpAndSettle();
+    await _waitForPinSetup(tester);
     await tester.enterText(find.byType(TextField).at(0), '1470');
     await tester.enterText(find.byType(TextField).at(1), '1470');
     final existingPin = hashLegacyPin('9999');
-    await tester.runAsync(() => harness.database
+    await _pumpDatabase(tester, () => harness.database
         .update(harness.database.appSettings)
         .write(AppSettingsCompanion(pinCode: drift.Value(existingPin))));
     await tester.tap(find.text('저장'));
+    await _pumpUntil(
+      tester,
+      () => find.text('PIN을 저장하지 못했습니다. 다시 시도해 주세요.')
+          .evaluate()
+          .isNotEmpty,
+      'conflicting PIN save to be rejected',
+    );
     await tester.pumpAndSettle();
 
     final settings = await harness.readSettings();
@@ -272,7 +280,7 @@ void main() {
     await harness.expectTransactionPreserved();
   });
 
-  testWidgets('a PIN created during device authentication is never overwritten',
+  _testWithPlatform('a PIN created during device authentication is never overwritten',
       (tester) async {
     final pending = Completer<Object?>();
     _mockDeviceAuth((_) => pending.future);
@@ -281,10 +289,15 @@ void main() {
     await tester.tap(find.text(_recoverButton));
     await tester.pump();
     final existingPin = hashLegacyPin('9999');
-    await tester.runAsync(() => harness.database
+    await _pumpDatabase(tester, () => harness.database
         .update(harness.database.appSettings)
         .write(AppSettingsCompanion(pinCode: drift.Value(existingPin))));
     pending.complete('success');
+    await _pumpUntil(tester, () {
+      final button = find.widgetWithText(FilledButton, _recoverButton);
+      return button.evaluate().isNotEmpty &&
+          tester.widget<FilledButton>(button).onPressed != null;
+    }, 'conflicting PIN to stop recovery');
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsNothing);
@@ -293,7 +306,7 @@ void main() {
     await harness.expectTransactionPreserved();
   });
 
-  testWidgets('normal PIN protection still rejects wrong input', (tester) async {
+  _testWithPlatform('normal PIN protection still rejects wrong input', (tester) async {
     final harness = await _open(tester, pin: hashLegacyPin('1234'));
     final listener = tester.widget<KeyboardListener>(find.byType(KeyboardListener));
     for (var i = 0; i < 4; i++) {
@@ -313,7 +326,7 @@ void main() {
     await harness.expectTransactionPreserved();
   });
 
-  testWidgets('normal PIN protection still accepts the correct PIN',
+  _testWithPlatform('normal PIN protection still accepts the correct PIN',
       (tester) async {
     final pin = hashPin('1234', iterations: 1, salt: [1, 2, 3, 4]);
     final harness = await _open(tester, pin: pin);
@@ -340,6 +353,74 @@ void main() {
   });
 }
 
+void _testWithPlatform(
+  String description,
+  Future<void> Function(WidgetTester) callback,
+) {
+  testWidgets(description, (tester) async {
+    final previousPlatform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await callback(tester);
+    } finally {
+      try {
+        final harness = _activeHarness;
+        if (harness != null) await harness.dispose();
+      } finally {
+        _activeHarness = null;
+        debugDefaultTargetPlatformOverride = previousPlatform;
+      }
+    }
+  });
+}
+
+// NativeDatabase.memory executes on the test isolate. Keep its futures in
+// fakeAsync, and pump with a bound rather than bridging them through runAsync.
+Future<T> _pumpDatabase<T>(
+  WidgetTester tester,
+  Future<T> Function() operation,
+) async {
+  var completed = false;
+  late T value;
+  Object? failure;
+  StackTrace? failureStack;
+  operation().then((result) {
+    value = result;
+    completed = true;
+  }, onError: (Object error, StackTrace stack) {
+    failure = error;
+    failureStack = stack;
+    completed = true;
+  });
+  await _pumpUntil(tester, () => completed, 'database operation');
+  if (failure != null) {
+    Error.throwWithStackTrace(failure!, failureStack!);
+  }
+  return value;
+}
+
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() condition,
+  String description,
+) async {
+  for (var i = 0; i < 200; i++) {
+    if (condition()) return;
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  if (condition()) return;
+  fail('Timed out while waiting for $description');
+}
+
+Future<void> _waitForPinSetup(WidgetTester tester) async {
+  await _pumpUntil(
+    tester,
+    () => find.byType(TextField).evaluate().length == 2,
+    'PIN setup dialog',
+  );
+  await tester.pumpAndSettle();
+}
+
 void _mockDeviceAuth(Future<Object?> Function(MethodCall) handler) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_channel, handler);
@@ -359,8 +440,15 @@ void _resume(WidgetTester tester) {
 
 Future<_Harness> _open(WidgetTester tester, {String? pin}) async {
   final database = AppDatabase.forTesting(NativeDatabase.memory());
+  final settings = StreamController<AppSetting>.broadcast(sync: true);
+  final container = ProviderContainer(overrides: [
+    appDatabaseProvider.overrideWithValue(database),
+    appSettingsProvider.overrideWith((ref) => settings.stream),
+  ]);
+  final harness = _Harness(tester, database, container, settings);
+  _activeHarness = harness;
   final now = DateTime(2026, 5, 1);
-  final initialSettings = (await tester.runAsync(() async {
+  final initialSettings = await _pumpDatabase(tester, () async {
     await database.into(database.appSettings).insert(AppSettingsCompanion.insert(
           currencyCode: const drift.Value('USD'),
           appLockEnabled: const drift.Value(true),
@@ -378,20 +466,6 @@ Future<_Harness> _open(WidgetTester tester, {String? pin}) async {
           lastModifiedAt: now,
         ));
     return database.select(database.appSettings).getSingle();
-  }))!;
-  final settings = StreamController<AppSetting>.broadcast(sync: true);
-  final container = ProviderContainer(overrides: [
-    appDatabaseProvider.overrideWithValue(database),
-    appSettingsProvider.overrideWith((ref) => settings.stream),
-  ]);
-  addTearDown(() async {
-    _resumeIfNeeded(tester);
-    await tester.pumpWidget(const SizedBox.shrink());
-    container.dispose();
-    await tester.runAsync(() async {
-      await settings.close();
-      await database.close();
-    });
   });
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
@@ -400,7 +474,7 @@ Future<_Harness> _open(WidgetTester tester, {String? pin}) async {
   settings.add(initialSettings);
   await tester.pump();
   await tester.pump();
-  return _Harness(tester, database, container, settings);
+  return harness;
 }
 
 void _resumeIfNeeded(WidgetTester tester) {
@@ -424,9 +498,20 @@ class _Harness {
   final ProviderContainer container;
   final StreamController<AppSetting> settings;
 
-  Future<AppSetting> readSettings() async => (await tester.runAsync(
+  Future<void> dispose() async {
+    _resumeIfNeeded(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+    await _pumpDatabase(tester, () async {
+      await settings.close();
+      await database.close();
+    });
+  }
+
+  Future<AppSetting> readSettings() => _pumpDatabase(
+        tester,
         () => database.select(database.appSettings).getSingle(),
-      ))!;
+      );
 
   Future<void> expectUnchanged() async {
     final settings = await readSettings();
@@ -437,9 +522,10 @@ class _Harness {
   }
 
   Future<void> expectTransactionPreserved() async {
-    final transaction = (await tester.runAsync(
+    final transaction = await _pumpDatabase(
+      tester,
       () => database.select(database.transactions).getSingle(),
-    ))!;
+    );
     expect(transaction.localId, 'existing-transaction');
     expect(transaction.amount, 3800);
     expect(transaction.memo, 'keep this record');

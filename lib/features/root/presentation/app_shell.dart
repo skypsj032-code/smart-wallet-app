@@ -15,6 +15,7 @@ import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
+import '../../settings/application/settings_provider.dart';
 import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
@@ -75,6 +76,35 @@ class _AppShellState extends ConsumerState<AppShell>
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
     final isSubmitting = ref.watch(quickEntrySubmitStateProvider);
+    final pendingNotice = ref.watch(quickEntrySaveNoticeProvider);
+    if (pendingNotice != null) {
+      // Rebuild when lock settings or session state resolve; never consume a
+      // save result on an old shell that is about to be hidden by the lock.
+      ref.watch(appSettingsProvider);
+      ref.watch(sessionUnlockedProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final settings = ref.read(appSettingsProvider).asData?.value;
+        if (settings == null ||
+            (settings.appLockEnabled && !ref.read(sessionUnlockedProvider)) ||
+            GoRouter.of(context).routerDelegate.currentConfiguration.uri.path == '/lock') {
+          return;
+        }
+        final notices = ref.read(quickEntrySaveNoticeProvider.notifier);
+        if (!identical(notices.state, pendingNotice)) return;
+        notices.state = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(pendingNotice.message)),
+        );
+        final currentForm = ref.read(quickEntryFormProvider);
+        if (pendingNotice.closeEditor &&
+            currentForm.amount.isEmpty &&
+            currentForm.editingId == null &&
+            GoRouterState.of(context).uri.path == '/quick-entry') {
+          context.go('/');
+        }
+      });
+    }
 
     // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
     ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
@@ -329,6 +359,9 @@ class _AppShellState extends ConsumerState<AppShell>
                               return;
                             }
                             if (!context.mounted) return;
+                            if (ref.read(quickEntryFormProvider).editingId == null) {
+                              ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+                            }
                             switch (index) {
                               case 0:
                                 context.go('/');

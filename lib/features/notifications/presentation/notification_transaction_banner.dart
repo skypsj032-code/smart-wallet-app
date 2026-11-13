@@ -54,7 +54,8 @@ class NotificationTransactionBanner extends ConsumerWidget {
     if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) return;
     final alreadyEditingPage = GoRouterState.of(context).uri.path == '/quick-entry';
     // 배너 닫기
-    ref.read(detectedNotificationTransactionProvider.notifier).state = null;
+    final detected = ref.read(detectedNotificationTransactionProvider.notifier);
+    if (identical(detected.state, tx)) detected.state = null;
 
     final entryType = tx.type == 'income'
         ? TransactionEntryType.income

@@ -216,6 +216,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           _AmountPanel(
             controller: _amountController.value,
             memoController: _memoController.value,
+            isSubmitting: isSubmitting,
             amountFocusNode: _amountFocusNode,
             memoFocusNode: _memoFocusNode,
             form: form,
@@ -402,7 +403,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
               child: FilledButton(
               onPressed: form.canSubmit && !isSubmitting
                   ? () {
-                      _submit(form);
+                      _submit();
                     }
                   : null,
               style: FilledButton.styleFrom(
@@ -441,7 +442,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
       ),
     );
     return PopScope<void>(
-      canPop: (!isEditing && !isSubmitting) || _allowDirectPop,
+      canPop: _allowDirectPop,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && !_allowDirectPop && !isSubmitting) _requestExitAndLeave();
       },
@@ -501,6 +502,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
 
   void _leaveScreen() {
     if (!mounted) return;
+    if (ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
     setState(() => _allowDirectPop = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -997,16 +1001,20 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     }
   }
 
-  Future<void> _submit(QuickEntryFormState form) async {
+  Future<void> _submit() async {
+    final form = ref.read(quickEntryFormProvider);
+    if (!form.canSubmit) return;
     if (await _persist(form) && mounted) _leaveScreen();
   }
 
   Future<bool> _persist(QuickEntryFormState form) async {
     final submission = ref.read(quickEntrySubmitStateProvider.notifier);
+    final notice = ref.read(quickEntrySaveNoticeProvider.notifier);
     if (submission.state) return false;
     final formController = ref.read(quickEntryFormProvider.notifier);
     final repository = ref.read(transactionRepositoryProvider);
     final releaseForm = formController.retainDuringSave();
+    FocusScope.of(context).unfocus();
     submission.state = true;
     try {
       if (form.editingId != null) {
@@ -1016,19 +1024,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
       }
       developer.log('quick_entry_submit_success', name: 'quick_entry');
       final cleared = formController.clearIfCurrent(form);
+      final message = form.editingId != null
+          ? '${_labelForType(form.type)} 거래를 수정했어요.'
+          : '${_labelForType(form.type)} 거래를 저장했어요.';
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null
-                  ? '${_labelForType(form.type)} 거래를 수정했어요.'
-                  : '${_labelForType(form.type)} 거래를 저장했어요.',
-            ),
-          ),
-        );
-
-      }
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: !mounted && cleared);
       return cleared;
     } catch (error, stackTrace) {
       formController.retainAfterFailedSave();
@@ -1038,15 +1038,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         error: error,
         stackTrace: stackTrace,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.',
-            ),
-          ),
-        );
-      }
+      final message = form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.';
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: false);
       return false;
     } finally {
       try {
@@ -1160,6 +1153,7 @@ class _AmountPanel extends StatelessWidget {
   const _AmountPanel({
     required this.controller,
     required this.memoController,
+    required this.isSubmitting,
     required this.form,
     required this.occurredAt,
     required this.selectedAccountName,
@@ -1174,6 +1168,7 @@ class _AmountPanel extends StatelessWidget {
 
   final TextEditingController controller;
   final TextEditingController memoController;
+  final bool isSubmitting;
   final FocusNode? amountFocusNode;
   final FocusNode? memoFocusNode;
   final QuickEntryFormState form;
@@ -1213,6 +1208,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: controller,
+              readOnly: isSubmitting,
               focusNode: amountFocusNode,
               onChanged: onAmountChanged,
               textInputAction: TextInputAction.next,
@@ -1264,6 +1260,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: memoController,
+              readOnly: isSubmitting,
               focusNode: memoFocusNode,
               onChanged: onMemoChanged,
               maxLines: 2,

@@ -12,6 +12,7 @@ import 'package:smart_wallet_app/features/budgets/application/budget_provider.da
 import 'package:smart_wallet_app/features/notifications/application/notification_parser.dart';
 import 'package:smart_wallet_app/features/notifications/application/notification_provider.dart';
 import 'package:smart_wallet_app/features/root/presentation/app_shell.dart';
+import 'package:smart_wallet_app/features/settings/application/settings_provider.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_form_provider.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
 import 'package:smart_wallet_app/features/transactions/data/transaction_repository.dart';
@@ -213,6 +214,44 @@ void main() {
     expect(harness.repository.creates.single.amount, '4200');
   });
 
+  testWidgets('save uses the latest form state even before the next frame',
+      (tester) async {
+    final harness = await _Harness.open(tester);
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    await harness.enterAmount(tester, '4200');
+    await tester.ensureVisible(find.text('거래 저장하기'));
+    harness.container.read(quickEntryFormProvider.notifier).setAmount('4300');
+    await tester.tap(find.text('거래 저장하기'));
+    await tester.pumpAndSettle();
+    expect(harness.repository.creates.single.amount, '4300');
+  });
+
+  testWidgets('a save finished after unlocking reports success and leaves',
+      (tester) async {
+    final pendingSave = Completer<void>();
+    final harness = await _Harness.open(tester, pendingCreate: pendingSave);
+    addTearDown(() {
+      if (!pendingSave.isCompleted) pendingSave.complete();
+    });
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    await harness.enterAmount(tester, '5100');
+    await tester.ensureVisible(find.text('거래 저장하기'));
+    await tester.tap(find.text('거래 저장하기'));
+    await tester.pump();
+    harness.router.go('/lock');
+    await tester.pumpAndSettle();
+    harness.router.go('/quick-entry');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    pendingSave.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('home screen'), findsOneWidget);
+    expect(find.text('지출 거래를 저장했어요.'), findsOneWidget);
+    expect(harness.repository.creates.single.amount, '5100');
+  });
+
   testWidgets('failed save while locked retains a new entry for recovery',
       (tester) async {
     final pendingSave = Completer<void>();
@@ -240,6 +279,15 @@ void main() {
     harness.router.go('/quick-entry');
     await tester.pumpAndSettle();
     expect(harness.container.read(quickEntryFormProvider).amount, '5300');
+    expect(harness.container.read(quickEntryFormProvider.notifier).needsRestoreAfterLock, isTrue);
+    harness.router.go('/lock');
+    await tester.pumpAndSettle();
+    harness.router.go('/quick-entry');
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider).amount, '5300');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(harness.container.read(quickEntryFormProvider.notifier).needsRestoreAfterLock, isFalse);
   });
 
   testWidgets('locked screen preserves the pending edit until it is reopened',
@@ -296,7 +344,14 @@ class _Harness {
       {bool failSave = false, Completer<void>? pendingCreate}) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     final repository = _FakeRepository(failSave: failSave, pendingCreate: pendingCreate);
+    final settingsTime = DateTime(2026, 5, 5);
     final container = ProviderContainer(overrides: [
+      appSettingsProvider.overrideWith((ref) => Stream.value(AppSetting(
+        id: 1, currencyCode: 'KRW', weekStart: 'monday', themeMode: 'system',
+        defaultCategorySeedVersion: 2, appLockEnabled: false,
+        biometricEnabled: false, exportIncludeDeleted: false, pinCode: null,
+        createdAt: settingsTime, lastModifiedAt: settingsTime,
+      ))),
       transactionRepositoryProvider.overrideWithValue(repository),
       quickEntryAccountsProvider.overrideWith((ref) => Stream.value(const [
         QuickEntryAccountOption(id: 'cash', name: '현금'),
