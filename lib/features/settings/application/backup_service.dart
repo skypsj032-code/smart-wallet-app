@@ -81,13 +81,27 @@ class BackupService {
   static const int backupVersion = 1;
 
   Future<BackupPayload> exportJsonBackup() async {
-    final transactionsData = await _database.select(_database.transactions).get();
-    final categoriesData = await _database.select(_database.categories).get();
-    final budgetsData = await _database.select(_database.budgets).get();
-    final accountsData = await _database.select(_database.accounts).get();
-    final recurringExpensesData =
-        await _database.select(_database.recurringExpenses).get();
-    final settingsData = await _database.select(_database.appSettings).get();
+    // Read every section from the same SQLite snapshot.
+    final snapshot = await _database.transaction(() async => (
+          transactions: await _database.select(_database.transactions).get(),
+          categories: await _database.select(_database.categories).get(),
+          budgets: await _database.select(_database.budgets).get(),
+          accounts: await _database.select(_database.accounts).get(),
+          recurringExpenses:
+              await _database.select(_database.recurringExpenses).get(),
+          recurringSpendOverrides:
+              await _database.select(_database.recurringSpendOverrides).get(),
+          notificationHistories:
+              await _database.select(_database.notificationHistories).get(),
+          ocrDrafts: await _database.select(_database.ocrDrafts).get(),
+          settings: await _database.select(_database.appSettings).get(),
+        ));
+    final transactionsData = snapshot.transactions;
+    final categoriesData = snapshot.categories;
+    final budgetsData = snapshot.budgets;
+    final accountsData = snapshot.accounts;
+    final recurringExpensesData = snapshot.recurringExpenses;
+    final settingsData = snapshot.settings;
 
     final createdAt = DateTime.now().toUtc();
     final payload = {
@@ -110,6 +124,11 @@ class BackupService {
         'accounts': accountsData.map(_accountToJson).toList(),
         'recurringExpenses':
             recurringExpensesData.map(_recurringExpenseToJson).toList(),
+        'recurringSpendOverrides': snapshot.recurringSpendOverrides
+            .map(_recurringSpendOverrideToJson).toList(),
+        'notificationHistories': snapshot.notificationHistories
+            .map(_notificationHistoryToJson).toList(),
+        'ocrDrafts': snapshot.ocrDrafts.map(_ocrDraftToJson).toList(),
         'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
       },
     };
@@ -215,15 +234,50 @@ class BackupService {
     final categoriesData = (data['categories'] as List<dynamic>? ?? const []);
     final budgetsData = (data['budgets'] as List<dynamic>? ?? const []);
     final accountsData = (data['accounts'] as List<dynamic>? ?? const []);
-    final recurringExpensesData =
-        (data['recurringExpenses'] as List<dynamic>? ?? const []);
+    final recurringExpensesData = data['recurringExpenses'] as List<dynamic>?;
+    final recurringSpendOverridesData =
+        data['recurringSpendOverrides'] as List<dynamic>?;
+    final notificationHistoriesData =
+        data['notificationHistories'] as List<dynamic>?;
+    final ocrDraftsData = data['ocrDrafts'] as List<dynamic>?;
     final settingsData = data['settings'] as Map<String, dynamic>?;
+    var retainedRecurringExpenseCount = 0;
 
     await _database.transaction(() async {
+      // The PIN never leaves the device as part of a shareable backup.
+      final localSettings =
+          await _database.select(_database.appSettings).getSingleOrNull();
+      if (recurringExpensesData == null) {
+        final retained = await _database.select(_database.recurringExpenses).get();
+        final accountIds = accountsData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId']).toSet();
+        final categoryIds = categoriesData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId']).toSet();
+        for (final item in retained) {
+          if (!accountIds.contains(item.accountId) ||
+              (item.categoryId != null && !categoryIds.contains(item.categoryId))) {
+            throw const BackupFormatException(
+              'This older backup would disconnect an existing scheduled transaction.',
+            );
+          }
+        }
+        retainedRecurringExpenseCount = retained.length;
+      }
       await _database.delete(_database.transactions).go();
       await _database.delete(_database.categories).go();
       await _database.delete(_database.budgets).go();
-      await _database.delete(_database.recurringExpenses).go();
+      if (recurringExpensesData != null) {
+        await _database.delete(_database.recurringExpenses).go();
+      }
+      if (recurringSpendOverridesData != null) {
+        await _database.delete(_database.recurringSpendOverrides).go();
+      }
+      if (notificationHistoriesData != null) {
+        await _database.delete(_database.notificationHistories).go();
+      }
+      if (ocrDraftsData != null) {
+        await _database.delete(_database.ocrDrafts).go();
+      }
       await _database.delete(_database.accounts).go();
       await _database.delete(_database.appSettings).go();
 
@@ -305,7 +359,7 @@ class BackupService {
 
         batch.insertAll(
           _database.recurringExpenses,
-          recurringExpensesData.cast<Map<String, dynamic>>().map((raw) =>
+          (recurringExpensesData ?? const <dynamic>[]).cast<Map<String, dynamic>>().map((raw) =>
               RecurringExpensesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -318,12 +372,64 @@ class BackupService {
                 categoryId: Value(raw['categoryId'] as String?),
                 isActive: Value((raw['isActive'] as bool?) ?? true),
                 lastSuggestedCycleKey: Value(raw['lastSuggestedCycleKey'] as String?),
-                lastCompletedCycleKey: Value(raw['lastCompletedCycleKey'] as String?),
+                lastCompletedCycleKey: Value(
+                  (raw['lastCompletedCycleKey'] ?? raw['lastCreatedMonthKey']) as String?,
+                ),
                 lastDismissedCycleKey: Value(raw['lastDismissedCycleKey'] as String?),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
               )).toList(),
         );
+
+        if (recurringSpendOverridesData != null) {
+          batch.insertAll(
+            _database.recurringSpendOverrides,
+            recurringSpendOverridesData.cast<Map<String, dynamic>>().map((raw) =>
+                RecurringSpendOverridesCompanion.insert(
+                  groupKey: raw['groupKey'] as String,
+                  actionType: raw['actionType'] as String,
+                  createdAt: DateTime.parse(raw['createdAt'] as String),
+                  lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
+                )).toList(),
+          );
+        }
+        if (notificationHistoriesData != null) {
+          batch.insertAll(
+            _database.notificationHistories,
+            notificationHistoriesData.cast<Map<String, dynamic>>().map((raw) =>
+                NotificationHistoriesCompanion.insert(
+                  id: Value(raw['id'] as int),
+                  packageName: raw['packageName'] as String,
+                  amount: raw['amount'] as int,
+                  type: raw['type'] as String,
+                  merchant: Value(raw['merchant'] as String?),
+                  suggestedCategory: Value(raw['suggestedCategory'] as String?),
+                  detectedAt: DateTime.parse(raw['detectedAt'] as String),
+                )).toList(),
+          );
+        }
+        if (ocrDraftsData != null) {
+          batch.insertAll(
+            _database.ocrDrafts,
+            ocrDraftsData.cast<Map<String, dynamic>>().map((raw) =>
+                OcrDraftsCompanion.insert(
+                  localId: raw['localId'] as String,
+                  sourceImagePath: Value(raw['sourceImagePath'] as String?),
+                  ocrRawText: Value(raw['ocrRawText'] as String?),
+                  ocrConfidence: Value((raw['ocrConfidence'] as num?)?.toDouble()),
+                  ocrStatus: raw['ocrStatus'] as String,
+                  parsedStoreName: Value(raw['parsedStoreName'] as String?),
+                  parsedTotalAmount: Value(raw['parsedTotalAmount'] as int?),
+                  parsedTransactionDate: Value(raw['parsedTransactionDate'] == null
+                      ? null
+                      : DateTime.parse(raw['parsedTransactionDate'] as String)),
+                  parsedCategoryGuess: Value(raw['parsedCategoryGuess'] as String?),
+                  errorMessage: Value(raw['errorMessage'] as String?),
+                  createdAt: DateTime.parse(raw['createdAt'] as String),
+                  lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
+                )).toList(),
+          );
+        }
       });
 
       if (settingsData != null) {
@@ -336,8 +442,9 @@ class BackupService {
                 defaultCategorySeedVersion: Value(
                   (settingsData['defaultCategorySeedVersion'] as int?) ?? 0,
                 ),
-                appLockEnabled: const Value(false),
-                biometricEnabled: Value((settingsData['biometricEnabled'] as bool?) ?? false),
+                appLockEnabled: Value(localSettings?.appLockEnabled ?? false),
+                biometricEnabled: Value(localSettings?.biometricEnabled ?? false),
+                pinCode: Value(localSettings?.pinCode),
                 exportIncludeDeleted: Value(
                   (settingsData['exportIncludeDeleted'] as bool?) ?? false,
                 ),
@@ -345,6 +452,8 @@ class BackupService {
                 lastModifiedAt: DateTime.parse(settingsData['lastModifiedAt'] as String),
               ),
             );
+      } else if (localSettings != null) {
+        await _database.into(_database.appSettings).insert(localSettings);
       }
     });
 
@@ -354,7 +463,8 @@ class BackupService {
       categoryCount: categoriesData.length,
       budgetCount: budgetsData.length,
       accountCount: accountsData.length,
-      recurringExpenseCount: recurringExpensesData.length,
+      recurringExpenseCount:
+          recurringExpensesData?.length ?? retainedRecurringExpenseCount,
     );
   }
 
@@ -410,7 +520,18 @@ class BackupService {
       'categories',
       'budgets',
       'accounts',
+    ]) {
+      final value = dataValue[key];
+      if (value is! List<dynamic>) {
+        throw BackupFormatException('$key payload is invalid.');
+      }
+    }
+
+    for (final key in const [
       'recurringExpenses',
+      'recurringSpendOverrides',
+      'notificationHistories',
+      'ocrDrafts',
     ]) {
       final value = dataValue[key];
       if (value != null && value is! List<dynamic>) {
@@ -494,6 +615,40 @@ class BackupService {
         'lastSuggestedCycleKey': item.lastSuggestedCycleKey,
         'lastCompletedCycleKey': item.lastCompletedCycleKey,
         'lastDismissedCycleKey': item.lastDismissedCycleKey,
+        'createdAt': item.createdAt.toIso8601String(),
+        'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> _recurringSpendOverrideToJson(
+          RecurringSpendOverride item) =>
+      {
+        'groupKey': item.groupKey,
+        'actionType': item.actionType,
+        'createdAt': item.createdAt.toIso8601String(),
+        'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> _notificationHistoryToJson(NotificationHistory item) => {
+        'id': item.id,
+        'packageName': item.packageName,
+        'amount': item.amount,
+        'type': item.type,
+        'merchant': item.merchant,
+        'suggestedCategory': item.suggestedCategory,
+        'detectedAt': item.detectedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> _ocrDraftToJson(OcrDraft item) => {
+        'localId': item.localId,
+        'sourceImagePath': item.sourceImagePath,
+        'ocrRawText': item.ocrRawText,
+        'ocrConfidence': item.ocrConfidence,
+        'ocrStatus': item.ocrStatus,
+        'parsedStoreName': item.parsedStoreName,
+        'parsedTotalAmount': item.parsedTotalAmount,
+        'parsedTransactionDate': item.parsedTransactionDate?.toIso8601String(),
+        'parsedCategoryGuess': item.parsedCategoryGuess,
+        'errorMessage': item.errorMessage,
         'createdAt': item.createdAt.toIso8601String(),
         'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
       };

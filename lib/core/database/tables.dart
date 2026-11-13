@@ -84,6 +84,17 @@ class RecurringExpenses extends Table {
   Set<Column<Object>> get primaryKey => {localId};
 }
 
+/// User decisions about automatically detected recurring spending groups.
+class RecurringSpendOverrides extends Table {
+  TextColumn get groupKey => text()();
+  TextColumn get actionType => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get lastModifiedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {groupKey};
+}
+
 class Accounts extends Table {
   TextColumn get localId => text()();
   TextColumn get name => text()();

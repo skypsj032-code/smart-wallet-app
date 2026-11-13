@@ -45,11 +45,22 @@ jobs:
         run: |
           & 'C:\smart wallet\flutterw.bat' pub get --enforce-lockfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Generate database sources
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' pub run build_runner build --delete-conflicting-outputs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Store generated database source
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-drift-generated
+          path: 'C:\smart wallet\app\lib\core\database\app_database.g.dart'
+          retention-days: 1
       - name: Provide SQLite for database tests
         shell: pwsh
         run: Copy-Item -Path "$env:WINDIR\System32\winsqlite3.dll" -Destination 'C:\smart wallet\app\sqlite3.dll'
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded test/core/database/budget_summary_regression_test.dart --plain-name 'duplicate overall rows remain intact and the latest cap is used'
+          & 'C:\smart wallet\flutterw.bat' test --no-pub -r expanded test/core/database/branch_schema_migration_test.dart test/core/database/budget_summary_regression_test.dart test/features/settings/backup_safety_regression_test.dart test/features/settings/backup_compatibility_regression_test.dart
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

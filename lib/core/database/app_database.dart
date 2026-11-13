@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 
 import '../../features/budgets/application/budget_provider.dart';
+import '../../shared/utils/budget_totals.dart';
 import 'connection/connection.dart';
 import 'tables.dart';
 
@@ -15,6 +16,7 @@ part 'app_database.g.dart';
     Categories,
     Budgets,
     RecurringExpenses,
+    RecurringSpendOverrides,
     Accounts,
     AppSettings,
     BackupMetadata,
@@ -27,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,7 +75,28 @@ class AppDatabase extends _$AppDatabase {
             );
           }
           if (from >= 4 && from < 6) {
-            await transaction(() async {
+            // Version 4 was used by two independent branches. One has an
+            // older recurring_expenses table; the other has no such table.
+            final hasRecurringExpenses =
+                await _tableExists('recurring_expenses');
+            if (!hasRecurringExpenses) {
+              await m.createTable(recurringExpenses);
+            } else {
+              final columns = await customSelect(
+                'PRAGMA table_info(recurring_expenses)',
+              ).get();
+              final names = columns.map((row) => row.data['name']).toSet();
+              if (!names.contains('last_created_month_key')) {
+                // Never rebuild a table whose shape we do not recognize.
+                if (!names.containsAll({
+                  'type',
+                  'cadence',
+                  'last_completed_cycle_key',
+                })) {
+                  throw StateError('Unrecognized recurring_expenses schema');
+                }
+              } else {
+                await transaction(() async {
               await customStatement('''
                 CREATE TABLE recurring_expenses_new (
                   local_id TEXT NOT NULL PRIMARY KEY,
@@ -129,7 +152,9 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'ALTER TABLE recurring_expenses_new RENAME TO recurring_expenses;',
               );
-            });
+                });
+              }
+            }
           }
           if (from < 7) {
             await m.createTable(notificationHistories);
@@ -144,8 +169,45 @@ class AppDatabase extends _$AppDatabase {
               ON transactions (deleted_at, category_id, occurred_at DESC);
             ''');
           }
+          if (from < 9 &&
+              !await _tableExists('recurring_spend_overrides')) {
+            await m.createTable(recurringSpendOverrides);
+          }
         },
       );
+
+  Future<bool> _tableExists(String name) async {
+    final rows = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(name)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  Stream<Set<String>> watchNotRecurringGroupKeys() {
+    return (select(recurringSpendOverrides)
+          ..where((row) => row.actionType.equals('not_recurring')))
+        .watch()
+        .map((rows) => rows.map((row) => row.groupKey).toSet());
+  }
+
+  Future<void> markRecurringSpendGroupNotRecurring(String groupKey) {
+    final now = DateTime.now();
+    return into(recurringSpendOverrides).insertOnConflictUpdate(
+      RecurringSpendOverridesCompanion.insert(
+        groupKey: groupKey,
+        actionType: 'not_recurring',
+        createdAt: now,
+        lastModifiedAt: now,
+      ),
+    );
+  }
+
+  Future<void> unmarkRecurringSpendGroupNotRecurring(String groupKey) {
+    return (delete(recurringSpendOverrides)
+          ..where((row) => row.groupKey.equals(groupKey)))
+        .go();
+  }
 
   // ── 예산 요약 ───────────────────────────────────────────────────────────────
   Stream<BudgetSummary> watchBudgetSummary() {
@@ -179,7 +241,8 @@ class AppDatabase extends _$AppDatabase {
 
         final items = bgs.map((budget) {
           final spent = txs
-              .where((tx) => tx.categoryId == budget.categoryId)
+              .where((tx) =>
+                  budget.categoryId == null || tx.categoryId == budget.categoryId)
               .fold<int>(0, (sum, tx) => sum + tx.amount);
 
           return BudgetSummaryItem(
@@ -192,8 +255,12 @@ class AppDatabase extends _$AppDatabase {
           );
         }).toList();
 
-        final totalBudget =
-            items.fold<int>(0, (sum, item) => sum + item.limitAmount);
+        final totalBudget = effectiveBudgetTotal(bgs.map((budget) => (
+              categoryId: budget.categoryId,
+              amount: budget.amountLimit,
+              modifiedAt: budget.lastModifiedAt,
+              id: budget.localId,
+            )));
         final totalSpent = txs.fold<int>(0, (sum, tx) => sum + tx.amount);
 
         return BudgetSummary(
