@@ -537,6 +537,30 @@ class BackupService {
       }
     }
 
+    final summary = decoded['summary'];
+    if (summary != null && summary is! Map<String, dynamic>) {
+      throw const BackupFormatException('summary payload is invalid.');
+    }
+    if (summary is Map<String, dynamic>) {
+      const sectionCounts = {
+        'transactions': 'transactionCount',
+        'categories': 'categoryCount',
+        'budgets': 'budgetCount',
+        'accounts': 'accountCount',
+        'recurringExpenses': 'recurringExpenseCount',
+      };
+      for (final entry in sectionCounts.entries) {
+        if (!summary.containsKey(entry.value)) continue;
+        final count = summary[entry.value];
+        final section = dataValue[entry.key];
+        if (count is! int || count < 0 ||
+            (section is List && section.length != count) ||
+            (section == null && count != 0)) {
+          throw BackupFormatException('${entry.key} count does not match the backup data.');
+        }
+      }
+    }
+
     final settingsValue = dataValue['settings'];
     if (settingsValue != null && settingsValue is! Map<String, dynamic>) {
       throw const BackupFormatException('settings payload is invalid.');

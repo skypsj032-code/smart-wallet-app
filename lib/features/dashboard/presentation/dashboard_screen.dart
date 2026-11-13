@@ -26,6 +26,7 @@ import '../application/recurring_transaction_suggestion_provider.dart';
 import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
 import 'dashboard_narrative_card.dart';
+import 'detected_recurring_spend_section.dart';
 import 'recurring_transaction_suggestion_card.dart';
 import 'upcoming_recurring_transactions_card.dart';
 
@@ -93,6 +94,7 @@ class DashboardScreen extends ConsumerWidget {
               // 예산 현황 — 수입/지출 바로 다음에 노출
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
+              const SliverToBoxAdapter(child: DetectedRecurringSpendSection()),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: DashboardHomeLinksCard(

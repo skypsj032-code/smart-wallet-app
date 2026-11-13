@@ -31,6 +31,9 @@ void main() {
 
     final router = _buildRouter();
     addTearDown(router.dispose);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
 
     await tester.pumpWidget(
       _DashboardTestApp(
@@ -54,6 +57,9 @@ void main() {
 
     final router = _buildRouter();
     addTearDown(router.dispose);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
 
     await tester.pumpWidget(
       _DashboardTestApp(
@@ -94,6 +100,9 @@ void main() {
     }
     final router = _buildRouter();
     addTearDown(router.dispose);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
     await tester.pumpWidget(_DashboardTestApp(router: router, database: database));
     await tester.pumpAndSettle();
 
@@ -103,6 +112,16 @@ void main() {
     expect(headers.any((header) => header.pinned), isTrue);
     expect(find.text('거래에서 감지한 반복 지출'), findsOneWidget);
     expect(find.text('월세'), findsOneWidget);
+
+    const visibleKey = Key('recurring-spend-visible-bank|월세');
+    expect(find.byKey(visibleKey), findsOneWidget);
+    await tester.tap(find.byTooltip('반복 지출에서 제외'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(visibleKey), findsNothing);
+    expect(find.text('숨긴 반복 지출'), findsOneWidget);
+    await tester.tap(find.byTooltip('반복 지출 복구'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(visibleKey), findsOneWidget);
   });
 }
 

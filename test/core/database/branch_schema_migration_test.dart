@@ -70,6 +70,21 @@ void main() {
     expect(await _tableExists(database, 'recurring_expenses'), isTrue);
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
   });
+
+  test('design version 8 retains scheduled transactions when adding exclusions',
+      () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory(setup: (db) {
+      _createSharedVersion4Tables(db);
+      db.execute('CREATE TABLE recurring_expenses (local_id TEXT NOT NULL PRIMARY KEY)');
+      db.execute("INSERT INTO recurring_expenses VALUES ('keep-schedule')");
+      db.execute('PRAGMA user_version = 8');
+    }));
+    addTearDown(database.close);
+
+    expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
+    expect((await database.customSelect('SELECT local_id FROM recurring_expenses').get())
+        .single.data['local_id'], 'keep-schedule');
+  });
 }
 
 void _createSharedVersion4Tables(dynamic db) {

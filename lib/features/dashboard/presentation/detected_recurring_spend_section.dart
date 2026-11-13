@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/app_spacing.dart';
+import '../../../shared/utils/currency_formatter.dart';
+import '../../../shared/widgets/glass_card.dart';
+import '../application/detected_recurring_spend_provider.dart';
+import '../application/recurring_spend_override_store.dart';
+
+/// Estimates recurring spending from transactions; it does not create bills.
+class DetectedRecurringSpendSection extends ConsumerWidget {
+  const DetectedRecurringSpendSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final insight = ref.watch(detectedRecurringSpendProvider);
+    return insight.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const Padding(
+        padding: EdgeInsets.only(top: AppSpacing.md),
+        child: Text('반복 지출 분석을 불러오지 못했어요.'),
+      ),
+      data: (snapshot) {
+        if (snapshot.groups.isEmpty && snapshot.excludedKeys.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final theme = Theme.of(context);
+        final excludedKeys = snapshot.excludedKeys.toList()..sort();
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.md),
+          child: GlassCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '거래에서 감지한 반복 지출',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '과거 기록을 바탕으로 추정했어요.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                for (final group in snapshot.groups)
+                  Row(
+                    key: ValueKey('recurring-spend-visible-${group.groupKey}'),
+                    children: [
+                      Expanded(child: Text(group.displayName)),
+                      Text(formatCurrency(group.currentMonthAmount)),
+                      IconButton(
+                        tooltip: '반복 지출에서 제외',
+                        onPressed: () => _updateExclusion(
+                          context, ref, group.groupKey, exclude: true,
+                        ),
+                        icon: const Icon(Icons.visibility_off_outlined),
+                      ),
+                    ],
+                  ),
+                if (excludedKeys.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text('숨긴 반복 지출', style: theme.textTheme.titleSmall),
+                  for (final key in excludedKeys)
+                    Row(
+                      children: [
+                        Expanded(child: Text(_readableGroupName(key))),
+                        IconButton(
+                          tooltip: '반복 지출 복구',
+                          onPressed: () => _updateExclusion(
+                            context, ref, key, exclude: false,
+                          ),
+                          icon: const Icon(Icons.restore_rounded),
+                        ),
+                      ],
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _readableGroupName(String key) {
+    final separator = key.lastIndexOf('|');
+    final name = separator < 0 ? key : key.substring(separator + 1);
+    return name.isEmpty ? '이름 없는 항목' : name;
+  }
+
+  static Future<void> _updateExclusion(
+    BuildContext context,
+    WidgetRef ref,
+    String key, {
+    required bool exclude,
+  }) async {
+    try {
+      final store = ref.read(recurringSpendOverrideStoreProvider);
+      if (exclude) {
+        await store.markGroupNotRecurring(key);
+      } else {
+        await store.unmarkGroupNotRecurring(key);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('변경 내용을 저장하지 못했어요.')),
+        );
+      }
+    }
+  }
+}
