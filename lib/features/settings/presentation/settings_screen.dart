@@ -80,7 +80,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '데이터 안전',
-            subtitle: '내보내기는 가볍게, 복원은 가장 신중하게 다룹니다.',
+            subtitle: '백업을 만들고 거래 내역을 내보내거나 가져와요.',
           ),
           const SizedBox(height: AppSpacing.sm),
           AppUtilityGroup(
@@ -416,7 +416,10 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      final summary = await backupService.restoreJsonBackup(jsonStr);
+      final summary = await backupService.restoreJsonBackup(
+        jsonStr,
+        expectedCurrentJson: safetyBackup.payload.json,
+      );
 
       if (!context.mounted) {
         return;
@@ -472,7 +475,8 @@ class SettingsScreen extends ConsumerWidget {
               '- 거래 ${preview.summary.transactionCount}개\n'
               '- 카테고리 ${preview.summary.categoryCount}개\n'
               '- 예산 ${preview.summary.budgetCount}개\n'
-              '- 계좌 ${preview.summary.accountCount}개',
+              '- 계좌 ${preview.summary.accountCount}개'
+              '${preview.warnings.isEmpty ? '' : '\n\n${preview.warnings.join('\n')}'}',
             ),
           ),
           actions: [
@@ -665,12 +669,8 @@ class _SettingsHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const AppHeroPanel(
-      eyebrow: AppStatusChip(
-        label: 'UTILITY HUB',
-        dotColor: AppColors.primary,
-      ),
-      title: '조용한 지원 허브',
-      body: '일상 이동, 데이터 안전, 보안, 화면 모드를 한곳에서 차분하게 관리합니다.',
+      title: '가계부 설정',
+      body: '백업, 앱 잠금과 화면 모드를 관리해요.',
     );
   }
 }
@@ -1060,8 +1060,8 @@ class _NotificationListenerCardState
                 ref.read(notificationListenerEnabledProvider.notifier).toggle(value);
               },
               secondary: const Icon(Icons.notifications_active_outlined),
-              title: const Text('알림 자동 기록'),
-              subtitle: const Text('카드·은행 결제 알림을 읽어 거래를 자동 제안합니다.'),
+              title: const Text('결제 알림 감지'),
+              subtitle: const Text('지원하는 카드·은행 앱의 알림을 확인 목록에 모아요. 거래는 확인 후 기록됩니다.'),
             ),
             permissionAsync.when(
               data: (granted) {

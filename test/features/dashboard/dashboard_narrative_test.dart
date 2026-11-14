@@ -173,4 +173,127 @@ void main() {
       expect(copy.evidence, isNot(contains('%')));
     });
   });
+
+  group('buildDashboardWeatherSummary', () {
+    test('does not describe a month with no spending records as healthy', () {
+      final summary = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 0, monthExpense: 0, totalBudget: 0,
+      ));
+
+      expect(summary.kind, DashboardWeatherKind.waitingForRecords);
+      expect(summary.headline, contains('기록'));
+      expect(summary.evidence, contains('0건'));
+      expect(summary.evidence, contains('₩0'));
+      expect(summary.evidence, contains('예산 미설정'));
+      expect(summary.evidence, isNot(contains('%')));
+    });
+
+    test('distinguishes a small sample while showing the budget facts', () {
+      final summary = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 1, monthExpense: 10000, totalBudget: 100000,
+      ));
+
+      expect(summary.kind, DashboardWeatherKind.gatheringRecords);
+      expect(summary.headline, contains('기록이 적어'));
+      expect(summary.evidence, contains('1건'));
+      expect(summary.evidence, contains('₩10,000'));
+      expect(summary.evidence, contains('₩100,000'));
+      expect(summary.evidence, contains('10%'));
+    });
+
+    test('shows an unset budget without inventing a percentage', () {
+      final summary = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 4, monthExpense: 42000, totalBudget: 0,
+      ));
+
+      expect(summary.kind, DashboardWeatherKind.budgetNotSet);
+      expect(summary.evidence, contains('₩42,000'));
+      expect(summary.evidence, contains('예산 미설정'));
+      expect(summary.evidence, isNot(contains('%')));
+    });
+
+    test('explains the actual recorded expense and budget amount', () {
+      final summary = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 5, monthExpense: 620000, totalBudget: 1000000,
+      ));
+
+      expect(summary.kind, DashboardWeatherKind.budgetInRange);
+      expect(summary.evidence, contains('₩620,000'));
+      expect(summary.evidence, contains('₩1,000,000'));
+      expect(summary.evidence, contains('62%'));
+    });
+
+    test('distinguishes reaching and exceeding a budget exactly', () {
+      final reached = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 4, monthExpense: 100000, totalBudget: 100000,
+      ));
+      final exceeded = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 1, monthExpense: 105000, totalBudget: 100000,
+      ));
+
+      expect(reached.kind, DashboardWeatherKind.budgetReached);
+      expect(reached.evidence, contains('100%'));
+      expect(exceeded.kind, DashboardWeatherKind.budgetExceeded);
+      expect(exceeded.evidence, contains('105%'));
+      expect(exceeded.headline, contains('넘'));
+    });
+
+    test('does not round a near-budget value to an exact 100%', () {
+      final below = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 4, monthExpense: 99999, totalBudget: 100000,
+      ));
+      final above = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 4, monthExpense: 100001, totalBudget: 100000,
+      ));
+      final tiny = buildDashboardWeatherSummary(_weatherSnapshot(
+        count: 4, monthExpense: 1, totalBudget: 100000,
+      ));
+
+      expect(below.kind, DashboardWeatherKind.nearBudget);
+      expect(below.evidence, contains('99.9%'));
+      expect(below.evidence, isNot(contains('100%')));
+      expect(above.kind, DashboardWeatherKind.budgetExceeded);
+      expect(above.evidence, contains('100% 초과'));
+      expect(tiny.evidence, contains('0.1% 미만'));
+    });
+
+    test('the existing narrative does not call an exact budget an excess', () {
+      final snapshot = _weatherSnapshot(
+        count: 4,
+        monthExpense: 100000,
+        totalBudget: 100000,
+        dominantPattern: DashboardDominantPattern.balanced,
+        budgetPressureLevel: BudgetPressureLevel.overflow,
+      );
+
+      final narrative = buildDashboardNarrative(snapshot);
+
+      expect(narrative.headline, contains('닿았어요'));
+      expect(narrative.evidence, contains('100%'));
+    });
+  });
+}
+
+DashboardNarrativeSnapshot _weatherSnapshot({
+  required int count,
+  required int monthExpense,
+  required int totalBudget,
+  DashboardDominantPattern dominantPattern =
+      DashboardDominantPattern.insufficientData,
+  BudgetPressureLevel budgetPressureLevel = BudgetPressureLevel.none,
+}) {
+  return DashboardNarrativeSnapshot(
+    topExpenseCategoryLabel: '미분류',
+    topExpenseCategoryShare: 0,
+    expenseTransactionCount: count,
+    averageExpenseAmount: count == 0 ? 0 : monthExpense ~/ count,
+    recentExpenseMomentum: RecentExpenseMomentum.none,
+    budgetPressureLevel: budgetPressureLevel,
+    loggingConsistencyLevel: LoggingConsistencyLevel.none,
+    dominantPattern: dominantPattern,
+    evidenceParts: const [],
+    monthExpense: monthExpense,
+    totalBudget: totalBudget,
+    todayTransactionCount: 0,
+  );
 }

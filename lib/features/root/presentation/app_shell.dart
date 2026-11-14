@@ -8,22 +8,23 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_motion.dart';
 import '../../../app/theme/app_opacity.dart';
-import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
-import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
+import '../../settings/application/settings_provider.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({
     super.key,
     required this.child,
+    this.showNotificationFeatures = true,
   });
 
   final Widget child;
+  final bool showNotificationFeatures;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -33,7 +34,6 @@ class _AppShellState extends ConsumerState<AppShell>
     with WidgetsBindingObserver {
   static const _exitGracePeriod = Duration(seconds: 2);
 
-  late final TextEditingController _amountController;
   late final ScrollController _primaryScrollController;
   DateTime? _lastBackPressedAt;
   bool _obscured = false; // 멀티태스킹/스위처 노출 방지
@@ -41,7 +41,6 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController();
     _primaryScrollController = ScrollController();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -49,7 +48,6 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _amountController.dispose();
     _primaryScrollController.dispose();
     super.dispose();
   }
@@ -73,6 +71,36 @@ class _AppShellState extends ConsumerState<AppShell>
   Widget build(BuildContext context) {
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
+    final isSubmitting = ref.watch(quickEntrySubmitStateProvider);
+    final pendingNotice = ref.watch(quickEntrySaveNoticeProvider);
+    if (pendingNotice != null) {
+      // Rebuild when lock settings or session state resolve; never consume a
+      // save result on an old shell that is about to be hidden by the lock.
+      ref.watch(appSettingsProvider);
+      ref.watch(sessionUnlockedProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final settings = ref.read(appSettingsProvider).asData?.value;
+        if (settings == null ||
+            (settings.appLockEnabled && !ref.read(sessionUnlockedProvider)) ||
+            GoRouter.of(context).routerDelegate.currentConfiguration.uri.path == '/lock') {
+          return;
+        }
+        final notices = ref.read(quickEntrySaveNoticeProvider.notifier);
+        if (!identical(notices.state, pendingNotice)) return;
+        notices.state = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(pendingNotice.message)),
+        );
+        final currentForm = ref.read(quickEntryFormProvider);
+        if (pendingNotice.closeEditor &&
+            currentForm.amount.isEmpty &&
+            currentForm.editingId == null &&
+            GoRouterState.of(context).uri.path == '/quick-entry') {
+          context.go('/');
+        }
+      });
+    }
 
     // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
     ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
@@ -94,11 +122,12 @@ class _AppShellState extends ConsumerState<AppShell>
     });
     final location = GoRouterState.of(context).uri.toString();
     final hideGlobalQuickPanel =
-        location.startsWith('/quick-entry') || location.startsWith('/lock');
+        location.startsWith('/quick-entry') ||
+        location.startsWith('/lock') ||
+        form.editingId != null ||
+        isSubmitting;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    _syncController(_amountController, form.amount);
 
     return PrimaryScrollController(
       controller: _primaryScrollController,
@@ -117,55 +146,17 @@ class _AppShellState extends ConsumerState<AppShell>
         child: Scaffold(
           body: Stack(
             children: [
-              ClipRect(
-                child: AnimatedSwitcher(
-                  duration: AppMotion.normal,
-                  reverseDuration: AppMotion.fast,
-                  switchInCurve: AppMotion.decelerate,
-                  switchOutCurve: AppMotion.accelerate,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: AppMotion.decelerate,
-                      reverseCurve: AppMotion.accelerate,
-                    );
-
-                    return ColoredBox(
-                      color: theme.scaffoldBackgroundColor,
-                      child: FadeTransition(
-                        opacity: curved,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.025, 0),
-                            end: Offset.zero,
-                          ).animate(curved),
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey(location),
-                    child: widget.child,
-                  ),
-                ),
-              ),
+              // ShellRoute supplies one Navigator; keeping two copies during
+              // an AnimatedSwitcher transition duplicates its GlobalKey.
+              ClipRect(child: widget.child),
               // 알림 감지 배너 — 화면 최상단에 오버레이
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: NotificationTransactionBanner(),
-              ),
+              if (widget.showNotificationFeatures)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NotificationTransactionBanner(),
+                ),
               // 멀티태스킹/앱 스위처 금융정보 노출 방지
               // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
               if (_obscured)
@@ -186,6 +177,21 @@ class _AppShellState extends ConsumerState<AppShell>
                 ),
             ],
           ),
+          floatingActionButton: !hideGlobalQuickPanel &&
+                  (location == '/' || location.startsWith('/?') || location == '/timeline')
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    if (!ref.read(quickEntrySubmitStateProvider)) {
+                      // Keep an unfinished new entry so it can be resumed.
+                      context.push('/quick-entry');
+                    }
+                  },
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('기록하기'),
+                )
+              : null,
           bottomNavigationBar: RepaintBoundary(
             child: Listener(
             behavior: HitTestBehavior.translucent,
@@ -211,152 +217,20 @@ class _AppShellState extends ConsumerState<AppShell>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!hideGlobalQuickPanel)
-                          AnimatedContainer(
-                            duration: AppMotion.normal,
-                            curve: AppMotion.decelerate,
-                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: AppOpacity.glassDark)
-                                    : Colors.white.withValues(alpha: 0.24),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.xl),
-                                border: Border.all(
-                                  color: Colors.white.withValues(
-                                    alpha: isDark ? AppOpacity.focused : AppOpacity.borderGlassStrong,
-                                  ),
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(AppSpacing.sm),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // 지출 / 수입 토글 — 타입 선택용, 최대한 작게
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: AppOpacity.hovered)
-                                          : Colors.white.withValues(alpha: AppOpacity.chipSelected),
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.md,
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: isDark ? AppOpacity.borderGlass : AppOpacity.borderGlassStrong,
-                                        ),
-                                      ),
-                                    ),
-                                    child: ToggleButtons(
-                                      isSelected: [
-                                        form.type ==
-                                            TransactionEntryType.expense,
-                                        form.type ==
-                                            TransactionEntryType.income,
-                                      ],
-                                      onPressed: (index) {
-                                        ref
-                                            .read(
-                                              quickEntryFormProvider.notifier,
-                                            )
-                                            .setType(
-                                              index == 0
-                                                  ? TransactionEntryType.expense
-                                                  : TransactionEntryType.income,
-                                            );
-                                      },
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.md,
-                                      ),
-                                      selectedColor:
-                                          theme.colorScheme.onPrimary,
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
-                                      fillColor: theme.colorScheme.primary,
-                                      borderColor: Colors.transparent,
-                                      selectedBorderColor: Colors.transparent,
-                                      constraints: const BoxConstraints(
-                                        minHeight: 30,
-                                        minWidth: 38,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      children: const [
-                                        Text('지출'),
-                                        Text('수입'),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  // 금액 입력 — 주인공, 최대한 넓게 + 세로 가운데 정렬
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _amountController,
-                                      onChanged: ref
-                                          .read(
-                                            quickEntryFormProvider.notifier,
-                                          )
-                                          .setAmount,
-                                      textAlignVertical:
-                                          TextAlignVertical.center,
-                                      decoration: const InputDecoration(
-                                        hintText: '금액',
-                                        prefixText: '₩',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                      ),
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 12,
-                                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  // 기록 버튼 — 작게
-                                  SizedBox(
-                                    width: 48,
-                                    height: 34,
-                                    child: FilledButton(
-                                      onPressed: form.amount.trim().isNotEmpty
-                                          ? () => _submit(context, form)
-                                          : null,
-                                      style: FilledButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            AppRadius.md,
-                                          ),
-                                        ),
-                                        textStyle: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      child: const Text('기록'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         NavigationBar(
                           selectedIndex: currentIndex,
                           labelBehavior:
                               NavigationDestinationLabelBehavior.alwaysShow,
-                          onDestinationSelected: (index) {
+                          onDestinationSelected: (index) async {
+                            if (ref.read(quickEntrySubmitStateProvider)) return;
+                            if (ref.read(quickEntryFormProvider).editingId != null &&
+                                !await ref.read(quickEntryExitCoordinatorProvider).confirmExit()) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            if (ref.read(quickEntryFormProvider).editingId == null) {
+                              ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+                            }
                             switch (index) {
                               case 0:
                                 context.go('/');
@@ -428,32 +302,20 @@ class _AppShellState extends ConsumerState<AppShell>
     _primaryScrollController.jumpTo(targetOffset);
   }
 
-  void _syncController(TextEditingController controller, String value) {
-    if (controller.text == value) {
-      return;
-    }
-
-    controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
-    );
-  }
-
-  void _submit(BuildContext context, QuickEntryFormState form) {
-    if (!context.mounted) {
-      return;
-    }
-
-    final notifier = ref.read(quickEntryFormProvider.notifier);
-    notifier.reset();
-    notifier.setType(form.type);
-    notifier.setAmount(form.amount);
-    // push: 현재 화면 위에 하단 슬라이드로 진입 (화면 이탈 없음)
-    context.push('/quick-entry');
-  }
-
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
+    if (ref.read(quickEntrySubmitStateProvider)) return false;
     final router = GoRouter.of(context);
+
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return false;
+    }
+
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
 
     if (router.canPop()) {
       router.pop();

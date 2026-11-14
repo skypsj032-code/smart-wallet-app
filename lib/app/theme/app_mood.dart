@@ -33,14 +33,14 @@ class AppMood extends ThemeExtension<AppMood> {
   factory AppMood.light() {
     return const AppMood(
       heroBackground: Color(0x00000000),
-      heroForeground: Color(0xFF120D05),
-      heroMutedForeground: Color(0xFF3B2B17),
-      frameTopColor: Color(0xFFF9F3E8), // app_frame.dart 라이트 그라데이션[0]
+      heroForeground: Color(0xFF142F49),
+      heroMutedForeground: Color(0xFF385A74),
+      frameTopColor: Color(0xFFAACFEC), // app_frame.dart 라이트 그라데이션[0]
       highlightSurface: Color(0x99FFFFFF),
       utilitySurface: Color(0x8CFFFFFF),
       positiveAccent: AppColors.income,
       warningAccent: AppColors.warning,
-      lockedAccent: Color(0xFF836447),
+      lockedAccent: Color(0xFF486E8D),
     );
   }
 
@@ -49,12 +49,12 @@ class AppMood extends ThemeExtension<AppMood> {
       heroBackground: Color(0x00000000),
       heroForeground: Color(0xFFF3FBFF),
       heroMutedForeground: Color(0xDDE8F5FF),
-      frameTopColor: Color(0xFF0C1220), // app_frame.dart 다크 그라데이션[0]
+      frameTopColor: Color(0xFF233B65), // app_frame.dart 다크 그라데이션[0]
       highlightSurface: Color(0x24FFFFFF),
       utilitySurface: Color(0x16FFFFFF),
       positiveAccent: AppColors.income,
       warningAccent: AppColors.warning,
-      lockedAccent: Color(0xFFD1A65A),
+      lockedAccent: Color(0xFFABD8F7),
     );
   }
 

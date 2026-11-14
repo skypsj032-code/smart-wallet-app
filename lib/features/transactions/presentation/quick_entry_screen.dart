@@ -8,10 +8,10 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../shared/widgets/app_hero_panel.dart';
+import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_status_chip.dart';
 import '../application/quick_entry_category_actions_provider.dart';
+import '../application/quick_entry_exit_coordinator.dart';
 import '../application/quick_entry_form_provider.dart';
 import '../application/quick_entry_options_provider.dart';
 import '../data/transaction_repository.dart';
@@ -23,12 +23,16 @@ class QuickEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<QuickEntryScreen> createState() => _QuickEntryScreenState();
 }
 
+enum _EditExitChoice { keepEditing, discard, save }
+
 class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     with RestorationMixin {
   final _amountController = RestorableTextEditingController();
   final _memoController = RestorableTextEditingController();
   late final FocusNode _amountFocusNode;
   late final FocusNode _memoFocusNode;
+  late final QuickEntryExitCoordinator _exitCoordinator;
+  bool _allowDirectPop = false;
 
   /// OS 프로세스 킬 후 복원 중일 때 true.
   /// 첫 build()에서 Riverpod→컨트롤러 동기화를 건너뛰고
@@ -43,7 +47,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     registerForRestoration(_amountController, 'amount');
     registerForRestoration(_memoController, 'memo');
     if (initialRestore) {
-      _isRestoring = true;
+      _isRestoring = _amountController.value.text.isNotEmpty ||
+          _memoController.value.text.isNotEmpty;
     }
   }
 
@@ -52,10 +57,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     super.initState();
     _amountFocusNode = FocusNode();
     _memoFocusNode = FocusNode();
+    _exitCoordinator = ref.read(quickEntryExitCoordinatorProvider);
+    _exitCoordinator.attach(this, _confirmEditingExit);
   }
 
   @override
   void dispose() {
+    _exitCoordinator.detach(this);
     _amountController.dispose();
     _memoController.dispose();
     _amountFocusNode.dispose();
@@ -141,41 +149,69 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         _selectedCategoryName(categoryOptions, form.categoryId);
     final validationMessages = _validationMessages(form);
 
-    return AppScaffold(
-      title: isEditing ? '거래 수정' : '빠른 입력',
+    final screen = AppScaffold(
+      title: _heroTitleFor(form.type, isEditing),
       hideGlobalQuickPanel: true,
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-        children: [
-          AppHeroPanel(
-            eyebrow: AppStatusChip(
-              label: isEditing ? 'EDIT ENTRY' : 'EXPANDED ENTRY',
-              dotColor:
-                  isEditing ? AppColors.primary : _chipColorFor(form.type),
-            ),
-            title: _heroTitleFor(form.type, isEditing),
-            body: _heroBodyFor(form.type, isEditing),
-            footer: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                AppStatusChip(
-                  label: _labelForType(form.type),
-                  dotColor: _chipColorFor(form.type),
-                ),
-                AppStatusChip(
-                  label: _heroDateLabel(occurredAt),
-                  foregroundColor: Colors.white.withValues(alpha: 0.88),
-                  backgroundColor: Colors.white.withValues(alpha: 0.06),
-                ),
-              ],
+      bottomSheet: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        child: GlassCard(
+          padding: const EdgeInsets.all(6),
+          child: SizedBox(
+            height: 56,
+            child: Semantics(
+              button: true,
+              enabled: form.canSubmit && !isSubmitting,
+              label: isEditing ? 'Save edited transaction' : 'Create transaction',
+              hint: form.canSubmit
+                  ? 'Double tap to submit this transaction'
+                  : 'Complete the required fields before submitting',
+              child: FilledButton(
+              onPressed: form.canSubmit && !isSubmitting
+                  ? () {
+                      _submit();
+                    }
+                  : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              ),
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isEditing ? Icons.check_rounded : Icons.save_rounded,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isEditing ? '거래 수정하기' : '거래 저장하기',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 105),
+        children: [
           if (isEditing) ...[
             _EditingBanner(
               isSubmitting: isSubmitting,
-              onReset: () => ref.read(quickEntryFormProvider.notifier).reset(),
+              onReset: () => _exitCoordinator.confirmExit(),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -207,6 +243,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           _AmountPanel(
             controller: _amountController.value,
             memoController: _memoController.value,
+            isSubmitting: isSubmitting,
             amountFocusNode: _amountFocusNode,
             memoFocusNode: _memoFocusNode,
             form: form,
@@ -222,10 +259,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           const SizedBox(height: AppSpacing.lg),
           const _CompactSectionHeader(title: '기록을 마무리할 정보'),
           const SizedBox(height: AppSpacing.sm),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.xxl)),
+          GlassCard(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
@@ -366,75 +400,88 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          _EntryReadinessCard(
-            form: form,
-            occurredAt: occurredAt,
-            selectedAccountName: selectedAccountName,
-            selectedSourceName: selectedSourceName,
-            selectedDestinationName: selectedDestinationName,
-            selectedCategoryName: selectedCategoryName,
-            validationMessages: validationMessages,
-          ),
+
           if (validationMessages.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
             _ValidationCard(messages: validationMessages),
           ],
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            height: 56,
-            child: Semantics(
-              button: true,
-              enabled: form.canSubmit && !isSubmitting,
-              label: isEditing ? 'Save edited transaction' : 'Create transaction',
-              hint: form.canSubmit
-                  ? 'Double tap to submit this transaction'
-                  : 'Complete the required fields before submitting',
-              child: FilledButton(
-              onPressed: form.canSubmit && !isSubmitting
-                  ? () {
-                      developer.log(
-                        'quick_entry_submit_pressed type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
-                        name: 'quick_entry',
-                      );
-                      _submit(context, ref, form);
-                    }
-                  : null,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              ),
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isEditing ? Icons.check_rounded : Icons.save_rounded,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isEditing ? '거래 수정하기' : '거래 저장하기',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-              ),
-            ),
+
+        ],
+      ),
+    );
+    return PopScope<void>(
+      canPop: _allowDirectPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_allowDirectPop && !isSubmitting) _requestExitAndLeave();
+      },
+      child: AbsorbPointer(absorbing: isSubmitting, child: screen),
+    );
+  }
+
+  Future<bool> _confirmEditingExit() async {
+    if (!mounted) return false;
+    final form = ref.read(quickEntryFormProvider);
+    if (form.editingId == null) return true;
+    if (ref.read(quickEntrySubmitStateProvider)) return false;
+
+    final choice = await showDialog<_EditExitChoice>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('수정 내용을 저장할까요?'),
+        content: const Text('저장하지 않으면 이번에 수정한 내용이 사라져요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.keepEditing),
+            child: const Text('계속 수정'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.discard),
+            child: const Text('저장 안 함'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.save),
+            child: const Text('저장'),
           ),
         ],
       ),
     );
+    if (!mounted || choice == null || choice == _EditExitChoice.keepEditing) {
+      return false;
+    }
+    if (choice == _EditExitChoice.discard) {
+      ref.read(quickEntryFormProvider.notifier).reset();
+      return true;
+    }
+
+    final current = ref.read(quickEntryFormProvider);
+    if (!current.canSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장할 수 있도록 항목을 먼저 확인해 주세요.')),
+      );
+      return false;
+    }
+    return _persist(current);
+  }
+
+  Future<void> _requestExitAndLeave() async {
+    if (await _exitCoordinator.confirmExit() && mounted) _leaveScreen();
+  }
+
+  void _leaveScreen() {
+    if (!mounted) return;
+    if (ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
+    setState(() => _allowDirectPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/timeline');
+      }
+    });
   }
 
   List<String> _validationMessages(QuickEntryFormState form) {
@@ -863,52 +910,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
   }
 
   String _heroTitleFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '${_labelForType(type)} 기록을 차분하게 다듬고 있어요';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '지출 흐름을 조금 더 또렷하게 남겨둘게요';
-      case TransactionEntryType.income:
-        return '들어온 흐름을 놓치지 않게 바로 적어둘게요';
-      case TransactionEntryType.transfer:
-        return '계좌 사이의 움직임을 한 번에 정리할 수 있어요';
-    }
-  }
-
-  String _heroBodyFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '금액, 메모, 계좌를 수정하고 저장하세요.';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '금액과 카테고리를 입력하고 저장하세요.';
-      case TransactionEntryType.income:
-        return '금액과 계좌를 입력하고 저장하세요.';
-      case TransactionEntryType.transfer:
-        return '보내는 계좌와 받는 계좌를 선택하세요.';
-    }
-  }
-
-  Color _chipColorFor(TransactionEntryType type) {
-    switch (type) {
-      case TransactionEntryType.expense:
-        return AppColors.expense;
-      case TransactionEntryType.income:
-        return AppColors.income;
-      case TransactionEntryType.transfer:
-        return AppColors.primary;
-    }
-  }
-
-  String _heroDateLabel(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$month.$day $hour:$minute';
+    return '${_labelForType(type)} ${isEditing ? '수정' : '기록'}';
   }
 
   String _categoryTypeFor(TransactionEntryType type) {
@@ -922,65 +924,53 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     }
   }
 
-  Future<void> _submit(
-    BuildContext context,
-    WidgetRef ref,
-    QuickEntryFormState form,
-  ) async {
-    ref.read(quickEntrySubmitStateProvider.notifier).state = true;
-    developer.log(
-      'quick_entry_submit_start editingId=${form.editingId} type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
-      name: 'quick_entry',
-    );
+  Future<void> _submit() async {
+    final form = ref.read(quickEntryFormProvider);
+    if (!form.canSubmit) return;
+    if (await _persist(form) && mounted) _leaveScreen();
+  }
 
+  Future<bool> _persist(QuickEntryFormState form) async {
+    final submission = ref.read(quickEntrySubmitStateProvider.notifier);
+    final notice = ref.read(quickEntrySaveNoticeProvider.notifier);
+    if (submission.state) return false;
+    final formController = ref.read(quickEntryFormProvider.notifier);
+    final repository = ref.read(transactionRepositoryProvider);
+    final releaseForm = formController.retainDuringSave();
+    FocusScope.of(context).unfocus();
+    submission.state = true;
     try {
       if (form.editingId != null) {
-        await ref
-            .read(transactionRepositoryProvider)
-            .updateFromQuickEntry(form);
+        await repository.updateFromQuickEntry(form);
       } else {
-        await ref
-            .read(transactionRepositoryProvider)
-            .createFromQuickEntry(form);
+        await repository.createFromQuickEntry(form);
       }
       developer.log('quick_entry_submit_success', name: 'quick_entry');
-      ref.read(quickEntryFormProvider.notifier).reset();
+      final cleared = formController.clearIfCurrent(form);
+      final message = form.editingId != null
+          ? '${_labelForType(form.type)} 거래를 수정했어요.'
+          : '${_labelForType(form.type)} 거래를 저장했어요.';
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null
-                  ? '${_labelForType(form.type)} 거래를 수정했어요.'
-                  : '${_labelForType(form.type)} 거래를 저장했어요.',
-            ),
-          ),
-        );
-
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/timeline');
-        }
-      }
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: !mounted && cleared);
+      return cleared;
     } catch (error, stackTrace) {
+      formController.retainAfterFailedSave();
       developer.log(
         'quick_entry_submit_failed error=$error',
         name: 'quick_entry',
         error: error,
         stackTrace: stackTrace,
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.',
-            ),
-          ),
-        );
-      }
+      final message = form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.';
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: false);
+      return false;
     } finally {
-      ref.read(quickEntrySubmitStateProvider.notifier).state = false;
+      try {
+        submission.state = false;
+      } on StateError {
+        // The whole provider container may have been disposed during save.
+      }
+      releaseForm();
     }
   }
 
@@ -1086,6 +1076,7 @@ class _AmountPanel extends StatelessWidget {
   const _AmountPanel({
     required this.controller,
     required this.memoController,
+    required this.isSubmitting,
     required this.form,
     required this.occurredAt,
     required this.selectedAccountName,
@@ -1100,6 +1091,7 @@ class _AmountPanel extends StatelessWidget {
 
   final TextEditingController controller;
   final TextEditingController memoController;
+  final bool isSubmitting;
   final FocusNode? amountFocusNode;
   final FocusNode? memoFocusNode;
   final QuickEntryFormState form;
@@ -1115,9 +1107,8 @@ class _AmountPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    return GlassCard(
+      borderRadius: BorderRadius.circular(28),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
@@ -1139,6 +1130,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: controller,
+              readOnly: isSubmitting,
               focusNode: amountFocusNode,
               onChanged: onAmountChanged,
               textInputAction: TextInputAction.next,
@@ -1190,6 +1182,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: memoController,
+              readOnly: isSubmitting,
               focusNode: memoFocusNode,
               onChanged: onMemoChanged,
               maxLines: 2,
@@ -1361,114 +1354,6 @@ class _SoftChip extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _EntryReadinessCard extends StatelessWidget {
-  const _EntryReadinessCard({
-    required this.form,
-    required this.occurredAt,
-    required this.selectedAccountName,
-    required this.selectedSourceName,
-    required this.selectedDestinationName,
-    required this.selectedCategoryName,
-    required this.validationMessages,
-  });
-
-  final QuickEntryFormState form;
-  final DateTime occurredAt;
-  final String? selectedAccountName;
-  final String? selectedSourceName;
-  final String? selectedDestinationName;
-  final String? selectedCategoryName;
-  final List<String> validationMessages;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isReady = validationMessages.isEmpty && form.amount.trim().isNotEmpty;
-
-    return Semantics(
-      container: true,
-      label: isReady
-          ? 'Entry is ready to submit'
-          : 'Entry needs more information before it can be submitted',
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-        color: isReady
-            ? AppColors.income.withValues(alpha: 0.08)
-            : AppColors.softHighlight.withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isReady
-              ? AppColors.income.withValues(alpha: 0.18)
-              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
-        ),
-      ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          Text(
-            isReady ? '저장 준비 완료' : '저장 전 확인',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _SoftChip(
-                icon: Icons.swap_horiz_rounded,
-                label: _typeLabel(form.type),
-              ),
-              _SoftChip(
-                icon: Icons.schedule_outlined,
-                label:
-                    '${occurredAt.month.toString().padLeft(2, '0')}.${occurredAt.day.toString().padLeft(2, '0')} ${occurredAt.hour.toString().padLeft(2, '0')}:${occurredAt.minute.toString().padLeft(2, '0')}',
-              ),
-              if (form.type == TransactionEntryType.transfer) ...[
-                if (selectedSourceName != null)
-                  _SoftChip(
-                    icon: Icons.call_made_rounded,
-                    label: selectedSourceName!,
-                  ),
-                if (selectedDestinationName != null)
-                  _SoftChip(
-                    icon: Icons.call_received_rounded,
-                    label: selectedDestinationName!,
-                  ),
-              ] else ...[
-                if (selectedAccountName != null)
-                  _SoftChip(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: selectedAccountName!,
-                  ),
-                if (selectedCategoryName != null)
-                  _SoftChip(
-                    icon: Icons.category_outlined,
-                    label: selectedCategoryName!,
-                  ),
-              ],
-            ],
-          ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _typeLabel(TransactionEntryType type) {
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '지출';
-      case TransactionEntryType.income:
-        return '수입';
-      case TransactionEntryType.transfer:
-        return '이체';
-    }
   }
 }
 

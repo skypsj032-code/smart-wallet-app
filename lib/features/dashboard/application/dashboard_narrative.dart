@@ -1,4 +1,5 @@
 import '../../../core/database/app_database.dart';
+import '../../../shared/utils/currency_formatter.dart';
 
 enum RecentExpenseMomentum {
   increasing,
@@ -66,6 +67,90 @@ class DashboardNarrativeCopy {
 
   final String headline;
   final String evidence;
+}
+
+enum DashboardWeatherKind {
+  waitingForRecords,
+  gatheringRecords,
+  budgetNotSet,
+  budgetInRange,
+  nearBudget,
+  budgetReached,
+  budgetExceeded,
+}
+
+class DashboardWeatherSummary {
+  const DashboardWeatherSummary({
+    required this.kind,
+    required this.headline,
+    required this.evidence,
+  });
+
+  final DashboardWeatherKind kind;
+  final String headline;
+  final String evidence;
+}
+
+DashboardWeatherSummary buildDashboardWeatherSummary(
+  DashboardNarrativeSnapshot snapshot,
+) {
+  final expense = snapshot.monthExpense;
+  final budget = snapshot.totalBudget;
+  final hasBudget = budget > 0;
+  final recordedExpense =
+      '기록된 지출 ${snapshot.expenseTransactionCount}건 · ${formatCurrency(expense)}';
+  final evidence = hasBudget
+      ? '$recordedExpense · 예산 ${formatCurrency(budget)} '
+          '(${_budgetPercent(monthExpense: expense, totalBudget: budget)})'
+      : '$recordedExpense · 예산 미설정';
+
+  if (snapshot.expenseTransactionCount <= 0) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.waitingForRecords,
+      headline: '아직 지출 기록을 기다리고 있어요.',
+      evidence: evidence,
+    );
+  }
+  if (hasBudget && expense > budget) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.budgetExceeded,
+      headline: '이번 달 기록이 예산을 넘어섰어요.',
+      evidence: evidence,
+    );
+  }
+  if (hasBudget && expense == budget) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.budgetReached,
+      headline: '기록된 지출이 설정한 예산에 닿았어요.',
+      evidence: evidence,
+    );
+  }
+  if (snapshot.expenseTransactionCount < 3) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.gatheringRecords,
+      headline: '아직 기록이 적어 흐름을 살펴보는 중이에요.',
+      evidence: evidence,
+    );
+  }
+  if (!hasBudget) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.budgetNotSet,
+      headline: '이번 달 지출을 모아보고 있어요.',
+      evidence: evidence,
+    );
+  }
+  if (expense * 100 >= budget * 85) {
+    return DashboardWeatherSummary(
+      kind: DashboardWeatherKind.nearBudget,
+      headline: '이번 달 예산에 가까워졌어요.',
+      evidence: evidence,
+    );
+  }
+  return DashboardWeatherSummary(
+    kind: DashboardWeatherKind.budgetInRange,
+    headline: '이번 달 소비 흐름을 모아봤어요.',
+    evidence: evidence,
+  );
 }
 
 DashboardNarrativeSnapshot buildDashboardNarrativeSnapshot({
@@ -165,7 +250,7 @@ DashboardNarrativeSnapshot buildDashboardNarrativeSnapshot({
           if (budgetPressureLevel == BudgetPressureLevel.watch ||
               budgetPressureLevel == BudgetPressureLevel.high ||
               budgetPressureLevel == BudgetPressureLevel.overflow)
-            '예산의 ${_budgetPercent(monthExpense: monthExpense, totalBudget: totalBudget)}를 사용했어요.',
+            '예산 대비 사용 비율은 ${_budgetPercent(monthExpense: monthExpense, totalBudget: totalBudget)}예요.',
           if (todayTransactions.isNotEmpty) '오늘 기록도 이어졌어요.',
         ];
 
@@ -220,9 +305,11 @@ DashboardNarrativeCopy buildDashboardNarrative(
     case DashboardDominantPattern.balanced:
       if (snapshot.budgetPressureLevel == BudgetPressureLevel.overflow) {
         return DashboardNarrativeCopy(
-          headline: '이번 달은 예산보다 지출이 조금 앞서고 있어요.',
+          headline: snapshot.monthExpense == snapshot.totalBudget
+              ? '기록된 지출이 설정한 예산에 닿았어요.'
+              : '이번 달은 예산보다 지출이 조금 앞서고 있어요.',
           evidence: _joinEvidence([
-            '예산의 ${_budgetPercent(monthExpense: snapshot.monthExpense, totalBudget: snapshot.totalBudget)}를 사용했어요.',
+            '예산 대비 사용 비율은 ${_budgetPercent(monthExpense: snapshot.monthExpense, totalBudget: snapshot.totalBudget)}예요.',
             if (snapshot.todayTransactionCount > 0) '오늘 기록도 이어졌어요.',
           ]),
         );
@@ -231,7 +318,7 @@ DashboardNarrativeCopy buildDashboardNarrative(
         return DashboardNarrativeCopy(
           headline: '이번 달은 예산에 가까워지는 흐름이 보여요.',
           evidence: _joinEvidence([
-            '예산의 ${_budgetPercent(monthExpense: snapshot.monthExpense, totalBudget: snapshot.totalBudget)}를 사용했어요.',
+            '예산 대비 사용 비율은 ${_budgetPercent(monthExpense: snapshot.monthExpense, totalBudget: snapshot.totalBudget)}예요.',
             '이번 달 지출 ${snapshot.expenseTransactionCount}건이 기록됐어요.',
           ]),
         );
@@ -351,7 +438,21 @@ String _budgetPercent({
   if (totalBudget <= 0) {
     return '0%';
   }
-  return '${((monthExpense / totalBudget) * 100).round()}%';
+  final scaledExpense = monthExpense * 1000;
+  final tenthsOfPercent = scaledExpense ~/ totalBudget;
+  final wholePercent = tenthsOfPercent ~/ 10;
+  final decimal = tenthsOfPercent % 10;
+  final percent = decimal == 0 ? '$wholePercent%' : '$wholePercent.$decimal%';
+  if (scaledExpense % totalBudget == 0) {
+    return percent;
+  }
+  if (tenthsOfPercent == 0 && monthExpense > 0) {
+    return '0.1% 미만';
+  }
+  if (tenthsOfPercent == 1000 && monthExpense > totalBudget) {
+    return '100% 초과';
+  }
+  return '약 $percent';
 }
 
 String _compactCurrency(int amount) {

@@ -1,33 +1,41 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_mood.dart';
 import '../../../app/theme/app_opacity.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
 import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/glass_card.dart';
-import '../../../shared/widgets/wealth_hero_backdrop.dart';
 import '../../calendar/application/calendar_provider.dart';
 import '../../recurring_expenses/application/recurring_transaction_suggestion.dart';
 import '../../statistics/application/statistics_provider.dart';
-import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../recurring_expenses/application/recurring_expense_service.dart';
+import '../application/dashboard_narrative.dart';
 import '../application/dashboard_summary_provider.dart';
 import '../application/recurring_transaction_suggestion_provider.dart';
-import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
 import 'dashboard_narrative_card.dart';
+import 'detected_recurring_spend_section.dart';
 import 'recurring_transaction_suggestion_card.dart';
 import 'upcoming_recurring_transactions_card.dart';
+
+final dashboardPendingNotificationCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchNotificationHistories().map(
+        (histories) =>
+            histories.where((item) => item.status == 'pending').length,
+      );
+});
 
 String dashboardTodayLoopActionSemanticLabel({
   required bool hasTodayEntry,
@@ -42,11 +50,60 @@ String dashboardTimelineActionSemanticLabel() {
   return 'Open timeline. Review the recent transaction history for today.';
 }
 
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key, this.showNotificationFeatures = true});
+
+  final bool showNotificationFeatures;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with WidgetsBindingObserver {
+  Timer? _midnightTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshDateAndScheduleTimer();
+    });
+  }
+
+  void _refreshDateAndScheduleTimer() {
+    final now = ref.read(dashboardNowProvider)();
+    final date = DateTime(now.year, now.month, now.day);
+    if (ref.read(dashboardDateProvider) != date) {
+      ref.read(dashboardDateProvider.notifier).state = date;
+    }
+    _midnightTimer?.cancel();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(
+      nextMidnight.difference(now) + const Duration(milliseconds: 50),
+      () {
+        if (mounted) _refreshDateAndScheduleTimer();
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _refreshDateAndScheduleTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
     final recurringAsync = ref.watch(activeRecurringExpensesProvider);
@@ -55,6 +112,9 @@ class DashboardScreen extends ConsumerWidget {
     final calendarSummaryAsync = ref.watch(calendarHomeSummaryProvider);
     final calendarPreviewAsync = ref.watch(calendarHomeMonthPreviewProvider);
     final statisticsPreviewAsync = ref.watch(statisticsHomePreviewProvider);
+    final AsyncValue<int> pendingNotifications = widget.showNotificationFeatures
+        ? ref.watch(dashboardPendingNotificationCountProvider)
+        : const AsyncData(0);
 
     return AppScaffold(
       hideAppBar: true,
@@ -70,6 +130,15 @@ class DashboardScreen extends ConsumerWidget {
                 child: DashboardNarrativeCard(snapshot: summary.narrative),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              if (widget.showNotificationFeatures) ...[
+                SliverToBoxAdapter(
+                  child: _NotificationHistoryEntry(
+                    pendingCount: pendingNotifications,
+                    onOpen: () => context.push('/notification-history'),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              ],
               SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -82,17 +151,24 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: AppMetricStrip(
-                        label: '이번 달 지출',
-                        value: formatCurrency(summary.monthExpense),
+                        label: '기록 기준 계좌 잔액',
+                        value: formatCurrency(totalBalance),
                         emphasize: true,
                       ),
                     ),
                   ],
                 ),
               ),
-              // 예산 현황 — 수입/지출 바로 다음에 노출
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: _RecentTransactionsSection(
+                  transactions: summary.recentTransactions,
+                  onOpenTimeline: () => context.go('/timeline'),
+                ),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
+              const SliverToBoxAdapter(child: DetectedRecurringSpendSection()),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: DashboardHomeLinksCard(
@@ -130,7 +206,6 @@ class DashboardScreen extends ConsumerWidget {
                 child: _TodayLoopCard(
                   summary: summary,
                   onQuickEntry: () {
-                    ref.read(quickEntryFormProvider.notifier).reset();
                     context.push('/quick-entry');
                   },
                   onOpenTimeline: () => context.push('/timeline'),
@@ -145,13 +220,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-              SliverToBoxAdapter(
-                child: _RecentTransactionsSection(
-                  transactions: summary.recentTransactions,
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 148)),
+              const SliverToBoxAdapter(child: SizedBox(height: 110)),
             ],
           );
         },
@@ -187,313 +256,154 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _OverviewHero extends StatefulWidget {
-  const _OverviewHero({
-    required this.summary,
-    required this.totalBalance,
+class _NotificationHistoryEntry extends StatelessWidget {
+  const _NotificationHistoryEntry({
+    required this.pendingCount,
+    required this.onOpen,
   });
 
-  final DashboardSummary summary;
-  final int totalBalance;
-
-  @override
-  State<_OverviewHero> createState() => _OverviewHeroState();
-}
-
-class _OverviewHeroState extends State<_OverviewHero>
-    with SingleTickerProviderStateMixin {
-  late WealthVisualState _visualState;
-  WealthReaction? _reaction;
-  late final AnimationController _reactionController;
-
-  @override
-  void initState() {
-    super.initState();
-    _visualState = buildWealthVisualState(widget.totalBalance);
-    _reactionController = AnimationController(
-      vsync: this,
-      duration: _durationFor(WealthReactionIntensity.small),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() {
-            _reaction = null;
-          });
-        }
-      });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      final reducedMotion =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-      if (reducedMotion) {
-        return;
-      }
-
-      setState(() {
-        _reaction = const WealthReaction(
-          direction: WealthReactionDirection.increase,
-          intensity: WealthReactionIntensity.small,
-          deltaAmount: 0,
-        );
-      });
-
-      _reactionController.duration =
-          _durationFor(WealthReactionIntensity.small);
-      _reactionController.forward(from: 0);
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant _OverviewHero oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.totalBalance == widget.totalBalance) {
-      return;
-    }
-
-    final reaction = classifyWealthReaction(
-      previousBalance: oldWidget.totalBalance,
-      nextBalance: widget.totalBalance,
-    );
-
-    setState(() {
-      _visualState = buildWealthVisualState(widget.totalBalance);
-      _reaction = reaction;
-    });
-
-    if (reaction != null) {
-      _reactionController.duration = _durationFor(reaction.intensity);
-      _reactionController.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _reactionController.dispose();
-    super.dispose();
-  }
+  final AsyncValue<int> pendingCount;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel =
-        '${DateTime.now().year}.${DateTime.now().month.toString().padLeft(2, '0')}';
-
-    return AnimatedBuilder(
-      animation: _reactionController,
-      builder: (context, child) {
-        return SliverPersistentHeader(
-          pinned: true,
-          delegate: _OverviewHeroDelegate(
-            summary: widget.summary,
-            totalBalance: widget.totalBalance,
-            monthLabel: monthLabel,
-            visualState: _visualState,
-            reaction: _reaction,
-            reactionProgress: _reactionController.value,
-            reducedMotion:
-                MediaQuery.maybeOf(context)?.disableAnimations ?? false,
-          ),
-        );
-      },
+    final theme = Theme.of(context);
+    final description = pendingCount.when(
+      data: (count) => '확인 대기 중인 알림 $count건',
+      loading: () => '알림 내역을 불러오는 중이에요',
+      error: (_, __) => '알림 내역을 열어 확인해 주세요',
     );
-  }
 
-  Duration _durationFor(WealthReactionIntensity intensity) {
-    return switch (intensity) {
-      WealthReactionIntensity.tiny => const Duration(milliseconds: 450),
-      WealthReactionIntensity.small => const Duration(milliseconds: 650),
-      WealthReactionIntensity.medium => const Duration(milliseconds: 900),
-      WealthReactionIntensity.large => const Duration(milliseconds: 1200),
-    };
+    return Semantics(
+      key: const Key('dashboard-open-notification-history'),
+      button: true,
+      label: '알림 수신 이력. $description.',
+      onTap: onOpen,
+      excludeSemantics: true,
+      child: GlassCard(
+        blur: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onOpen,
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_outlined,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '알림 수신 이력',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          description,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
-class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
-  _OverviewHeroDelegate({
-    required this.summary,
-    required this.totalBalance,
-    required this.monthLabel,
-    required this.visualState,
-    required this.reaction,
-    required this.reactionProgress,
-    required this.reducedMotion,
-  });
+class _OverviewHero extends StatelessWidget {
+  const _OverviewHero({required this.summary, required this.totalBalance});
 
   final DashboardSummary summary;
   final int totalBalance;
-  final String monthLabel;
-  final WealthVisualState visualState;
-  final WealthReaction? reaction;
-  final double reactionProgress;
-  final bool reducedMotion;
 
   @override
-  double get minExtent => 112;
-
-  @override
-  double get maxExtent => 368;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mood = theme.extension<AppMood>()!;
-    final isDark = theme.brightness == Brightness.dark;
-    final collapse = Curves.easeOutCubic
-        .transform((shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0));
+    final dark = theme.brightness == Brightness.dark;
+    final foreground = dark ? const Color(0xFFF5FAFF) : const Color(0xFF183F61);
+    final weather = buildDashboardWeatherSummary(summary.narrative);
+    final isClear = weather.kind == DashboardWeatherKind.budgetInRange;
+    final isRainy = weather.kind == DashboardWeatherKind.budgetReached ||
+        weather.kind == DashboardWeatherKind.budgetExceeded;
+    final budgetText = summary.totalBudget <= 0
+        ? '예산을 설정하면 남은 금액도 볼 수 있어요'
+        : summary.remainingBudget < 0
+            ? '예산보다 ${formatCurrency(-summary.remainingBudget)} 더 썼어요'
+            : '예산에서 ${formatCurrency(summary.remainingBudget)} 남았어요';
 
-    // Positions — number drifts up as header collapses (weather-app float style)
-    final amountTop = _mix(52, 10, collapse);
-    final amountScale = _mix(1.0, 0.62, collapse);
-    final infoOpacity = (1.0 - collapse * 2.4).clamp(0.0, 1.0);
-    final infoTop = _mix(168, 58, collapse);
-
-    // No card wrapper — number floats directly on the AppFrame background
-    // Collapsed header gets an opaque background so scrolled content doesn't bleed through
-    final bgOpacity = Curves.easeOutCubic.transform(collapse);
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Opaque background layer — fades in as the header collapses
-        if (bgOpacity > 0)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: mood.frameTopColor.withValues(alpha: bgOpacity),
-              ),
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 22),
+        child: Column(
+          children: [
+            Text(
+              '${DateTime.now().month}월의 소비 날씨',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: foreground.withValues(alpha: .82), fontWeight: FontWeight.w700),
             ),
-          ),
-        // Subtle atmospheric backdrop — purely decorative, no border clip
-        WealthHeroBackdrop(
-          coinDensity: visualState.coinDensity,
-          billDensity: visualState.billDensity,
-          vaultIntensity: visualState.assetIntensity,
-          direction: reaction?.direction == WealthReactionDirection.decrease
-              ? WealthBackdropDirection.decrease
-              : WealthBackdropDirection.increase,
-          reactionIntensity: _mapReactionIntensity(
-            reaction?.intensity ?? WealthReactionIntensity.tiny,
-          ),
-          progress: reactionProgress,
-          reducedMotion: reducedMotion,
-          collapseProgress: collapse,
-          showSkySymbol: false,
-          borderRadius: BorderRadius.zero,
-        ),
-        if (!isDark)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: maxExtent * 0.30,
-            width: 360,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      AppColors.backgroundLight.withValues(alpha: 0.88),
-                      AppColors.backgroundLight.withValues(alpha: 0.52),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.58, 1.0],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        // Big amount — floats on the sky, no card behind it
-        Positioned(
-          left: AppSpacing.lg,
-          top: amountTop,
-          right: 0,
-          child: Transform.scale(
-            alignment: Alignment.topLeft,
-            scale: amountScale,
-            child: Text(
-              formatCurrency(totalBalance),
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              style: theme.textTheme.displayLarge?.copyWith(
-                color: mood.heroForeground,
-                fontWeight: isDark ? FontWeight.w300 : FontWeight.w500,
-                height: 0.92,
-                letterSpacing: -2.4,
-                shadows: isDark
-                    ? [
-                        Shadow(
-                            color: Colors.black.withValues(alpha: 0.22),
-                            blurRadius: 20)
-                      ]
-                    : [
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.84),
-                          blurRadius: 12,
+            const SizedBox(height: 8),
+            ExcludeSemantics(
+              child: SizedBox(
+                height: 54,
+                width: 78,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned(
+                      right: 5, top: 0,
+                      child: Icon(
+                        isRainy ? Icons.cloud_rounded : Icons.wb_sunny_rounded,
+                        size: 42,
+                        color: isRainy ? const Color(0xFF9EBBD4) : const Color(0xFFFFDB82),
+                      ),
+                    ),
+                    if (!isClear)
+                      Positioned(
+                        left: 2, bottom: 0,
+                        child: Icon(
+                          isRainy ? Icons.cloudy_snowing : Icons.cloud_rounded,
+                          size: 54,
+                          color: dark ? const Color(0xFFD6EBFA) : Colors.white,
                         ),
-                      ],
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
-        // Companion text — income / expense / month, fades out on scroll
-        Positioned(
-          left: AppSpacing.lg,
-          top: infoTop,
-          right: AppSpacing.lg,
-          child: Opacity(
-            opacity: infoOpacity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '↑ ${formatCurrency(summary.monthIncome)}  /  ↓ ${formatCurrency(summary.monthExpense)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: isDark
-                        ? mood.heroForeground.withValues(alpha: 0.90)
-                        : mood.heroForeground,
-                    fontWeight: FontWeight.w600,
-                    shadows: isDark
-                        ? [
-                            Shadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 10)
-                          ]
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  monthLabel,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isDark
-                        ? mood.heroForeground.withValues(alpha: 0.62)
-                        : mood.heroMutedForeground,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 6),
+            Text('이번 달 지출', style: theme.textTheme.titleSmall?.copyWith(
+              color: foreground.withValues(alpha: .84), fontWeight: FontWeight.w600)),
+            const SizedBox(height: 3),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(formatCurrency(summary.monthExpense), maxLines: 1,
+                style: theme.textTheme.displayLarge?.copyWith(
+                  color: foreground, fontWeight: FontWeight.w700,
+                  letterSpacing: -1.6, height: 1.12)),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(budgetText, textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: foreground.withValues(alpha: .85), fontWeight: FontWeight.w600)),
+          ],
         ),
-      ],
+      ),
     );
-  }
-
-  @override
-  bool shouldRebuild(covariant _OverviewHeroDelegate oldDelegate) {
-    return oldDelegate.summary != summary ||
-        oldDelegate.totalBalance != totalBalance ||
-        oldDelegate.monthLabel != monthLabel ||
-        oldDelegate.visualState != visualState ||
-        oldDelegate.reaction != reaction ||
-        oldDelegate.reactionProgress != reactionProgress ||
-        oldDelegate.reducedMotion != reducedMotion;
   }
 }
 
@@ -568,9 +478,10 @@ class _TodayLoopCard extends StatelessWidget {
 
 
 class _RecentTransactionsSection extends StatelessWidget {
-  const _RecentTransactionsSection({required this.transactions});
+  const _RecentTransactionsSection({required this.transactions, required this.onOpenTimeline});
 
   final List<Transaction> transactions;
+  final VoidCallback onOpenTimeline;
 
   @override
   Widget build(BuildContext context) {
@@ -583,12 +494,15 @@ class _RecentTransactionsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '최근 거래',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: onCard,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(child: Text(
+                '최근 거래',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: onCard, fontWeight: FontWeight.w700),
+              )),
+              TextButton(onPressed: onOpenTimeline, child: const Text('전체 보기')),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           if (transactions.isEmpty)
@@ -780,19 +694,6 @@ class _EmptyRecentTransactions extends StatelessWidget {
       subtitle: '첫 거래를 기록하면 오늘 내역이 시작돼요.',
     );
   }
-}
-
-double _mix(double start, double end, double t) => start + ((end - start) * t);
-
-WealthBackdropReactionIntensity _mapReactionIntensity(
-  WealthReactionIntensity intensity,
-) {
-  return switch (intensity) {
-    WealthReactionIntensity.tiny => WealthBackdropReactionIntensity.tiny,
-    WealthReactionIntensity.small => WealthBackdropReactionIntensity.small,
-    WealthReactionIntensity.medium => WealthBackdropReactionIntensity.medium,
-    WealthReactionIntensity.large => WealthBackdropReactionIntensity.large,
-  };
 }
 
 String _typeLabel(String type) {

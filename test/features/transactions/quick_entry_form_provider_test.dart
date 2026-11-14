@@ -21,6 +21,18 @@ void main() {
   });
 
   group('QuickEntryFormController', () {
+    test('changing income or expense clears a category from the previous type', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final controller = container.read(quickEntryFormProvider.notifier);
+      controller.setCategory('food');
+      controller.setNotificationOrigin(12, '카페');
+      controller.setType(TransactionEntryType.income);
+      final state = container.read(quickEntryFormProvider);
+      expect(state.categoryId, isNull);
+      expect(state.notificationHistoryId, 12);
+    });
+
     test('switching to transfer carries the selected account and clears category', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);

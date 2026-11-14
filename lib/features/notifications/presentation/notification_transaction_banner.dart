@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/utils/currency_formatter.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../transactions/application/quick_entry_options_provider.dart';
 import '../application/notification_parser.dart';
 import '../application/notification_provider.dart';
+import 'notification_history_screen.dart';
 
 /// 카드/은행 알림이 감지되면 화면 상단에 표시되는 배너.
 /// 탭하면 금액·유형이 채워진 퀵 입력 화면으로 이동.
@@ -26,13 +28,26 @@ class NotificationTransactionBanner extends ConsumerWidget {
     if (transaction == null) return const SizedBox.shrink();
 
     return _BannerCard(
-      key: ValueKey(transaction.detectedAt),
+      key: ValueKey(transaction.historyId ?? transaction.detectedAt),
       transaction: transaction,
       onTap: () => _openQuickEntry(context, ref, transaction),
+      onHistoryTap: () => _openHistory(context, ref),
       onDismiss: () {
-        ref.read(detectedNotificationTransactionProvider.notifier).state = null;
+        final detected = ref.read(detectedNotificationTransactionProvider.notifier);
+        if (identical(detected.state, transaction)) detected.state = null;
       },
     );
+  }
+
+  Future<void> _openHistory(BuildContext context, WidgetRef ref) async {
+    if (ref.read(quickEntrySubmitStateProvider)) return;
+    if (ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return;
+    }
+    if (context.mounted && !ref.read(quickEntrySubmitStateProvider)) {
+      context.push('/notification-history');
+    }
   }
 
   Future<void> _openQuickEntry(
@@ -40,8 +55,28 @@ class NotificationTransactionBanner extends ConsumerWidget {
     WidgetRef ref,
     ParsedNotificationTransaction tx,
   ) async {
+    final historyId = tx.historyId;
+    if (historyId != null) {
+      final opened = await openNotificationHistoryItem(context, ref, historyId);
+      if (opened && context.mounted) {
+        final detected = ref.read(detectedNotificationTransactionProvider.notifier);
+        if (identical(detected.state, tx)) detected.state = null;
+      }
+      return;
+    }
+    if (ref.read(quickEntrySubmitStateProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('기록을 저장 중이에요. 잠시 후 다시 시도해 주세요.')),
+      );
+      return;
+    }
+    final allowed = await confirmReplacingQuickEntryDraft(context, ref);
+    if (!allowed || !context.mounted) return;
+    if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) return;
+    final alreadyEditingPage = GoRouterState.of(context).uri.path == '/quick-entry';
     // 배너 닫기
-    ref.read(detectedNotificationTransactionProvider.notifier).state = null;
+    final detected = ref.read(detectedNotificationTransactionProvider.notifier);
+    if (identical(detected.state, tx)) detected.state = null;
 
     final entryType = tx.type == 'income'
         ? TransactionEntryType.income
@@ -51,7 +86,8 @@ class NotificationTransactionBanner extends ConsumerWidget {
     final notifier = ref.read(quickEntryFormProvider.notifier);
     notifier.reset();
     notifier.setType(entryType);
-    notifier.setAmount(tx.amount.toString());
+    notifier.setAmount(tx.amount > 0 ? tx.amount.toString() : '');
+    notifier.setOccurredAt(tx.detectedAt);
     if (tx.merchant.isNotEmpty) {
       notifier.setMemo(tx.merchant);
     }
@@ -64,7 +100,7 @@ class NotificationTransactionBanner extends ConsumerWidget {
           .read(quickEntryCategoriesProvider(categoryType))
           .asData
           ?.value;
-      if (categories != null) {
+      if (categories != null && categories.isNotEmpty) {
         final match = categories.firstWhere(
           (c) => c.name.contains(keyword),
           orElse: () => categories.first,
@@ -76,7 +112,7 @@ class NotificationTransactionBanner extends ConsumerWidget {
       }
     }
 
-    if (context.mounted) {
+    if (context.mounted && !alreadyEditingPage) {
       context.push('/quick-entry');
     }
   }
@@ -87,11 +123,13 @@ class _BannerCard extends StatefulWidget {
     super.key,
     required this.transaction,
     required this.onTap,
+    required this.onHistoryTap,
     required this.onDismiss,
   });
 
   final ParsedNotificationTransaction transaction;
   final VoidCallback onTap;
+  final VoidCallback onHistoryTap;
   final VoidCallback onDismiss;
 
   @override
@@ -140,8 +178,9 @@ class _BannerCardState extends State<_BannerCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isExpense = widget.transaction.type == 'expense';
-    final accentColor = isExpense ? AppColors.expense : AppColors.income;
-    final typeLabel = isExpense ? '지출' : '수입';
+    final isUnknown = widget.transaction.type != 'expense' && widget.transaction.type != 'income';
+    final accentColor = isUnknown ? theme.colorScheme.onSurfaceVariant : isExpense ? AppColors.expense : AppColors.income;
+    final typeLabel = isUnknown ? '확인 필요' : isExpense ? '지출 감지' : '수입 감지';
 
     return SafeArea(
       bottom: false,
@@ -161,11 +200,11 @@ class _BannerCardState extends State<_BannerCard> {
             container: true,
             button: true,
             liveRegion: true,
+            explicitChildNodes: true,
             label: _bannerSemanticLabel(widget.transaction),
             child: InkWell(
               onTap: widget.onTap,
-              child: ExcludeSemantics(
-                child: Column(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
@@ -201,7 +240,7 @@ class _BannerCardState extends State<_BannerCard> {
                             Row(
                               children: [
                                 Text(
-                                  '$typeLabel 감지',
+                                  typeLabel,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: accentColor,
                                     fontWeight: FontWeight.w700,
@@ -209,11 +248,14 @@ class _BannerCardState extends State<_BannerCard> {
                                 ),
                                 if (widget.transaction.cardName != null) ...[
                                   const SizedBox(width: 6),
-                                  Text(
-                                    widget.transaction.cardName!,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                  Flexible(
+                                    child: Text(
+                                      widget.transaction.cardName!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -222,12 +264,15 @@ class _BannerCardState extends State<_BannerCard> {
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                Text(
-                                  formatCurrency(widget.transaction.amount),
-                                  style:
-                                      theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.colorScheme.onSurface,
+                                Flexible(
+                                  child: Text(
+                                    widget.transaction.amount > 0 ? formatCurrency(widget.transaction.amount) : '금액 확인 필요',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
                                   ),
                                 ),
                                 if (widget.transaction.merchant
@@ -260,9 +305,17 @@ class _BannerCardState extends State<_BannerCard> {
                               const EdgeInsets.symmetric(horizontal: 10),
                         ),
                         child: const Text(
-                          '기록',
+                          '확인',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
+                      ),
+                      IconButton(
+                        onPressed: widget.onHistoryTap,
+                        tooltip: '알림 이력 보기',
+                        icon: const Icon(Icons.list_alt_rounded, size: 18),
+                        color: theme.colorScheme.onSurfaceVariant,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
                       ),
                       // 닫기
                       IconButton(
@@ -284,7 +337,6 @@ class _BannerCardState extends State<_BannerCard> {
                   color: accentColor.withValues(alpha: 0.5),
                 ),
               ],
-                ),
               ),
             ),
           ),
@@ -295,10 +347,12 @@ class _BannerCardState extends State<_BannerCard> {
 }
 
 String _bannerSemanticLabel(ParsedNotificationTransaction transaction) {
-  final typeLabel = transaction.type == 'income' ? 'income' : 'expense';
+  final typeLabel = transaction.type == 'income'
+      ? 'income'
+      : transaction.type == 'expense' ? 'expense' : 'unknown type';
   final parts = <String>[
     'Detected $typeLabel notification',
-    '${formatCurrency(transaction.amount)} won',
+    transaction.amount > 0 ? '${formatCurrency(transaction.amount)} won' : 'amount needs review',
   ];
 
   if (transaction.merchant.isNotEmpty) {
