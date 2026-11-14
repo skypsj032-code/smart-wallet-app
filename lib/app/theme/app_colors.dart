@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 abstract final class AppColors {
   // ── Brand primary ─────────────────────────────────────
-  /// 웜 골드 — 브랜드 메인 컬러
-  static const primary = Color(0xFFD1A65A);
-  static const primaryDark = Color(0xFFB68B42);
-  static const primaryLight = Color(0xFFF2D6A2);
+  /// 하늘색 — 브랜드 메인 컬러
+  static const primary = Color(0xFF4C89C1);
+  static const primaryDark = Color(0xFF23629D);
+  static const primaryLight = Color(0xFFABD8F7);
 
   // ── Semantic (기능 컬러) ──────────────────────────────
   /// 수입 — 에메랄드 그린
@@ -29,47 +29,47 @@ abstract final class AppColors {
   static const infoDark = Color(0xFF1E2840);
 
   // ── Neutrals ──────────────────────────────────────────
-  /// 라이트 모드 배경 — 웜 아이보리
-  static const backgroundLight = Color(0xFFF7F3EC);
+  /// 라이트 모드 배경 — 하늘빛
+  static const backgroundLight = Color(0xFFEAF5FC);
 
-  /// 다크 모드 배경 — 딥 블랙
-  static const backgroundDark = Color(0xFF111111);
+  /// 다크 모드 배경 — 깊은 남색
+  static const backgroundDark = Color(0xFF13253D);
 
   /// 라이트 모드 카드
-  static const cardLight = Color(0xFFFFFCF8);
+  static const cardLight = Color(0xFFF1F8FD);
 
   /// 다크 모드 카드
-  static const cardDark = Color(0xFF181716);
+  static const cardDark = Color(0xFF203451);
 
   // ── Text ──────────────────────────────────────────────
-  /// 기본 텍스트 — 딥 브라운
-  static const ink = Color(0xFF14100B);
+  /// 기본 텍스트 — 짙은 남색
+  static const ink = Color(0xFF142F49);
 
-  /// 보조 텍스트 — 뮤트 브라운
-  static const mutedInk = Color(0xFF4F4030);
+  /// 보조 텍스트 — 차분한 파랑
+  static const mutedInk = Color(0xFF385A74);
 
-  /// 소프트 하이라이트 — 크림
-  static const softHighlight = Color(0xFFF2E7D4);
+  /// 소프트 하이라이트
+  static const softHighlight = Color(0xFFD7EBF8);
 
   // ── Borders ───────────────────────────────────────────
-  static const borderLight = Color(0xFFE7DDD2);
-  static const borderDark = Color(0xFF2A2724);
+  static const borderLight = Color(0xFFAFCDE1);
+  static const borderDark = Color(0xFF425975);
 
   // ── Gradients ─────────────────────────────────────────
   static const primaryGradient = LinearGradient(
-    colors: [Color(0xFFD6B171), Color(0xFFB88948)],
+    colors: [Color(0xFF87C7EF), Color(0xFF4785BF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const heroGradient = LinearGradient(
-    colors: [Color(0xFF1D1A17), Color(0xFF2A241E)],
+    colors: [Color(0xFF1C466F), Color(0xFF285A83)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const surfaceGlow = LinearGradient(
-    colors: [Color(0x14F4E3C5), Color(0x00FFFFFF)],
+    colors: [Color(0x14D6EFFD), Color(0x00FFFFFF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

@@ -8,11 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_motion.dart';
 import '../../../app/theme/app_opacity.dart';
-import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
-import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
 import '../../settings/application/settings_provider.dart';
@@ -37,7 +34,6 @@ class _AppShellState extends ConsumerState<AppShell>
     with WidgetsBindingObserver {
   static const _exitGracePeriod = Duration(seconds: 2);
 
-  late final TextEditingController _amountController;
   late final ScrollController _primaryScrollController;
   DateTime? _lastBackPressedAt;
   bool _obscured = false; // 멀티태스킹/스위처 노출 방지
@@ -45,7 +41,6 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController();
     _primaryScrollController = ScrollController();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -53,7 +48,6 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _amountController.dispose();
     _primaryScrollController.dispose();
     super.dispose();
   }
@@ -135,8 +129,6 @@ class _AppShellState extends ConsumerState<AppShell>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    _syncController(_amountController, form.amount);
-
     return PrimaryScrollController(
       controller: _primaryScrollController,
       child: PopScope(
@@ -185,6 +177,21 @@ class _AppShellState extends ConsumerState<AppShell>
                 ),
             ],
           ),
+          floatingActionButton: !hideGlobalQuickPanel &&
+                  (location == '/' || location.startsWith('/?') || location == '/timeline')
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    if (!ref.read(quickEntrySubmitStateProvider)) {
+                      // Keep an unfinished new entry so it can be resumed.
+                      context.push('/quick-entry');
+                    }
+                  },
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('기록하기'),
+                )
+              : null,
           bottomNavigationBar: RepaintBoundary(
             child: Listener(
             behavior: HitTestBehavior.translucent,
@@ -210,145 +217,6 @@ class _AppShellState extends ConsumerState<AppShell>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!hideGlobalQuickPanel)
-                          AnimatedContainer(
-                            duration: AppMotion.normal,
-                            curve: AppMotion.decelerate,
-                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: AppOpacity.glassDark)
-                                    : Colors.white.withValues(alpha: 0.24),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.xl),
-                                border: Border.all(
-                                  color: Colors.white.withValues(
-                                    alpha: isDark ? AppOpacity.focused : AppOpacity.borderGlassStrong,
-                                  ),
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(AppSpacing.sm),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // 지출 / 수입 토글 — 타입 선택용, 최대한 작게
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: AppOpacity.hovered)
-                                          : Colors.white.withValues(alpha: AppOpacity.chipSelected),
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.md,
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: isDark ? AppOpacity.borderGlass : AppOpacity.borderGlassStrong,
-                                        ),
-                                      ),
-                                    ),
-                                    child: ToggleButtons(
-                                      isSelected: [
-                                        form.type ==
-                                            TransactionEntryType.expense,
-                                        form.type ==
-                                            TransactionEntryType.income,
-                                      ],
-                                      onPressed: (index) {
-                                        ref
-                                            .read(
-                                              quickEntryFormProvider.notifier,
-                                            )
-                                            .setType(
-                                              index == 0
-                                                  ? TransactionEntryType.expense
-                                                  : TransactionEntryType.income,
-                                            );
-                                      },
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.md,
-                                      ),
-                                      selectedColor:
-                                          theme.colorScheme.onPrimary,
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
-                                      fillColor: theme.colorScheme.primary,
-                                      borderColor: Colors.transparent,
-                                      selectedBorderColor: Colors.transparent,
-                                      constraints: const BoxConstraints(
-                                        minHeight: 48,
-                                        minWidth: 48,
-                                      ),
-                                      textStyle: theme.textTheme.labelLarge?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      children: const [
-                                        Text('지출'),
-                                        Text('수입'),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  // 금액 입력 — 주인공, 최대한 넓게 + 세로 가운데 정렬
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _amountController,
-                                      onChanged: ref
-                                          .read(
-                                            quickEntryFormProvider.notifier,
-                                          )
-                                          .setAmount,
-                                      textAlignVertical:
-                                          TextAlignVertical.center,
-                                      decoration: const InputDecoration(
-                                        hintText: '금액',
-                                        prefixText: '₩',
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                      ),
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 12,
-                                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  // 금액을 확인한 뒤 상세 입력 화면으로 이동
-                                  SizedBox(
-                                    width: 56,
-                                    height: 48,
-                                    child: FilledButton(
-                                      onPressed: form.amount.trim().isNotEmpty
-                                          ? () => _submit(context, form)
-                                          : null,
-                                      style: FilledButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            AppRadius.md,
-                                          ),
-                                        ),
-                                        textStyle: theme.textTheme.labelLarge?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      child: const Text('다음'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         NavigationBar(
                           selectedIndex: currentIndex,
                           labelBehavior:
@@ -432,30 +300,6 @@ class _AppShellState extends ConsumerState<AppShell>
     }
 
     _primaryScrollController.jumpTo(targetOffset);
-  }
-
-  void _syncController(TextEditingController controller, String value) {
-    if (controller.text == value) {
-      return;
-    }
-
-    controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
-    );
-  }
-
-  void _submit(BuildContext context, QuickEntryFormState form) {
-    if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) {
-      return;
-    }
-
-    final notifier = ref.read(quickEntryFormProvider.notifier);
-    notifier.reset();
-    notifier.setType(form.type);
-    notifier.setAmount(form.amount);
-    // push: 현재 화면 위에 하단 슬라이드로 진입 (화면 이탈 없음)
-    context.push('/quick-entry');
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {

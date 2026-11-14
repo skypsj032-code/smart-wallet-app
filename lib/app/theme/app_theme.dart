@@ -17,27 +17,27 @@ abstract final class AppTheme {
     final scheme = ColorScheme(
       brightness: brightness,
       primary: isDark ? AppColors.primaryLight : AppColors.primaryDark,
-      onPrimary: AppColors.ink,
+      onPrimary: isDark ? AppColors.ink : Colors.white,
       secondary: AppColors.softHighlight,
       onSecondary: AppColors.ink,
       error: AppColors.expense,
       onError: Colors.white,
       surface: isDark ? AppColors.cardDark : AppColors.cardLight,
-      onSurface: isDark ? const Color(0xFFFFFBF6) : AppColors.ink,
+      onSurface: isDark ? const Color(0xFFF2F8FF) : AppColors.ink,
       surfaceContainerLowest:
-          isDark ? const Color(0xFF111111) : AppColors.backgroundLight,
+          isDark ? const Color(0xFF13253D) : AppColors.backgroundLight,
       surfaceContainerLow:
-          isDark ? const Color(0xFF151312) : const Color(0xFFF8F3EC),
+          isDark ? const Color(0xFF192E4A) : const Color(0xFFE9F5FC),
       surfaceContainer:
-          isDark ? const Color(0xFF1A1817) : const Color(0xFFFFFBF6),
+          isDark ? const Color(0xFF203451) : const Color(0xFFF2F8FF),
       surfaceContainerHigh:
-          isDark ? const Color(0xFF211D1A) : const Color(0xFFFBF6EF),
+          isDark ? const Color(0xFF293F5E) : const Color(0xFFE1F1FA),
       surfaceContainerHighest:
-          isDark ? const Color(0xFF2A2521) : const Color(0xFFF3EBDF),
-      onSurfaceVariant: isDark ? const Color(0xFFC6BAAC) : AppColors.mutedInk,
-      outline: isDark ? AppColors.borderDark : const Color(0xFFD2C2AF),
+          isDark ? const Color(0xFF354B69) : const Color(0xFFD9EAF6),
+      onSurfaceVariant: isDark ? const Color(0xFFBCD0E2) : AppColors.mutedInk,
+      outline: isDark ? AppColors.borderDark : const Color(0xFFA5C7DF),
       outlineVariant:
-          isDark ? const Color(0xFF36312D) : const Color(0xFFDCCCB9),
+          isDark ? const Color(0xFF455D7A) : const Color(0xFFB8D3E5),
       shadow: Colors.black,
       scrim: Colors.black,
       inverseSurface: isDark ? Colors.white : AppColors.ink,
@@ -60,18 +60,18 @@ abstract final class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: false,
         backgroundColor: Colors.transparent,
-        foregroundColor: isDark ? Colors.white : const Color(0xFF2A1F0E),
+        foregroundColor: isDark ? Colors.white : const Color(0xFF173B5A),
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 20,
         titleTextStyle: textTheme.titleLarge?.copyWith(
-          color: isDark ? Colors.white : const Color(0xFF2A1F0E),
+          color: isDark ? Colors.white : const Color(0xFF173B5A),
           fontWeight: FontWeight.w700,
         ),
       ),
       cardTheme: CardThemeData(
-        color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.78),
+        color: Colors.white.withValues(alpha: isDark ? 0.10 : 0.54),
         elevation: 0,
         margin: EdgeInsets.zero,
         shadowColor: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
@@ -81,7 +81,7 @@ abstract final class AppTheme {
           side: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.10)
-                : const Color(0xFFBFA978).withValues(alpha: 0.46),
+                : const Color(0xFF8EBBD8).withValues(alpha: 0.46),
             width: 0.7,
           ),
         ),
@@ -93,7 +93,7 @@ abstract final class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor:
-            isDark ? const Color(0xFF25211D) : const Color(0xFF2B241F),
+            isDark ? const Color(0xFF223C5D) : const Color(0xFF21496B),
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -108,16 +108,16 @@ abstract final class AppTheme {
         height: 74,
         indicatorColor: isDark
             ? Colors.white.withValues(alpha: 0.10)
-            : const Color(0xFF2A1F0E).withValues(alpha: 0.10),
+            : const Color(0xFF173B5A).withValues(alpha: 0.10),
         indicatorShape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          final activeColor = isDark ? Colors.white : const Color(0xFF2A1F0E);
+          final activeColor = isDark ? Colors.white : const Color(0xFF173B5A);
           final inactiveColor = isDark
               ? Colors.white.withValues(alpha: 0.72)
-              : const Color(0xFF2A1F0E).withValues(alpha: 0.76);
+              : const Color(0xFF173B5A).withValues(alpha: 0.76);
           return textTheme.labelLarge?.copyWith(
             color: selected ? activeColor : inactiveColor,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
@@ -131,8 +131,8 @@ abstract final class AppTheme {
                     ? Colors.white
                     : Colors.white.withValues(alpha: 0.72))
                 : (selected
-                    ? const Color(0xFF2A1F0E)
-                    : const Color(0xFF2A1F0E).withValues(alpha: 0.76)),
+                    ? const Color(0xFF173B5A)
+                    : const Color(0xFF173B5A).withValues(alpha: 0.76)),
           );
         }),
       ),
@@ -165,7 +165,7 @@ abstract final class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: isDark ? scheme.primary : const Color(0xFF6B4B1F),
+          foregroundColor: isDark ? scheme.primary : const Color(0xFF1E5A8D),
           textStyle:
               textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
@@ -190,7 +190,7 @@ abstract final class AppTheme {
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.10)
-                : const Color(0xFFD2C2AF),
+                : const Color(0xFFA5C7DF),
           ),
         ),
         enabledBorder: OutlineInputBorder(
@@ -198,7 +198,7 @@ abstract final class AppTheme {
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.10)
-                : const Color(0xFFD2C2AF),
+                : const Color(0xFFA5C7DF),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -206,7 +206,7 @@ abstract final class AppTheme {
           borderSide: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.34)
-                : const Color(0xFFB68B42),
+                : const Color(0xFF357BB3),
             width: 1.0,
           ),
         ),

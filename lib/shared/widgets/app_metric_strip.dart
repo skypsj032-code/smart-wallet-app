@@ -31,13 +31,12 @@ class AppMetricStrip extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: emphasize ? 0.12 : 0.07)
-            : Colors.white.withValues(alpha: emphasize ? 0.86 : 0.74),
+            : Colors.white.withValues(alpha: emphasize ? 0.58 : 0.46),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: emphasize ? 0.40 : 0.22)
-              : theme.colorScheme.outline
-                  .withValues(alpha: emphasize ? 0.72 : 0.48),
+              : Colors.white.withValues(alpha: emphasize ? 0.72 : 0.56),
         ),
       ),
       child: Column(

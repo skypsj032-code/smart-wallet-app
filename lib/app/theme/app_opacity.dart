@@ -9,17 +9,17 @@ abstract final class AppOpacity {
   static const double disabled = 0.38;
 
   // ── Glass card fills ───────────────────────────────────
-  /// 라이트 모드 카드 배경 (white @ 78%)
-  static const double glassLight = 0.78;
+  /// 라이트 모드 카드 배경 (white @ 58%)
+  static const double glassLight = 0.58;
 
   /// 다크 모드 카드 배경 (white @ 8%)
-  static const double glassDark = 0.08;
+  static const double glassDark = 0.10;
 
-  /// GlassCard 라이트 백드롭 배경 (white @ 86%)
-  static const double glassBackdropLight = 0.86;
+  /// GlassCard 라이트 백드롭 배경 (white @ 52%)
+  static const double glassBackdropLight = 0.52;
 
-  /// GlassCard 다크 백드롭 배경 (white @ 7%)
-  static const double glassBackdropDark = 0.07;
+  /// GlassCard 다크 백드롭 배경 (white @ 10%)
+  static const double glassBackdropDark = 0.10;
 
   // ── Glass overlays ─────────────────────────────────────
   /// 강조 오버레이 (white @ 60%) — highlightSurface light

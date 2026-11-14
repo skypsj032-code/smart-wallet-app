@@ -6,9 +6,9 @@ import 'app_colors.dart';
 abstract final class AppTypography {
   static TextTheme textTheme(Brightness brightness) {
     final bodyColor =
-        brightness == Brightness.dark ? const Color(0xFFFFFBF6) : AppColors.ink;
+        brightness == Brightness.dark ? const Color(0xFFF2F8FF) : AppColors.ink;
     final mutedColor = brightness == Brightness.dark
-        ? const Color(0xFFC6BAAC)
+        ? const Color(0xFFBCD0E2)
         : AppColors.mutedInk;
 
     final base = GoogleFonts.notoSansKrTextTheme().apply(
@@ -122,7 +122,7 @@ abstract final class AppTypography {
   }) {
     final resolvedColor = color ??
         (brightness == Brightness.dark
-            ? const Color(0xFFC6BAAC)
+            ? const Color(0xFFBCD0E2)
             : AppColors.mutedInk);
 
     return GoogleFonts.jetBrainsMono(
