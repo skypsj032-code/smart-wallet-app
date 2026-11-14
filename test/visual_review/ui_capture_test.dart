@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,13 +38,6 @@ Future<void> main() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     GoogleFonts.config.allowRuntimeFetching = false;
-    final bytes = await File('C:/smart wallet/visual/NotoSansKR.ttf').readAsBytes();
-    for (final family in ['NotoSansKR', 'NotoSansKR_400Regular',
-      'NotoSansKR_500Medium', 'NotoSansKR_600SemiBold',
-      'NotoSansKR_700Bold', 'NotoSansKR_800ExtraBold', 'Roboto']) {
-      final loader = FontLoader(family)..addFont(Future.value(ByteData.sublistView(bytes)));
-      await loader.load();
-    }
     final icons = FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();

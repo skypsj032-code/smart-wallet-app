@@ -45,6 +45,24 @@ jobs:
         run: |
           python 'C:\smart wallet\app\test\security\manual_manifest_test.py'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare fonts for visual review
+        shell: pwsh
+        run: |
+          $fontDir = 'C:\smart wallet\app\assets\google_fonts'
+          New-Item -ItemType Directory -Force -Path $fontDir | Out-Null
+          $noto = Join-Path $env:RUNNER_TEMP 'NotoSansKR.ttf'
+          $mono = Join-Path $env:RUNNER_TEMP 'JetBrainsMono.ttf'
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' -OutFile $noto
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf' -OutFile $mono
+          foreach ($weight in @('Thin','ExtraLight','Light','Regular','Medium','SemiBold','Bold','ExtraBold','Black')) {
+            Copy-Item -LiteralPath $noto -Destination (Join-Path $fontDir "NotoSansKR-$weight.ttf")
+            Copy-Item -LiteralPath $mono -Destination (Join-Path $fontDir "JetBrainsMono-$weight.ttf")
+          }
+          $pubspec = 'C:\smart wallet\app\pubspec.yaml'
+          $yaml = Get-Content -LiteralPath $pubspec -Raw
+          if (-not $yaml.Contains('  uses-material-design: true')) { throw 'Flutter asset anchor not found' }
+          $yaml = $yaml.Replace('  uses-material-design: true', "  uses-material-design: true`n  assets:`n    - assets/google_fonts/")
+          Set-Content -LiteralPath $pubspec -Value $yaml -Encoding utf8
       - name: Install locked packages
         shell: pwsh
         run: |
@@ -64,11 +82,6 @@ jobs:
       - name: Provide SQLite for database tests
         shell: pwsh
         run: Copy-Item -Path "$env:WINDIR\System32\winsqlite3.dll" -Destination 'C:\smart wallet\app\sqlite3.dll'
-      - name: Download Korean test font
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path 'C:\smart wallet\visual' | Out-Null
-          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' -OutFile 'C:\smart wallet\visual\NotoSansKR.ttf'
       - name: Capture phone screens
         shell: pwsh
         run: |
@@ -86,5 +99,5 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s --concurrency=1 -r expanded test/features/dashboard/dashboard_screen_navigation_test.dart test/features/transactions/quick_entry_exit_test.dart
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s --concurrency=1 -r expanded test/features/dashboard/dashboard_screen_navigation_test.dart test/features/dashboard/dashboard_home_links_card_test.dart test/features/transactions/quick_entry_exit_test.dart
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
