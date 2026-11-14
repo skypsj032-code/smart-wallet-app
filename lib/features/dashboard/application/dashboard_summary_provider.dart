@@ -5,7 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+import '../../../shared/utils/budget_totals.dart';
 import 'dashboard_narrative.dart';
+
+final dashboardNowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+final dashboardDateProvider = StateProvider<DateTime>((ref) {
+  final now = ref.read(dashboardNowProvider)();
+  return DateTime(now.year, now.month, now.day);
+});
 
 class DashboardSummary {
   const DashboardSummary({
@@ -41,7 +49,7 @@ class DashboardSummary {
 
 final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
   final database = ref.watch(appDatabaseProvider);
-  final now = DateTime.now();
+  final now = ref.watch(dashboardDateProvider);
   final monthStart = DateTime(now.year, now.month, 1);
   final nextMonth = DateTime(now.year, now.month + 1, 1);
   final monthKey =
@@ -93,8 +101,12 @@ final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
       final todayExpense = todayTransactions
           .where((tx) => tx.type == 'expense')
           .fold<int>(0, (sum, tx) => sum + tx.amount);
-      final totalBudget =
-          budgets.fold<int>(0, (sum, budget) => sum + budget.amountLimit);
+      final totalBudget = effectiveBudgetTotal(budgets.map((budget) => (
+            categoryId: budget.categoryId,
+            amount: budget.amountLimit,
+            modifiedAt: budget.lastModifiedAt,
+            id: budget.localId,
+          )));
       final narrative = buildDashboardNarrativeSnapshot(
         monthlyTransactions: txs,
         categories: categories,

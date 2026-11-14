@@ -1,9 +1,16 @@
 package com.example.smart_wallet_app
 
+import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.PowerManager
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -15,6 +22,21 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         const val METHOD_CHANNEL = "smart_wallet/notification_permission"
+        private const val DEVICE_AUTH_CHANNEL = "smart_wallet/device_auth"
+    }
+
+    private var deviceAuthResult: MethodChannel.Result? = null
+    private var deviceAuthSignal: CancellationSignal? = null
+    private var deviceAuthSucceeded = false
+    private var isActivityResumed = false
+    private var screenReceiverRegistered = false
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                finishDeviceAuthentication("cancelled")
+            }
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -54,9 +76,193 @@ class MainActivity : FlutterActivity() {
                     openBatteryOptimizationSettings()
                     result.success(null)
                 }
+                "configureCaptureEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled")
+                    if (enabled == null) {
+                        result.error("invalid_arguments", "Missing capture setting.", null)
+                    } else {
+                        try {
+                            SmartWalletNotificationService.configureCaptureEnabled(applicationContext, enabled)
+                            result.success(null)
+                        } catch (_: Exception) {
+                            result.error("notification_queue_error", "Could not change notification capture.", null)
+                        }
+                    }
+                }
+                "getPendingNotifications" -> {
+                    try {
+                        result.success(SmartWalletNotificationService.getPendingNotifications(applicationContext))
+                    } catch (_: Exception) {
+                        result.error("notification_queue_error", "Could not read pending notifications.", null)
+                    }
+                }
+                "acknowledgeNotifications" -> {
+                    val ids = call.argument<List<*>>("eventIds")
+                    if (ids == null || ids.any { it !is String || it.isEmpty() }) {
+                        result.error("invalid_arguments", "Invalid notification event IDs.", null)
+                    } else {
+                        try {
+                            SmartWalletNotificationService.acknowledgeNotifications(
+                                applicationContext,
+                                ids.filterIsInstance<String>(),
+                            )
+                            result.success(null)
+                        } catch (_: Exception) {
+                            result.error("notification_queue_error", "Could not acknowledge notifications.", null)
+                        }
+                    }
+                }
+                "getDroppedNotificationCount" -> {
+                    try {
+                        result.success(SmartWalletNotificationService.getDroppedNotificationCount(applicationContext))
+                    } catch (_: Exception) {
+                        result.error("notification_queue_error", "Could not read notification overflow count.", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            DEVICE_AUTH_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "authenticateDeviceCredential" -> authenticateDeviceCredential(result)
+                "cancelDeviceCredential" -> {
+                    finishDeviceAuthentication("cancelled")
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun authenticateDeviceCredential(result: MethodChannel.Result) {
+        if (deviceAuthResult != null) {
+            result.success("busy")
+            return
+        }
+        // DEVICE_CREDENTIAL alone and the reported authentication type are
+        // available starting with Android 11. Older versions fail closed.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            result.success("unsupported")
+            return
+        }
+
+        val keyguard = getSystemService(KEYGUARD_SERVICE) as? KeyguardManager
+        if (keyguard == null) {
+            result.success("error")
+            return
+        }
+        if (!keyguard.isDeviceSecure) {
+            result.success("notConfigured")
+            return
+        }
+
+        try {
+            val manager = getSystemService(BIOMETRIC_SERVICE) as? BiometricManager
+            if (manager == null || manager.canAuthenticate(
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                ) != BiometricManager.BIOMETRIC_SUCCESS
+            ) {
+                result.success("error")
+                return
+            }
+
+            deviceAuthResult = result
+            deviceAuthSucceeded = false
+            val cancellation = CancellationSignal()
+            deviceAuthSignal = cancellation
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            screenReceiverRegistered = true
+
+            BiometricPrompt.Builder(this)
+                .setTitle("휴대폰 잠금 확인")
+                .setSubtitle("앱 PIN을 복구하려면 휴대폰 잠금을 확인해 주세요.")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .build()
+                .authenticate(cancellation, mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(authentication: BiometricPrompt.AuthenticationResult) {
+                        if (deviceAuthResult !== result) return
+                        if (authentication.authenticationType !=
+                            BiometricPrompt.AUTHENTICATION_RESULT_TYPE_DEVICE_CREDENTIAL ||
+                            !keyguard.isDeviceSecure
+                        ) {
+                            finishDeviceAuthentication("error")
+                            return
+                        }
+                        deviceAuthSucceeded = true
+                        deliverDeviceAuthenticationWhenActive()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errorMessage: CharSequence) {
+                        if (deviceAuthResult !== result) return
+                        finishDeviceAuthentication(
+                            when (errorCode) {
+                                BiometricPrompt.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL -> "notConfigured"
+                                BiometricPrompt.BIOMETRIC_ERROR_CANCELED,
+                                BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED -> "cancelled"
+                                else -> "error"
+                            },
+                        )
+                    }
+                })
+        } catch (_: Exception) {
+            if (deviceAuthResult === result) {
+                finishDeviceAuthentication("error")
+            } else {
+                result.success("error")
+            }
+        }
+    }
+
+    private fun deliverDeviceAuthenticationWhenActive() {
+        if (deviceAuthSucceeded && isActivityResumed && hasWindowFocus()) {
+            finishDeviceAuthentication("success")
+        }
+    }
+
+    private fun finishDeviceAuthentication(outcome: String) {
+        val pendingResult = deviceAuthResult ?: return
+        deviceAuthResult = null
+        deviceAuthSucceeded = false
+        val cancellation = deviceAuthSignal
+        deviceAuthSignal = null
+        if (screenReceiverRegistered) {
+            screenReceiverRegistered = false
+            unregisterReceiver(screenOffReceiver)
+        }
+        if (outcome != "success") cancellation?.cancel()
+        pendingResult.success(outcome)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActivityResumed = true
+        deliverDeviceAuthenticationWhenActive()
+    }
+
+    override fun onPause() {
+        isActivityResumed = false
+        super.onPause()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) deliverDeviceAuthenticationWhenActive()
+    }
+
+    override fun onUserLeaveHint() {
+        // The system credential prompt may itself pause this activity. A
+        // user-initiated departure is different and must cancel the request.
+        finishDeviceAuthentication("cancelled")
+        super.onUserLeaveHint()
+    }
+
+    override fun onDestroy() {
+        finishDeviceAuthentication("cancelled")
+        super.onDestroy()
     }
 
     private fun isNotificationListenerEnabled(): Boolean {

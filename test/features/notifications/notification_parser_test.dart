@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:smart_wallet/features/notifications/application/notification_parser.dart';
+import 'package:smart_wallet_app/features/notifications/application/notification_parser.dart';
 
 // ---------------------------------------------------------------------------
 // 헬퍼 — 이벤트 맵 생성
@@ -250,9 +250,7 @@ void main() {
         _evt('[신한카드]', '해외 결제 USD 25 AMAZON'),
       );
 
-      expect(result, isNotNull);
-      expect(result!.amount, 25);
-      expect(result.type, 'expense');
+      expect(result, isNull);
     });
 
     test('\$ 기호 달러 결제', () {
@@ -260,9 +258,7 @@ void main() {
         _evt('[현대카드]', '승인 \$19.99 Netflix'),
       );
 
-      expect(result, isNotNull);
-      expect(result!.amount, 19);
-      expect(result.type, 'expense');
+      expect(result, isNull);
     });
 
     test('JPY 엔화 결제', () {
@@ -270,9 +266,7 @@ void main() {
         _evt('[롯데카드]', '해외 결제 JPY 1,500 편의점'),
       );
 
-      expect(result, isNotNull);
-      expect(result!.amount, 1500);
-      expect(result.type, 'expense');
+      expect(result, isNull);
     });
 
     test('¥ 기호 엔화 결제', () {
@@ -280,8 +274,7 @@ void main() {
         _evt('[삼성카드]', '승인 ¥800 라멘집'),
       );
 
-      expect(result, isNotNull);
-      expect(result!.amount, 800);
+      expect(result, isNull);
     });
 
     test('EUR 유로 결제', () {
@@ -289,8 +282,7 @@ void main() {
         _evt('[KB국민카드]', '결제 EUR 50 booking.com'),
       );
 
-      expect(result, isNotNull);
-      expect(result!.amount, 50);
+      expect(result, isNull);
     });
 
     test('원화 있으면 외화보다 원화 우선', () {

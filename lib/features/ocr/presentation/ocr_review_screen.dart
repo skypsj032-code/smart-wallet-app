@@ -7,7 +7,9 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/platform/ocr_platform_support.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/app_section.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
+import '../../transactions/application/quick_entry_options_provider.dart';
 import '../application/ocr_capture_provider.dart';
 
 class OcrReviewScreen extends ConsumerStatefulWidget {
@@ -24,7 +26,9 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
   late final TextEditingController _categoryController;
 
   bool _hasUnsavedChanges = false;
+  bool _isContinuing = false;
   String? _lastHydratedKey;
+  OcrDraftState? _reviewBaseline;
 
   @override
   void initState() {
@@ -89,8 +93,15 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
     }
 
     final draft = ref.watch(ocrCaptureProvider);
-    final isBusy =
-        draft.status == OcrFlowStatus.capturing || draft.status == OcrFlowStatus.parsed;
+    if (draft.isRestoring) {
+      return const AppScaffold(
+        title: '영수증 검토',
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final isBusy = _isContinuing ||
+        draft.status == OcrFlowStatus.capturing ||
+        draft.status == OcrFlowStatus.parsed;
 
     _syncControllersIfNeeded(draft);
 
@@ -122,12 +133,9 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
-                onPressed: () {
-                  final quickEntry = ref.read(quickEntryFormProvider.notifier);
-                  quickEntry.reset();
-                  quickEntry.setType(TransactionEntryType.expense);
-                  context.go('/quick-entry');
-                },
+                onPressed: _isContinuing
+                    ? null
+                    : () => _continueToQuickEntry(includeReview: false),
                 icon: const Icon(Icons.keyboard_alt_outlined),
                 label: const Text('직접 입력하기'),
               ),
@@ -162,13 +170,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
               ),
               _MetaChip(
                 icon: Icons.payments_outlined,
-                label: parsedAmount != null ? '금액 확인됨' : '금액 입력 필요',
-              ),
-              _MetaChip(
-                icon: Icons.verified_outlined,
-                label: draft.confidence == null
-                    ? '신뢰도 없음'
-                    : '신뢰도 ${draft.confidence!.toStringAsFixed(2)}',
+                label: parsedAmount != null ? '금액 확인 필요' : '금액 입력 필요',
               ),
             ],
           ),
@@ -216,7 +218,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
             title: '수정한 초안',
             action: _hasUnsavedChanges
                 ? Text(
-                    '저장되지 않은 수정',
+                    '수정한 내용',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.expense,
                         ),
@@ -269,9 +271,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         child: TextButton.icon(
                           onPressed: isBusy
                               ? null
-                              : () => setState(() {
-                                    _hydrateFromDraft(ref.read(ocrCaptureProvider));
-                                  }),
+                              : _restoreReviewBaseline,
                           icon: const Icon(Icons.undo_outlined),
                           label: const Text('화면 수정 내용 되돌리기'),
                         ),
@@ -289,9 +289,20 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
               onPressed: isBusy
                   ? null
                   : () async {
+                      if (!await _confirmDiscardChanges(
+                        title: '추천을 다시 만들까요?',
+                        body: '수정한 OCR 텍스트로 추천을 다시 만들어요. '
+                            '현재 상호명, 금액, 카테고리는 새 추천으로 바뀝니다.',
+                        confirmLabel: '추천 다시 만들기',
+                        force: draft.hasRawText || draft.hasParsedStoreName || draft.hasParsedAmount,
+                      )) {
+                        return;
+                      }
+                      if (!context.mounted) return;
                       await ref
                           .read(ocrCaptureProvider.notifier)
                           .refreshSuggestionsFromRawText(_rawTextController.text);
+                      if (!context.mounted) return;
                       _hydrateFromDraft(ref.read(ocrCaptureProvider));
                     },
               icon: const Icon(Icons.auto_fix_high_outlined),
@@ -330,6 +341,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         title: '저장된 사진으로 OCR을 다시 실행할까요?',
                         body:
                             '다시 실행하면 이 화면에서 수정한 내용이 새 초안으로 덮어써질 수 있습니다.',
+                        force: draft.hasRawText || draft.hasParsedStoreName || draft.hasParsedAmount,
                       )) {
                         return;
                       }
@@ -345,17 +357,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                     title: '직접 입력으로 전환',
                     subtitle: '현재 금액과 상호명을 가져가서 수동 입력 화면으로 이동합니다.',
                     enabled: !isBusy,
-                    onTap: () {
-                      final quickEntry = ref.read(quickEntryFormProvider.notifier);
-                      quickEntry.setType(TransactionEntryType.expense);
-                      quickEntry.setAmount(_sanitizeAmount(_amountController.text) ?? '');
-                      quickEntry.setMemo(
-                        _storeNameController.text.trim().isEmpty
-                            ? '수동 영수증 입력'
-                            : _storeNameController.text.trim(),
-                      );
-                      context.go('/quick-entry');
-                    },
+                    onTap: () => _continueToQuickEntry(includeReview: true),
                   ),
                   const Divider(height: 1),
                   _SecondaryActionTile(
@@ -364,17 +366,12 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                     subtitle: '영수증을 다시 찍거나 다른 영수증을 선택합니다.',
                     enabled: !isBusy,
                     onTap: () async {
-                      if (!await _confirmDiscardChanges(
-                        title: '촬영 화면으로 돌아갈까요?',
-                        body:
-                            '이 화면에서 수정한 내용은 아직 저장되지 않았습니다. 그대로 돌아가면 변경 사항을 잃을 수 있습니다.',
-                      )) {
+                      try {
+                        await ref.read(ocrCaptureProvider.notifier).flushPendingWrites();
+                      } catch (_) {
                         return;
                       }
-
-                      if (!context.mounted) {
-                        return;
-                      }
+                      if (!context.mounted) return;
                       context.go('/ocr-capture');
                     },
                   ),
@@ -390,31 +387,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
           FilledButton.icon(
             onPressed: isBusy
                 ? null
-                : () async {
-                    final saved =
-                        await ref.read(ocrCaptureProvider.notifier).saveReviewEdits(
-                              rawText: _rawTextController.text,
-                              storeName: _storeNameController.text,
-                              amountText: _amountController.text,
-                              categoryGuess: _categoryController.text,
-                            );
-                    _hydrateFromDraft(ref.read(ocrCaptureProvider));
-                    if (!saved || !context.mounted) {
-                      return;
-                    }
-
-                    final latestDraft = ref.read(ocrCaptureProvider);
-                    final quickEntry = ref.read(quickEntryFormProvider.notifier);
-                    quickEntry.setType(TransactionEntryType.expense);
-                    quickEntry.setAmount(latestDraft.amount?.toString() ?? '');
-                    quickEntry.setMemo(latestDraft.storeName ?? 'OCR 초안');
-                    // OCR이 추측한 카테고리 ID를 빠른 입력에 사전 선택
-                    final guessedId = latestDraft.categoryGuess;
-                    if (guessedId != null && guessedId.isNotEmpty) {
-                      quickEntry.setCategory(guessedId);
-                    }
-                    context.go('/quick-entry');
-                  },
+                : () => _continueToQuickEntry(includeReview: true, validate: true),
             icon: const Icon(Icons.arrow_forward_outlined),
             label: Text(
               _primaryActionLabel(
@@ -435,6 +408,116 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
     );
   }
 
+  Future<void> _continueToQuickEntry({
+    required bool includeReview,
+    bool validate = false,
+  }) async {
+    if (_isContinuing) return;
+    final router = GoRouter.of(context);
+    final startingLocation = router.routeInformationProvider.value.uri;
+    bool stillHere() => mounted && router.routeInformationProvider.value.uri == startingLocation;
+    setState(() => _isContinuing = true);
+    try {
+      String? categoryId;
+      if (includeReview) {
+        final controller = ref.read(ocrCaptureProvider.notifier);
+        if (validate) {
+          final previousCategory = ref.read(ocrCaptureProvider).categoryGuess;
+          final editedCategory = _categoryController.text.trim();
+          final categoryToSave = editedCategory == _categoryIdToLabel(previousCategory)
+              ? previousCategory ?? ''
+              : editedCategory;
+          final saved = await controller.saveReviewEdits(
+            rawText: _rawTextController.text,
+            storeName: _storeNameController.text,
+            amountText: _amountController.text,
+            categoryGuess: categoryToSave,
+          );
+          if (!stillHere()) return;
+          _hydrateFromDraft(ref.read(ocrCaptureProvider));
+          if (!saved) return;
+          List<QuickEntryCategoryOption> categories;
+          try {
+            categories = await ref.read(quickEntryCategoriesProvider('expense').future);
+          } catch (_) {
+            categories = const [];
+          }
+          if (!stillHere()) return;
+          categoryId = _resolveCategoryId(ref.read(ocrCaptureProvider).categoryGuess, categories);
+        } else {
+          await controller.flushPendingWrites();
+          if (!stillHere()) return;
+        }
+      }
+
+      if (ref.read(quickEntrySubmitStateProvider)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('거래를 저장 중이에요. 잠시 후 다시 시도해 주세요.')),
+        );
+        return;
+      }
+      final previousForm = ref.read(quickEntryFormProvider);
+      if (!await _confirmQuickEntryReplacement(previousForm) || !stillHere()) return;
+      if (ref.read(quickEntrySubmitStateProvider) ||
+          !identical(previousForm, ref.read(quickEntryFormProvider))) return;
+
+      final quickEntry = ref.read(quickEntryFormProvider.notifier);
+      quickEntry.reset();
+      quickEntry.setType(TransactionEntryType.expense);
+      if (includeReview) {
+        final latestDraft = ref.read(ocrCaptureProvider);
+        quickEntry.setAmount(_sanitizeAmount(_amountController.text) ?? '');
+        quickEntry.setMemo(latestDraft.storeName?.trim().isNotEmpty == true
+            ? latestDraft.storeName!.trim()
+            : '수동 영수증 입력');
+        if (categoryId != null) quickEntry.setCategory(categoryId);
+      }
+      router.go('/quick-entry');
+    } catch (_) {
+      if (stillHere()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수정 내용을 저장하지 못했어요. 다시 시도해 주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isContinuing = false);
+    }
+  }
+
+  Future<bool> _confirmQuickEntryReplacement(QuickEntryFormState draft) async {
+    if (draft.editingId != null) {
+      return ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+    }
+    final hasDraft = draft.amount.trim().isNotEmpty ||
+        draft.memo.trim().isNotEmpty ||
+        draft.occurredAt != null ||
+        draft.type != TransactionEntryType.expense ||
+        draft.accountId != null ||
+        draft.fromAccountId != null ||
+        draft.toAccountId != null ||
+        draft.categoryId != null ||
+        draft.notificationHistoryId != null;
+    if (!hasDraft) return true;
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('작성 중인 거래를 바꿀까요?'),
+            content: const Text('지금 작성 중인 거래 내용은 저장되지 않아요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('계속 작성하기'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('거래 바꾸기'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void _syncControllersIfNeeded(OcrDraftState draft) {
     final draftKey = [
       draft.localId ?? '',
@@ -442,6 +525,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
       draft.rawText,
       draft.storeName ?? '',
       draft.amount?.toString() ?? '',
+      draft.amountText ?? '',
       draft.categoryGuess ?? '',
       draft.errorMessage ?? '',
     ].join('|');
@@ -460,7 +544,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
   void _hydrateFromDraft(OcrDraftState draft) {
     _replaceControllerText(_rawTextController, draft.rawText);
     _replaceControllerText(_storeNameController, draft.storeName ?? '');
-    _replaceControllerText(_amountController, draft.amount?.toString() ?? '');
+    _replaceControllerText(_amountController, draft.amountText ?? draft.amount?.toString() ?? '');
     // 카테고리 ID를 한국어 레이블로 변환해서 표시
     final categoryLabel = _categoryIdToLabel(draft.categoryGuess);
     _replaceControllerText(_categoryController, categoryLabel);
@@ -470,10 +554,12 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
       draft.rawText,
       draft.storeName ?? '',
       draft.amount?.toString() ?? '',
+      draft.amountText ?? '',
       draft.categoryGuess ?? '',
       draft.errorMessage ?? '',
     ].join('|');
     _hasUnsavedChanges = false;
+    _reviewBaseline = draft;
   }
 
   void _replaceControllerText(TextEditingController controller, String value) {
@@ -484,9 +570,32 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
   }
 
   void _markDirty() {
+    final current = ref.read(ocrCaptureProvider);
+    final categoryText = _categoryController.text;
+    final category = categoryText == _categoryIdToLabel(current.categoryGuess)
+        ? current.categoryGuess ?? ''
+        : categoryText;
+    ref.read(ocrCaptureProvider.notifier).updateReviewEdits(
+          rawText: _rawTextController.text,
+          storeName: _storeNameController.text,
+          amountText: _amountController.text,
+          categoryGuess: category,
+        );
     setState(() {
       _hasUnsavedChanges = true;
     });
+  }
+
+  void _restoreReviewBaseline() {
+    final baseline = _reviewBaseline;
+    if (baseline == null) return;
+    ref.read(ocrCaptureProvider.notifier).updateReviewEdits(
+          rawText: baseline.rawText,
+          storeName: baseline.storeName ?? '',
+          amountText: baseline.amountText ?? baseline.amount?.toString() ?? '',
+          categoryGuess: baseline.categoryGuess ?? '',
+        );
+    setState(() => _hydrateFromDraft(ref.read(ocrCaptureProvider)));
   }
 
   String _primaryActionLabel({
@@ -507,8 +616,10 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
   Future<bool> _confirmDiscardChanges({
     required String title,
     required String body,
+    String confirmLabel = '변경 내용 버리기',
+    bool force = false,
   }) async {
-    if (!_hasUnsavedChanges) {
+    if (!_hasUnsavedChanges && !force) {
       return true;
     }
 
@@ -525,7 +636,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('변경 내용 버리기'),
+              child: Text(confirmLabel),
             ),
           ],
         );
@@ -560,6 +671,20 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
       'income-other': '기타 수입',
     };
     return labels[categoryId] ?? categoryId;
+  }
+
+  String? _resolveCategoryId(
+    String? candidate,
+    List<QuickEntryCategoryOption> categories,
+  ) {
+    final value = candidate?.trim();
+    if (value == null || value.isEmpty) return null;
+    final expenseCategories = categories.where((category) => category.type == 'expense');
+    for (final category in expenseCategories) {
+      if (category.id == value) return category.id;
+    }
+    final matches = expenseCategories.where((category) => category.name == value).toList();
+    return matches.length == 1 ? matches.single.id : null;
   }
 
   String _statusLabel(OcrFlowStatus status) {

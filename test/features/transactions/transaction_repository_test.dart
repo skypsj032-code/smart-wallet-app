@@ -117,4 +117,40 @@ void main() {
     expect(deleted.deletedAt, isNotNull);
     expect(deleted.lastModifiedAt.isAfter(original.lastModifiedAt), isTrue);
   });
+
+  test('editing a missing transaction reports failure', () async {
+    await expectLater(
+      repository.updateFromQuickEntry(const QuickEntryFormState(
+        type: TransactionEntryType.expense,
+        amount: '9000',
+        accountId: 'cash',
+        editingId: 'missing',
+      )),
+      throwsStateError,
+    );
+    expect(await database.select(database.transactions).get(), isEmpty);
+  });
+
+  test('editing a deleted transaction reports failure without changing it', () async {
+    await repository.createFromQuickEntry(const QuickEntryFormState(
+      type: TransactionEntryType.expense,
+      amount: '5000',
+      accountId: 'cash',
+    ));
+    final original = await database.select(database.transactions).getSingle();
+    await repository.softDeleteTransaction(original.localId);
+
+    await expectLater(
+      repository.updateFromQuickEntry(QuickEntryFormState(
+        type: TransactionEntryType.expense,
+        amount: '9000',
+        accountId: 'cash',
+        editingId: original.localId,
+      )),
+      throwsStateError,
+    );
+    final deleted = await database.select(database.transactions).getSingle();
+    expect(deleted.deletedAt, isNotNull);
+    expect(deleted.amount, 5000);
+  });
 }

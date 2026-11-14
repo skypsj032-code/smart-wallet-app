@@ -151,26 +151,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
-            title: '알림 자동 기록',
-            subtitle: '카드·은행 알림을 읽어 거래를 자동으로 제안합니다.',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const _NotificationListenerCard(),
-          const SizedBox(height: AppSpacing.sm),
-          AppUtilityGroup(
-            children: [
-              _SettingsActionTile(
-                icon: Icons.history_rounded,
-                color: AppColors.primary,
-                title: '알림 수신 이력',
-                subtitle: ref.watch(_recentNotificationCountProvider).when(
-                      data: (count) => '지난 30일간 감지된 알림 $count건',
-                      loading: () => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
-                      error: (_, __) => '감지된 알림 목록을 확인하고 거래로 연결합니다.',
-                    ),
-                onTap: () => context.go('/notification-history'),
-              ),
-            ],
+            title: '알림 자동 기록 안내',
+            subtitle: '이 시험판에서는 결제 알림 자동 감지를 사용할 수 없어요. 빠른 입력이나 영수증 촬영으로 기록해 주세요.',
           ),
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
@@ -416,7 +398,10 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      final summary = await backupService.restoreJsonBackup(jsonStr);
+      final summary = await backupService.restoreJsonBackup(
+        jsonStr,
+        expectedCurrentJson: safetyBackup.payload.json,
+      );
 
       if (!context.mounted) {
         return;
@@ -472,7 +457,8 @@ class SettingsScreen extends ConsumerWidget {
               '- 거래 ${preview.summary.transactionCount}개\n'
               '- 카테고리 ${preview.summary.categoryCount}개\n'
               '- 예산 ${preview.summary.budgetCount}개\n'
-              '- 계좌 ${preview.summary.accountCount}개',
+              '- 계좌 ${preview.summary.accountCount}개'
+              '${preview.warnings.isEmpty ? '' : '\n\n${preview.warnings.join('\n')}'}',
             ),
           ),
           actions: [
@@ -1060,8 +1046,8 @@ class _NotificationListenerCardState
                 ref.read(notificationListenerEnabledProvider.notifier).toggle(value);
               },
               secondary: const Icon(Icons.notifications_active_outlined),
-              title: const Text('알림 자동 기록'),
-              subtitle: const Text('카드·은행 결제 알림을 읽어 거래를 자동 제안합니다.'),
+              title: const Text('결제 알림 감지'),
+              subtitle: const Text('지원하는 카드·은행 앱의 알림을 확인 목록에 모아요. 거래는 확인 후 기록됩니다.'),
             ),
             permissionAsync.when(
               data: (granted) {

@@ -103,18 +103,11 @@ class ToolsScreen extends ConsumerWidget {
           // ── 스마트 기능 ───────────────────────────────────────────
           const AppSectionIntro(
             title: '스마트 기능',
-            subtitle: '알림 감지와 영수증 촬영으로 입력을 자동화합니다.',
+            subtitle: '영수증 촬영으로 내역 입력을 도와줍니다.',
           ),
           const SizedBox(height: AppSpacing.sm),
           AppUtilityGroup(
             children: [
-              _ToolsTile(
-                icon: Icons.notifications_active_outlined,
-                color: AppColors.income,
-                title: '알림 수신 이력',
-                subtitle: '카드·은행 알림에서 자동 감지한 내역',
-                onTap: () => context.go('/notification-history'),
-              ),
               _ToolsTile(
                 icon: Icons.document_scanner_outlined,
                 color: AppColors.primary,
