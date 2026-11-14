@@ -10,7 +10,6 @@ import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_status_chip.dart';
 import '../application/quick_entry_category_actions_provider.dart';
 import '../application/quick_entry_exit_coordinator.dart';
 import '../application/quick_entry_form_provider.dart';
@@ -157,28 +156,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
           AppHeroPanel(
-            eyebrow: AppStatusChip(
-              label: isEditing ? 'EDIT ENTRY' : 'EXPANDED ENTRY',
-              dotColor:
-                  isEditing ? AppColors.primary : _chipColorFor(form.type),
-            ),
             title: _heroTitleFor(form.type, isEditing),
             body: _heroBodyFor(form.type, isEditing),
-            footer: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                AppStatusChip(
-                  label: _labelForType(form.type),
-                  dotColor: _chipColorFor(form.type),
-                ),
-                AppStatusChip(
-                  label: _heroDateLabel(occurredAt),
-                  foregroundColor: Colors.white.withValues(alpha: 0.88),
-                  backgroundColor: Colors.white.withValues(alpha: 0.06),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           if (isEditing) ...[
@@ -942,52 +921,16 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
   }
 
   String _heroTitleFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '${_labelForType(type)} 기록을 차분하게 다듬고 있어요';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '지출 흐름을 조금 더 또렷하게 남겨둘게요';
-      case TransactionEntryType.income:
-        return '들어온 흐름을 놓치지 않게 바로 적어둘게요';
-      case TransactionEntryType.transfer:
-        return '계좌 사이의 움직임을 한 번에 정리할 수 있어요';
-    }
+    return '${_labelForType(type)} ${isEditing ? '수정' : '기록'}';
   }
 
   String _heroBodyFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '금액, 메모, 계좌를 수정하고 저장하세요.';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '금액과 카테고리를 입력하고 저장하세요.';
-      case TransactionEntryType.income:
-        return '금액과 계좌를 입력하고 저장하세요.';
-      case TransactionEntryType.transfer:
-        return '보내는 계좌와 받는 계좌를 선택하세요.';
-    }
-  }
-
-  Color _chipColorFor(TransactionEntryType type) {
-    switch (type) {
-      case TransactionEntryType.expense:
-        return AppColors.expense;
-      case TransactionEntryType.income:
-        return AppColors.income;
-      case TransactionEntryType.transfer:
-        return AppColors.primary;
-    }
-  }
-
-  String _heroDateLabel(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$month.$day $hour:$minute';
+    if (isEditing) return '내용을 확인하고 수정해 주세요.';
+    return switch (type) {
+      TransactionEntryType.expense => '금액과 분류를 확인하고 저장해 주세요.',
+      TransactionEntryType.income => '금액과 계좌를 확인하고 저장해 주세요.',
+      TransactionEntryType.transfer => '보내는 계좌와 받는 계좌를 선택해 주세요.',
+    };
   }
 
   String _categoryTypeFor(TransactionEntryType type) {

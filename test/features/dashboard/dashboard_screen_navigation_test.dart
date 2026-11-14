@@ -26,14 +26,14 @@ import '../../test_support/sqlite_test_setup.dart';
 void main() {
   setUpAll(configureSqliteForTests);
 
-  testWidgets('the home amount identifies the total assets', (tester) async {
+  testWidgets('the home amount is identified as the balance from recorded entries', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = _buildRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(_DashboardTestApp(router: router));
     await tester.pumpAndSettle();
-    expect(find.text('총 자산'), findsOneWidget);
+    expect(find.text('기록 기준 계좌 잔액'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
@@ -491,7 +491,9 @@ GoRouter _buildRouter({bool manualPreview = false}) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const DashboardScreen(),
+        builder: (context, state) => DashboardScreen(
+          showNotificationFeatures: !manualPreview,
+        ),
       ),
       GoRoute(
         path: '/calendar',

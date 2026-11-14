@@ -208,9 +208,9 @@ class _TestRecurringStore implements RecurringSpendOverrideStore {
 GoRouter _buildRouter() {
   return GoRouter(initialLocation: '/', routes: [
     ShellRoute(
-      builder: (context, state, child) => AppShell(child: child),
+      builder: (context, state, child) => AppShell(child: child, showNotificationFeatures: false),
       routes: [
-        GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
+        GoRoute(path: '/', builder: (_, __) => const DashboardScreen(showNotificationFeatures: false)),
         GoRoute(path: '/quick-entry', builder: (_, __) => const QuickEntryScreen()),
         GoRoute(path: '/tools', builder: (_, __) => const ToolsScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),

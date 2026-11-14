@@ -88,13 +88,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _buildTransitionPage(state: state, child: const LockScreen()),
       ),
       ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
+        builder: (context, state, child) =>
+            AppShell(child: child, showNotificationFeatures: false),
         routes: [
           GoRoute(
             path: '/',
             name: 'dashboard',
             pageBuilder: (context, state) =>
-                _buildShellPage(state: state, child: const DashboardScreen()),
+                _buildShellPage(state: state, child: const DashboardScreen(showNotificationFeatures: false)),
           ),
           GoRoute(
             path: '/quick-entry',

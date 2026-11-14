@@ -54,7 +54,9 @@ String dashboardTimelineActionSemanticLabel() {
 }
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.showNotificationFeatures = true});
+
+  final bool showNotificationFeatures;
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -113,8 +115,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final calendarSummaryAsync = ref.watch(calendarHomeSummaryProvider);
     final calendarPreviewAsync = ref.watch(calendarHomeMonthPreviewProvider);
     final statisticsPreviewAsync = ref.watch(statisticsHomePreviewProvider);
-    final pendingNotifications =
-        ref.watch(dashboardPendingNotificationCountProvider);
+    final AsyncValue<int> pendingNotifications = widget.showNotificationFeatures
+        ? ref.watch(dashboardPendingNotificationCountProvider)
+        : const AsyncData(0);
 
     return AppScaffold(
       hideAppBar: true,
@@ -130,13 +133,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 child: DashboardNarrativeCard(snapshot: summary.narrative),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-              SliverToBoxAdapter(
-                child: _NotificationHistoryEntry(
-                  pendingCount: pendingNotifications,
-                  onOpen: () => context.push('/notification-history'),
+              if (widget.showNotificationFeatures) ...[
+                SliverToBoxAdapter(
+                  child: _NotificationHistoryEntry(
+                    pendingCount: pendingNotifications,
+                    onOpen: () => context.push('/notification-history'),
+                  ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+                const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              ],
               SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -543,35 +548,54 @@ class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
               ),
             ),
           ),
-        // Big amount — floats on the sky, no card behind it
+        // Describe the figure as derived from entries rather than bank sync.
+        Positioned(
+          left: AppSpacing.lg,
+          top: 16,
+          child: Opacity(
+            opacity: infoOpacity,
+            child: Text(
+              '기록 기준 계좌 잔액',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: mood.heroMutedForeground,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        // Fit large balances on narrow screens without clipping digits.
         Positioned(
           left: AppSpacing.lg,
           top: amountTop,
-          right: 0,
+          right: AppSpacing.lg,
           child: Transform.scale(
             alignment: Alignment.topLeft,
             scale: amountScale,
-            child: Text(
-              formatCurrency(totalBalance),
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              style: theme.textTheme.displayLarge?.copyWith(
-                color: mood.heroForeground,
-                fontWeight: isDark ? FontWeight.w300 : FontWeight.w500,
-                height: 0.92,
-                letterSpacing: -2.4,
-                shadows: isDark
-                    ? [
-                        Shadow(
-                            color: Colors.black.withValues(alpha: 0.22),
-                            blurRadius: 20)
-                      ]
-                    : [
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.84),
-                          blurRadius: 12,
-                        ),
-                      ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatCurrency(totalBalance),
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                style: theme.textTheme.displayLarge?.copyWith(
+                  color: mood.heroForeground,
+                  fontWeight: isDark ? FontWeight.w300 : FontWeight.w500,
+                  height: 0.92,
+                  letterSpacing: -2.4,
+                  shadows: isDark
+                      ? [
+                          Shadow(
+                              color: Colors.black.withValues(alpha: 0.22),
+                              blurRadius: 20)
+                        ]
+                      : [
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.84),
+                            blurRadius: 12,
+                          ),
+                        ],
+                ),
               ),
             ),
           ),
@@ -587,7 +611,7 @@ class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '↑ ${formatCurrency(summary.monthIncome)}  /  ↓ ${formatCurrency(summary.monthExpense)}',
+                  '수입 ${formatCurrency(summary.monthIncome)}  ·  지출 ${formatCurrency(summary.monthExpense)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(

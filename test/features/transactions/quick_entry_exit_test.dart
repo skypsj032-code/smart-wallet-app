@@ -153,7 +153,7 @@ void main() {
     await harness.enterAmount(tester, '6300');
     harness.router.push('/accounts');
     await tester.pumpAndSettle();
-    expect(find.text('기록'), findsNothing);
+    expect(find.text('다음'), findsNothing);
     expect(harness.container.read(quickEntryFormProvider).amount, '6300');
     await tester.tap(find.text('도구'));
     await tester.pumpAndSettle();
