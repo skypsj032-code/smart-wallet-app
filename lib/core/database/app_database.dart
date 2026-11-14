@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 
 import '../../features/budgets/application/budget_provider.dart';
+import '../../shared/utils/budget_totals.dart';
 import 'connection/connection.dart';
 import 'tables.dart';
 
@@ -15,11 +16,13 @@ part 'app_database.g.dart';
     Categories,
     Budgets,
     RecurringExpenses,
+    RecurringSpendOverrides,
     Accounts,
     AppSettings,
     BackupMetadata,
     OcrDrafts,
     NotificationHistories,
+    MerchantCategoryRules,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -27,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,10 +40,14 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON;');
         },
         onCreate: (Migrator m) async {
-          await m.createAll();
+          await transaction(() async {
+            await m.createAll();
+            await customStatement('PRAGMA user_version = $schemaVersion');
+          });
         },
         onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
+          await transaction(() async {
+          if (from < 2 && !await _appSettingsHasColumn('pin_code')) {
             await m.addColumn(appSettings, appSettings.pinCode);
           }
           if (from < 3) {
@@ -54,26 +61,42 @@ class AppDatabase extends _$AppDatabase {
                 '$error\n$stackTrace',
               );
             }
-            try {
-              await customStatement('DROP TABLE IF EXISTS local_user_profile;');
-            } catch (error, stackTrace) {
-              debugPrint(
-                'Skipping local_user_profile drop during migration: '
-                '$error\n$stackTrace',
-              );
-            }
+            // The old profile is no longer used by this app, but keeping the
+            // table avoids discarding legacy device and backup information.
           }
-          if (from < 4) {
+          if (from < 4 && !await _tableExists('recurring_expenses')) {
             await m.createTable(recurringExpenses);
           }
-          if (from < 5) {
+          if (from < 5 &&
+              !await _appSettingsHasColumn('default_category_seed_version')) {
             await m.addColumn(
               appSettings,
               appSettings.defaultCategorySeedVersion,
             );
           }
           if (from >= 4 && from < 6) {
-            await transaction(() async {
+            // Version 4 was used by two independent branches. One has an
+            // older recurring_expenses table; the other has no such table.
+            final hasRecurringExpenses =
+                await _tableExists('recurring_expenses');
+            if (!hasRecurringExpenses) {
+              await m.createTable(recurringExpenses);
+            } else {
+              final columns = await customSelect(
+                'PRAGMA table_info(recurring_expenses)',
+              ).get();
+              final names = columns.map((row) => row.data['name']).toSet();
+              if (!names.contains('last_created_month_key')) {
+                // Never rebuild a table whose shape we do not recognize.
+                if (!names.containsAll({
+                  'type',
+                  'cadence',
+                  'last_completed_cycle_key',
+                })) {
+                  throw StateError('Unrecognized recurring_expenses schema');
+                }
+              } else {
+                await transaction(() async {
               await customStatement('''
                 CREATE TABLE recurring_expenses_new (
                   local_id TEXT NOT NULL PRIMARY KEY,
@@ -129,9 +152,11 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'ALTER TABLE recurring_expenses_new RENAME TO recurring_expenses;',
               );
-            });
+                });
+              }
+            }
           }
-          if (from < 7) {
+          if (from < 7 && !await _tableExists('notification_histories')) {
             await m.createTable(notificationHistories);
           }
           if (from < 8) {
@@ -144,8 +169,84 @@ class AppDatabase extends _$AppDatabase {
               ON transactions (deleted_at, category_id, occurred_at DESC);
             ''');
           }
+          if (from < 9 &&
+              !await _tableExists('recurring_spend_overrides')) {
+            await m.createTable(recurringSpendOverrides);
+          }
+          if (from < 10) {
+            // Earlier branch schemas did not all contain this table. The
+            // earlier createTable call may also have created it with the
+            // current columns already, so inspect each column independently.
+            if (!await _tableExists('notification_histories')) {
+              await m.createTable(notificationHistories);
+            }
+            if (!await _tableHasColumn('notification_histories', 'event_id')) {
+              await m.addColumn(notificationHistories, notificationHistories.eventId);
+            }
+            if (!await _tableHasColumn('notification_histories', 'status')) {
+              await m.addColumn(notificationHistories, notificationHistories.status);
+            }
+            if (!await _tableHasColumn('notification_histories', 'transaction_id')) {
+              await m.addColumn(notificationHistories, notificationHistories.transactionId);
+            }
+            if (!await _tableExists('merchant_category_rules')) {
+              await m.createTable(merchantCategoryRules);
+            }
+            await customStatement('''
+              CREATE UNIQUE INDEX IF NOT EXISTS notification_histories_event_id_idx
+              ON notification_histories (event_id) WHERE event_id IS NOT NULL;
+            ''');
+          }
+          // Persist the version in the same transaction as the schema. This
+          // makes an interrupted upgrade safe to retry on the next launch.
+          await customStatement('PRAGMA user_version = $to');
+          });
         },
       );
+
+  Future<bool> _appSettingsHasColumn(String column) async {
+    final rows = await customSelect('PRAGMA table_info(app_settings)').get();
+    return rows.any((row) => row.data['name'] == column);
+  }
+
+  Future<bool> _tableExists(String name) async {
+    final rows = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(name)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  Future<bool> _tableHasColumn(String table, String column) async {
+    // Called only with schema-owned table names from this migration.
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return rows.any((row) => row.data['name'] == column);
+  }
+
+  Stream<Set<String>> watchNotRecurringGroupKeys() {
+    return (select(recurringSpendOverrides)
+          ..where((row) => row.actionType.equals('not_recurring')))
+        .watch()
+        .map((rows) => rows.map((row) => row.groupKey).toSet());
+  }
+
+  Future<void> markRecurringSpendGroupNotRecurring(String groupKey) {
+    final now = DateTime.now();
+    return into(recurringSpendOverrides).insertOnConflictUpdate(
+      RecurringSpendOverridesCompanion.insert(
+        groupKey: groupKey,
+        actionType: 'not_recurring',
+        createdAt: now,
+        lastModifiedAt: now,
+      ),
+    );
+  }
+
+  Future<void> unmarkRecurringSpendGroupNotRecurring(String groupKey) {
+    return (delete(recurringSpendOverrides)
+          ..where((row) => row.groupKey.equals(groupKey)))
+        .go();
+  }
 
   // ── 예산 요약 ───────────────────────────────────────────────────────────────
   Stream<BudgetSummary> watchBudgetSummary() {
@@ -179,7 +280,8 @@ class AppDatabase extends _$AppDatabase {
 
         final items = bgs.map((budget) {
           final spent = txs
-              .where((tx) => tx.categoryId == budget.categoryId)
+              .where((tx) =>
+                  budget.categoryId == null || tx.categoryId == budget.categoryId)
               .fold<int>(0, (sum, tx) => sum + tx.amount);
 
           return BudgetSummaryItem(
@@ -192,8 +294,12 @@ class AppDatabase extends _$AppDatabase {
           );
         }).toList();
 
-        final totalBudget =
-            items.fold<int>(0, (sum, item) => sum + item.limitAmount);
+        final totalBudget = effectiveBudgetTotal(bgs.map((budget) => (
+              categoryId: budget.categoryId,
+              amount: budget.amountLimit,
+              modifiedAt: budget.lastModifiedAt,
+              id: budget.localId,
+            )));
         final totalSpent = txs.fold<int>(0, (sum, tx) => sum + tx.amount);
 
         return BudgetSummary(
@@ -229,11 +335,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<NotificationHistory>> watchNotificationHistories(
-      {int limit = 100}) {
-    return (select(notificationHistories)
-          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)])
-          ..limit(limit))
-        .watch();
+      {int? limit}) {
+    final query = select(notificationHistories)
+      ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]);
+    if (limit != null) query.limit(limit);
+    return query.watch();
   }
 
   Future<void> deleteOldNotificationHistories({int keepCount = 200}) async {
@@ -241,9 +347,21 @@ class AppDatabase extends _$AppDatabase {
           ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]))
         .get();
     if (all.length <= keepCount) return;
-    final toDelete = all.sublist(keepCount).map((h) => h.id).toList();
-    await (delete(notificationHistories)..where((h) => h.id.isIn(toDelete)))
-        .go();
+    // A retained event id is the durable duplicate-prevention record.
+    // Pending and old unverified histories also must never be discarded.
+    final toDelete = all.reversed
+        .where((h) => h.eventId == null &&
+            (h.status == 'recorded' || h.status == 'ignored'))
+        .take(all.length - keepCount)
+        .map((h) => h.id)
+        .toList();
+    if (toDelete.isNotEmpty) {
+      await (delete(notificationHistories)
+            ..where((h) => h.id.isIn(toDelete) &
+                h.eventId.isNull() &
+                (h.status.equals('recorded') | h.status.equals('ignored'))))
+          .go();
+    }
   }
 
   /// 최근 [dayRange]일간 감지된 알림 건수를 반환한다.

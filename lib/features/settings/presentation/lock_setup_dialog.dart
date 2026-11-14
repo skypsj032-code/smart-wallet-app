@@ -11,13 +11,19 @@ class LockSetupDialog extends ConsumerStatefulWidget {
   const LockSetupDialog({
     super.key,
     this.isChangingPin = false,
-  });
+    this.isRecoveringPin = false,
+    this.isRecoveryAuthorized,
+  }) : assert(!isRecoveringPin || isRecoveryAuthorized != null);
 
   final bool isChangingPin;
+  final bool isRecoveringPin;
+  final bool Function()? isRecoveryAuthorized;
 
   static Future<bool?> show(
     BuildContext context, {
     bool isChangingPin = false,
+    bool isRecoveringPin = false,
+    bool Function()? isRecoveryAuthorized,
   }) {
     return showDialog<bool>(
       context: context,
@@ -28,7 +34,11 @@ class LockSetupDialog extends ConsumerStatefulWidget {
           bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
         ),
         child: SingleChildScrollView(
-          child: LockSetupDialog(isChangingPin: isChangingPin),
+          child: LockSetupDialog(
+            isChangingPin: isChangingPin,
+            isRecoveringPin: isRecoveringPin,
+            isRecoveryAuthorized: isRecoveryAuthorized,
+          ),
         ),
       ),
     );
@@ -38,7 +48,8 @@ class LockSetupDialog extends ConsumerStatefulWidget {
   ConsumerState<LockSetupDialog> createState() => _LockSetupDialogState();
 }
 
-class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
+class _LockSetupDialogState extends ConsumerState<LockSetupDialog>
+    with WidgetsBindingObserver {
   final _pinController = TextEditingController();
   final _confirmController = TextEditingController();
   final _confirmFocusNode = FocusNode();
@@ -47,7 +58,32 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.isRecoveringPin) {
+      WidgetsBinding.instance.addObserver(this);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.isRecoveringPin &&
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.hidden ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.detached)) {
+      final route = ModalRoute.of(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (route != null && route.isActive) {
+          route.navigator?.removeRoute(route);
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pinController.dispose();
     _confirmController.dispose();
     _confirmFocusNode.dispose();
@@ -56,6 +92,10 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
 
   Future<void> _savePin() async {
     if (_isSaving) {
+      return;
+    }
+    if (widget.isRecoveringPin && widget.isRecoveryAuthorized?.call() != true) {
+      setState(() => _error = '복구 인증이 만료되었습니다. 다시 인증해 주세요.');
       return;
     }
 
@@ -83,7 +123,48 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
       final settings = await db.select(db.appSettings).getSingleOrNull();
       final now = DateTime.now();
 
-      if (settings == null) {
+      if (widget.isRecoveringPin) {
+        if (settings == null ||
+            !settings.appLockEnabled ||
+            settings.pinCode != null) {
+          throw StateError('Lock settings changed during PIN recovery');
+        }
+
+        final hashedPin = hashPin(pin);
+        if (!mounted || widget.isRecoveryAuthorized?.call() != true) {
+          if (mounted) {
+            setState(() {
+              _isSaving = false;
+              _error = '복구 인증이 만료되었습니다. 다시 인증해 주세요.';
+            });
+          }
+          return;
+        }
+
+        await db.transaction(() async {
+          if (!mounted || widget.isRecoveryAuthorized?.call() != true) {
+            throw StateError('PIN recovery authorization expired');
+          }
+
+          // Preserve all other settings and never replace a PIN set while the
+          // authentication or this transaction was in progress.
+          final updated = await (db.update(db.appSettings)
+                ..where((table) =>
+                    table.id.equals(settings.id) &
+                    table.appLockEnabled.equals(true) &
+                    table.pinCode.isNull()))
+              .write(AppSettingsCompanion(
+            pinCode: drift.Value(hashedPin),
+            lastModifiedAt: drift.Value(now),
+          ));
+          if (updated != 1) {
+            throw StateError('Lock settings changed during PIN recovery');
+          }
+          if (!mounted || widget.isRecoveryAuthorized?.call() != true) {
+            throw StateError('PIN recovery authorization expired');
+          }
+        });
+      } else if (settings == null) {
         await db.into(db.appSettings).insert(
               AppSettingsCompanion.insert(
                 appLockEnabled: const drift.Value(true),
@@ -119,84 +200,91 @@ class _LockSetupDialogState extends ConsumerState<LockSetupDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.isChangingPin ? 'PIN 변경' : 'PIN 잠금 설정'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.isChangingPin
-                ? '새로운 4자리 PIN을 입력해 주세요.'
-                : '앱을 보호할 4자리 PIN을 설정해 주세요.',
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'PIN은 이 기기에만 저장되며 외부로 전송되지 않습니다.',
-            style: TextStyle(fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _pinController,
-            autofocus: true,
-            enabled: !_isSaving,
-            decoration: const InputDecoration(
-              labelText: '새 PIN',
-              counterText: '',
+    return PopScope<bool>(
+      canPop: !_isSaving,
+      child: AlertDialog(
+        title: Text(widget.isRecoveringPin
+            ? '앱 PIN 복구'
+            : widget.isChangingPin
+                ? 'PIN 변경'
+                : 'PIN 잠금 설정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.isChangingPin
+                  ? '새로운 4자리 PIN을 입력해 주세요.'
+                  : '앱을 보호할 4자리 PIN을 설정해 주세요.',
             ),
-            keyboardType: TextInputType.number,
-            obscureText: true,
-            textInputAction: TextInputAction.next,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(4),
-            ],
-            onChanged: (_) {
-              if (_error != null) {
-                setState(() => _error = null);
-              }
-            },
-            onSubmitted: (_) => _confirmFocusNode.requestFocus(),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _confirmController,
-            focusNode: _confirmFocusNode,
-            enabled: !_isSaving,
-            decoration: const InputDecoration(
-              labelText: 'PIN 확인',
-              counterText: '',
-            ),
-            keyboardType: TextInputType.number,
-            obscureText: true,
-            textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(4),
-            ],
-            onChanged: (_) {
-              if (_error != null) {
-                setState(() => _error = null);
-              }
-            },
-            onSubmitted: (_) => _savePin(),
-          ),
-          if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            const Text(
+              'PIN은 이 기기에만 저장되며 외부로 전송되지 않습니다.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _pinController,
+              autofocus: true,
+              enabled: !_isSaving,
+              decoration: const InputDecoration(
+                labelText: '새 PIN',
+                counterText: '',
+              ),
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ],
+              onChanged: (_) {
+                if (_error != null) {
+                  setState(() => _error = null);
+                }
+              },
+              onSubmitted: (_) => _confirmFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _confirmController,
+              focusNode: _confirmFocusNode,
+              enabled: !_isSaving,
+              decoration: const InputDecoration(
+                labelText: 'PIN 확인',
+                counterText: '',
+              ),
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ],
+              onChanged: (_) {
+                if (_error != null) {
+                  setState(() => _error = null);
+                }
+              },
+              onSubmitted: (_) => _savePin(),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: _isSaving ? null : _savePin,
+            child: Text(_isSaving ? '저장 중...' : '저장'),
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: _isSaving ? null : _savePin,
-          child: Text(_isSaving ? '저장 중...' : '저장'),
-        ),
-      ],
     );
   }
 }

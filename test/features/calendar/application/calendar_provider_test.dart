@@ -78,6 +78,8 @@ void main() {
       merchantName: 'Night Market',
     );
 
+    container.read(displayedCalendarMonthProvider.notifier).state =
+        DateTime(2026, 5);
     container.read(visibleCalendarDateProvider.notifier).state =
         DateTime(2026, 5, 5);
     container.read(calendarTypeFilterProvider.notifier).state =

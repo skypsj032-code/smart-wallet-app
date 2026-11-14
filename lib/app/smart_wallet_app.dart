@@ -35,9 +35,23 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isBackgrounded = state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached;
+    if (isBackgrounded) {
+      // Settings can change or become unavailable while the app is away.
+      _backgroundedAt ??= DateTime.now();
+    }
+
     final appSettings = ref.read(appSettingsProvider).asData?.value;
-    if (appSettings?.appLockEnabled != true) {
-      _backgroundedAt = null;
+    if (appSettings == null) {
+      // If the lock policy is unknown when the app leaves the foreground,
+      // require authentication again once settings become available.
+      if (isBackgrounded ||
+          (state == AppLifecycleState.resumed && _backgroundedAt != null)) {
+        ref.read(sessionUnlockedProvider.notifier).state = false;
+      }
+      if (state == AppLifecycleState.resumed) _backgroundedAt = null;
       return;
     }
 
@@ -45,7 +59,7 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
       final backgroundedAt = _backgroundedAt;
       _backgroundedAt = null;
 
-      if (backgroundedAt == null) {
+      if (!appSettings.appLockEnabled || backgroundedAt == null) {
         return;
       }
 
@@ -55,12 +69,6 @@ class _SmartWalletAppState extends ConsumerState<SmartWalletApp>
       }
 
       return;
-    }
-
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      _backgroundedAt ??= DateTime.now();
     }
   }
 

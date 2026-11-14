@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../app/theme/app_sizes.dart';
 import '../../../shared/widgets/app_empty_state.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/utils/currency_formatter.dart';
 import '../../../shared/widgets/app_metric_strip.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -26,8 +29,16 @@ import '../application/recurring_transaction_suggestion_provider.dart';
 import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
 import 'dashboard_narrative_card.dart';
+import 'detected_recurring_spend_section.dart';
 import 'recurring_transaction_suggestion_card.dart';
 import 'upcoming_recurring_transactions_card.dart';
+
+final dashboardPendingNotificationCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(appDatabaseProvider).watchNotificationHistories().map(
+        (histories) =>
+            histories.where((item) => item.status == 'pending').length,
+      );
+});
 
 String dashboardTodayLoopActionSemanticLabel({
   required bool hasTodayEntry,
@@ -42,11 +53,58 @@ String dashboardTimelineActionSemanticLabel() {
   return 'Open timeline. Review the recent transaction history for today.';
 }
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with WidgetsBindingObserver {
+  Timer? _midnightTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshDateAndScheduleTimer();
+    });
+  }
+
+  void _refreshDateAndScheduleTimer() {
+    final now = ref.read(dashboardNowProvider)();
+    final date = DateTime(now.year, now.month, now.day);
+    if (ref.read(dashboardDateProvider) != date) {
+      ref.read(dashboardDateProvider.notifier).state = date;
+    }
+    _midnightTimer?.cancel();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(
+      nextMidnight.difference(now) + const Duration(milliseconds: 50),
+      () {
+        if (mounted) _refreshDateAndScheduleTimer();
+      },
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _refreshDateAndScheduleTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
     final recurringAsync = ref.watch(activeRecurringExpensesProvider);
@@ -55,6 +113,8 @@ class DashboardScreen extends ConsumerWidget {
     final calendarSummaryAsync = ref.watch(calendarHomeSummaryProvider);
     final calendarPreviewAsync = ref.watch(calendarHomeMonthPreviewProvider);
     final statisticsPreviewAsync = ref.watch(statisticsHomePreviewProvider);
+    final pendingNotifications =
+        ref.watch(dashboardPendingNotificationCountProvider);
 
     return AppScaffold(
       hideAppBar: true,
@@ -68,6 +128,13 @@ class DashboardScreen extends ConsumerWidget {
               _OverviewHero(summary: summary, totalBalance: totalBalance),
               SliverToBoxAdapter(
                 child: DashboardNarrativeCard(snapshot: summary.narrative),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+              SliverToBoxAdapter(
+                child: _NotificationHistoryEntry(
+                  pendingCount: pendingNotifications,
+                  onOpen: () => context.push('/notification-history'),
+                ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
@@ -93,6 +160,7 @@ class DashboardScreen extends ConsumerWidget {
               // 예산 현황 — 수입/지출 바로 다음에 노출
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(child: _BudgetStatusCard(summary: summary)),
+              const SliverToBoxAdapter(child: DetectedRecurringSpendSection()),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
               SliverToBoxAdapter(
                 child: DashboardHomeLinksCard(
@@ -184,6 +252,75 @@ class DashboardScreen extends ConsumerWidget {
           recurringId: suggestion.transaction.localId,
           cycleKey: suggestion.cycleKey,
         );
+  }
+}
+
+class _NotificationHistoryEntry extends StatelessWidget {
+  const _NotificationHistoryEntry({
+    required this.pendingCount,
+    required this.onOpen,
+  });
+
+  final AsyncValue<int> pendingCount;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final description = pendingCount.when(
+      data: (count) => '확인 대기 중인 알림 $count건',
+      loading: () => '알림 내역을 불러오는 중이에요',
+      error: (_, __) => '알림 내역을 열어 확인해 주세요',
+    );
+
+    return Semantics(
+      key: const Key('dashboard-open-notification-history'),
+      button: true,
+      label: '알림 수신 이력. $description.',
+      onTap: onOpen,
+      excludeSemantics: true,
+      child: GlassCard(
+        blur: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onOpen,
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_outlined,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '알림 수신 이력',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          description,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
