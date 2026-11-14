@@ -279,8 +279,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                         minHeight: 48,
                                         minWidth: 48,
                                       ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
+                                      textStyle: theme.textTheme.labelLarge?.copyWith(
                                         fontWeight: FontWeight.w600,
                                       ),
                                       children: const [
@@ -339,8 +338,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                             AppRadius.md,
                                           ),
                                         ),
-                                        textStyle: const TextStyle(
-                                          fontSize: 12,
+                                        textStyle: theme.textTheme.labelLarge?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),

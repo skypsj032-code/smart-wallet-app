@@ -80,7 +80,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           const AppSectionIntro(
             title: '데이터 안전',
-            subtitle: '내보내기는 가볍게, 복원은 가장 신중하게 다룹니다.',
+            subtitle: '백업을 만들고 거래 내역을 내보내거나 가져와요.',
           ),
           const SizedBox(height: AppSpacing.sm),
           AppUtilityGroup(
@@ -651,12 +651,8 @@ class _SettingsHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const AppHeroPanel(
-      eyebrow: AppStatusChip(
-        label: 'UTILITY HUB',
-        dotColor: AppColors.primary,
-      ),
-      title: '조용한 지원 허브',
-      body: '일상 이동, 데이터 안전, 보안, 화면 모드를 한곳에서 차분하게 관리합니다.',
+      title: '가계부 설정',
+      body: '백업, 앱 잠금과 화면 모드를 관리해요.',
     );
   }
 }

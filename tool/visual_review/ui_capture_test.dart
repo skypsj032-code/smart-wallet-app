@@ -54,6 +54,17 @@ Future<void> main() async {
       key: boundaryKey, child: _DashboardTestApp(router: router)));
     for (var i=0; i<12; i++) { await tester.pump(const Duration(milliseconds: 100)); }
     await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home.png'));
+    await tester.pumpWidget(RepaintBoundary(
+      key: boundaryKey, child: _DashboardTestApp(router: router, themeMode: ThemeMode.dark)));
+    for (var i=0; i<8; i++) { await tester.pump(const Duration(milliseconds: 100)); }
+    await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home-dark.png'));
+    await tester.pumpWidget(RepaintBoundary(
+      key: boundaryKey, child: _DashboardTestApp(router: router, textScale: 1.2)));
+    for (var i=0; i<8; i++) { await tester.pump(const Duration(milliseconds: 100)); }
+    await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home-large-text.png'));
+    await tester.pumpWidget(RepaintBoundary(
+      key: boundaryKey, child: _DashboardTestApp(router: router)));
+    for (var i=0; i<8; i++) { await tester.pump(const Duration(milliseconds: 100)); }
     await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -500));
     for (var i=0; i<6; i++) { await tester.pump(const Duration(milliseconds: 100)); }
     await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home-scrolled.png'));
@@ -78,6 +89,8 @@ class _DashboardTestApp extends StatelessWidget {
     this.pendingNotifications,
     this.database,
     this.currentTime,
+    this.themeMode = ThemeMode.light,
+    this.textScale = 1.0,
   });
 
   final GoRouter router;
@@ -85,6 +98,8 @@ class _DashboardTestApp extends StatelessWidget {
   final Stream<int>? pendingNotifications;
   final AppDatabase? database;
   final DateTime Function()? currentTime;
+  final ThemeMode themeMode;
+  final double textScale;
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +147,7 @@ class _DashboardTestApp extends StatelessWidget {
             (ref) => Stream.value(_fakeDashboardSummary()),
           ),
         totalActiveAccountBalanceProvider.overrideWith(
-          (ref) => const AsyncData(0),
+          (ref) => const AsyncData(2940000),
         ),
         activeRecurringExpensesProvider.overrideWith(
           (ref) => Stream.value(const <RecurringExpense>[]),
@@ -178,9 +193,13 @@ class _DashboardTestApp extends StatelessWidget {
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-        builder: (context, child) => AppFrame(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: AppFrame(child: child ?? const SizedBox.shrink()),
+        ),
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
+        themeMode: themeMode,
         routerConfig: router,
       ),
     );
