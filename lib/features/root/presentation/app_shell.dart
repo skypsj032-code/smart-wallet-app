@@ -23,9 +23,11 @@ class AppShell extends ConsumerStatefulWidget {
   const AppShell({
     super.key,
     required this.child,
+    this.showNotificationFeatures = true,
   });
 
   final Widget child;
+  final bool showNotificationFeatures;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -156,12 +158,13 @@ class _AppShellState extends ConsumerState<AppShell>
               // an AnimatedSwitcher transition duplicates its GlobalKey.
               ClipRect(child: widget.child),
               // 알림 감지 배너 — 화면 최상단에 오버레이
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: NotificationTransactionBanner(),
-              ),
+              if (widget.showNotificationFeatures)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NotificationTransactionBanner(),
+                ),
               // 멀티태스킹/앱 스위처 금융정보 노출 방지
               // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
               if (_obscured)
@@ -273,11 +276,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                       borderColor: Colors.transparent,
                                       selectedBorderColor: Colors.transparent,
                                       constraints: const BoxConstraints(
-                                        minHeight: 30,
-                                        minWidth: 38,
+                                        minHeight: 48,
+                                        minWidth: 48,
                                       ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
+                                      textStyle: theme.textTheme.labelLarge?.copyWith(
                                         fontWeight: FontWeight.w600,
                                       ),
                                       children: const [
@@ -321,10 +323,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                     ),
                                   ),
                                   const SizedBox(width: AppSpacing.sm),
-                                  // 기록 버튼 — 작게
+                                  // 금액을 확인한 뒤 상세 입력 화면으로 이동
                                   SizedBox(
-                                    width: 48,
-                                    height: 34,
+                                    width: 56,
+                                    height: 48,
                                     child: FilledButton(
                                       onPressed: form.amount.trim().isNotEmpty
                                           ? () => _submit(context, form)
@@ -336,12 +338,11 @@ class _AppShellState extends ConsumerState<AppShell>
                                             AppRadius.md,
                                           ),
                                         ),
-                                        textStyle: const TextStyle(
-                                          fontSize: 12,
+                                        textStyle: theme.textTheme.labelLarge?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                      child: const Text('기록'),
+                                      child: const Text('다음'),
                                     ),
                                   ),
                                 ],
