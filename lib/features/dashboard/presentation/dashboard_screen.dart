@@ -529,7 +529,7 @@ class _OverviewHeroDelegate extends SliverPersistentHeaderDelegate {
           Positioned(
             left: 0,
             top: 0,
-            bottom: maxExtent * 0.30,
+            bottom: 0,
             width: 360,
             child: IgnorePointer(
               child: DecoratedBox(

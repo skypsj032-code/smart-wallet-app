@@ -53,7 +53,6 @@ Future<void> main() async {
     await tester.pumpWidget(RepaintBoundary(
       key: boundaryKey, child: _DashboardTestApp(router: router)));
     for (var i=0; i<12; i++) { await tester.pump(const Duration(milliseconds: 100)); }
-    await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home.png'));
     await tester.pumpWidget(RepaintBoundary(
       key: boundaryKey, child: _DashboardTestApp(router: router, themeMode: ThemeMode.dark)));
     for (var i=0; i<8; i++) { await tester.pump(const Duration(milliseconds: 100)); }
@@ -65,6 +64,7 @@ Future<void> main() async {
     await tester.pumpWidget(RepaintBoundary(
       key: boundaryKey, child: _DashboardTestApp(router: router)));
     for (var i=0; i<8; i++) { await tester.pump(const Duration(milliseconds: 100)); }
+    await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home.png'));
     await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -500));
     for (var i=0; i<6; i++) { await tester.pump(const Duration(milliseconds: 100)); }
     await expectLater(find.byKey(boundaryKey), matchesGoldenFile('goldens/home-scrolled.png'));
