@@ -40,6 +40,11 @@ jobs:
           exit /b %ERRORLEVEL%
           '@
           Set-Content -LiteralPath 'C:\smart wallet\flutterw.bat' -Value $wrapper -Encoding ascii
+      - name: Check manual preview manifest
+        shell: pwsh
+        run: |
+          python 'C:\smart wallet\app\test\security\manual_manifest_test.py'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install locked packages
         shell: pwsh
         run: |
@@ -119,12 +124,12 @@ jobs:
           $gradlePath = 'C:\smart wallet\app\android\app\build.gradle.kts'
           $gradle = Get-Content -LiteralPath $gradlePath -Raw
           if (-not $gradle.Contains('applicationId = "com.example.smart_wallet_app"')) { throw 'Original application ID not found' }
-          $gradle = $gradle.Replace('applicationId = "com.example.smart_wallet_app"', 'applicationId = "com.example.smart_wallet_app.axpreview"')
+          $gradle = $gradle.Replace('applicationId = "com.example.smart_wallet_app"', 'applicationId = "com.example.smart_wallet_app.manualpreview"')
           Set-Content -LiteralPath $gradlePath -Value $gradle -Encoding utf8
           $manifestPath = 'C:\smart wallet\app\android\app\src\main\AndroidManifest.xml'
           $manifest = Get-Content -LiteralPath $manifestPath -Raw
           if (-not $manifest.Contains('android:label="smart_wallet_app"')) { throw 'Original label not found' }
-          $manifest = $manifest.Replace('android:label="smart_wallet_app"', 'android:label="Smart Wallet AX Preview"')
+          $manifest = $manifest.Replace('android:label="smart_wallet_app"', 'android:label="Smart Wallet Manual Preview"')
           Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding utf8
       - name: Build separate Android preview
         shell: pwsh
@@ -140,10 +145,13 @@ jobs:
           if (-not $aapt) { throw 'Android build tools not found' }
           $badging = & $aapt dump badging $apk
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not ($badging | Select-String -Pattern "package: name='com\.example\.smart_wallet_app\.axpreview'")) { throw 'Unexpected application ID' }
+          if (-not ($badging | Select-String -Pattern "package: name='com\.example\.smart_wallet_app\.manualpreview'")) { throw 'Unexpected application ID' }
           if (-not ($badging | Select-String -Pattern "launchable-activity: name='com\.example\.smart_wallet_app\.MainActivity'")) { throw 'Unexpected launch activity' }
+          $manifestDump = & $aapt dump xmltree $apk AndroidManifest.xml | Out-String
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($manifestDump -match 'BIND_NOTIFICATION_LISTENER_SERVICE|NotificationListenerService|BIND_ACCESSIBILITY_SERVICE|READ_SMS|RECEIVE_SMS') { throw 'Sensitive access unexpectedly present in APK' }
       - uses: actions/upload-artifact@v4
         with:
-          name: smart-wallet-ax-preview-arm64
+          name: smart-wallet-manual-preview-arm64
           path: 'C:\smart wallet\app\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk'
           retention-days: 7

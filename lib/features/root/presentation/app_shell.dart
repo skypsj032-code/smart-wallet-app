@@ -14,7 +14,6 @@ import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
-import '../../notifications/presentation/notification_transaction_banner.dart';
 import '../../settings/application/settings_provider.dart';
 import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
@@ -155,13 +154,6 @@ class _AppShellState extends ConsumerState<AppShell>
               // ShellRoute supplies one Navigator; keeping two copies during
               // an AnimatedSwitcher transition duplicates its GlobalKey.
               ClipRect(child: widget.child),
-              // 알림 감지 배너 — 화면 최상단에 오버레이
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: NotificationTransactionBanner(),
-              ),
               // 멀티태스킹/앱 스위처 금융정보 노출 방지
               // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
               if (_obscured)
