@@ -17,6 +17,7 @@ class ParsedNotificationTransaction {
     required this.detectedAt,
     this.cardName,
     this.suggestedCategoryKeyword,
+    this.historyId,
   });
 
   /// 금액 (원 단위 정수)
@@ -42,6 +43,9 @@ class ParsedNotificationTransaction {
 
   /// 추측 카테고리 이름 키워드 (예: "카페", "식비") — null이면 미확정
   final String? suggestedCategoryKeyword;
+
+  /// Persisted candidate, so opening the banner cannot create a duplicate.
+  final int? historyId;
 }
 
 /// 알림 Map을 받아 [ParsedNotificationTransaction]으로 변환.

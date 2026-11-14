@@ -145,6 +145,10 @@ class BackupMetadata extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+@TableIndex.sql('''
+  CREATE UNIQUE INDEX notification_histories_event_id_idx
+  ON notification_histories (event_id) WHERE event_id IS NOT NULL;
+''')
 class NotificationHistories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get packageName => text()();
@@ -153,6 +157,20 @@ class NotificationHistories extends Table {
   TextColumn get merchant => text().nullable()();
   TextColumn get suggestedCategory => text().nullable()();
   DateTimeColumn get detectedAt => dateTime()();
+  TextColumn get eventId => text().nullable()();
+  // Existing histories predate transaction links and cannot be assumed unsaved.
+  TextColumn get status => text().withDefault(const Constant('legacy'))();
+  TextColumn get transactionId => text().nullable()();
+}
+
+class MerchantCategoryRules extends Table {
+  TextColumn get merchantKey => text()();
+  TextColumn get type => text()();
+  TextColumn get categoryId => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {merchantKey, type};
 }
 
 class OcrDrafts extends Table {

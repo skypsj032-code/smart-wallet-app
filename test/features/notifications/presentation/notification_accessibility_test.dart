@@ -69,6 +69,7 @@ void main() {
         merchant: 'Lunch Box',
         suggestedCategory: 'Food',
         detectedAt: DateTime(2026, 5, 8, 12, 15),
+        status: 'pending',
       ),
     );
 

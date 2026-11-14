@@ -1,33 +1,76 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../data/notification_channel.dart';
+import 'notification_merchant.dart';
 import 'notification_parser.dart';
 
 const _kNotificationEnabled = 'notification_listener_enabled';
 
-/// 알림 감지 기능 활성화 여부 — SharedPreferences에 영속화
+/// Settings are loaded before native capture is configured: the initial false
+/// state is only a loading default and must not erase the native queue.
 class NotificationListenerEnabledNotifier extends Notifier<bool> {
+  bool _disposed = false;
+  int _revision = 0;
+  Future<void> _operations = Future<void>.value();
+
   @override
   bool build() {
-    // 비동기 초기화: 저장값을 읽어 상태를 갱신
-    var disposed = false;
-    ref.onDispose(() => disposed = true);
-
-    SharedPreferences.getInstance().then((prefs) {
-      if (disposed) return;
-      state = prefs.getBool(_kNotificationEnabled) ?? false;
+    ref.onDispose(() => _disposed = true);
+    _enqueue(() async {
+      final prefs = await SharedPreferences.getInstance();
+      if (_disposed || _revision != 0) return;
+      final enabled = prefs.getBool(_kNotificationEnabled) ?? false;
+      await NotificationChannel.configureCaptureEnabled(enabled);
+      if (!_disposed && _revision == 0) state = enabled;
     });
-    return false; // 로드 전 기본값
+    return false;
   }
 
-  Future<void> toggle(bool value) async {
-    state = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kNotificationEnabled, value);
+  Future<void> _enqueue(Future<void> Function() action) {
+    _operations = _operations.then((_) async {
+      try {
+        await action();
+      } catch (error) {
+        if (!_disposed) {
+          ref.read(notificationCaptureErrorProvider.notifier).state = true;
+        }
+        // Do not print notification content or treat a failed native call as a
+        // successfully configured listener.
+        debugPrint('Notification capture configuration failed: $error');
+      }
+    });
+    return _operations;
+  }
+
+  Future<void> toggle(bool value) {
+    final revision = ++_revision;
+    if (!value) {
+      state = false;
+      ref.read(notificationDroppedCountProvider.notifier).state = 0;
+    }
+    return _enqueue(() async {
+      final prefs = await SharedPreferences.getInstance();
+      if (_disposed || revision != _revision) return;
+      await prefs.setBool(_kNotificationEnabled, value);
+      try {
+        await NotificationChannel.configureCaptureEnabled(value);
+      } catch (_) {
+        if (value) await prefs.setBool(_kNotificationEnabled, false);
+        rethrow;
+      }
+      if (!_disposed && revision == _revision) {
+        state = value;
+        ref.read(notificationCaptureErrorProvider.notifier).state = false;
+      }
+    });
   }
 }
 
@@ -36,56 +79,184 @@ final notificationListenerEnabledProvider =
   NotificationListenerEnabledNotifier.new,
 );
 
-/// 현재 감지된 거래 (배너 표시용) — null이면 배너 없음
 final detectedNotificationTransactionProvider =
     StateProvider<ParsedNotificationTransaction?>((ref) => null);
+final notificationDroppedCountProvider = StateProvider<int>((ref) => 0);
+final notificationCaptureErrorProvider = StateProvider<bool>((ref) => false);
 
-/// 알림 권한 허용 여부
 final notificationPermissionGrantedProvider = FutureProvider<bool>((ref) async {
   return NotificationChannel.isPermissionGranted();
 });
 
-/// 배터리 최적화 예외 적용 여부
 final notificationBatteryOptimizationIgnoredProvider =
     FutureProvider<bool>((ref) async {
   return NotificationChannel.isBatteryOptimizationIgnored();
 });
 
-/// 마지막으로 처리한 알림의 (금액, 타임스탬프) — 중복 방지용
-final _lastNotificationKey = StateProvider<String?>((ref) => null);
+/// Save only transaction-like notices. Unclear amounts, cancellations and
+/// foreign currency are retained as unclassified candidates, never invented
+/// as a KRW transaction. Other bank-app notifications are acknowledged without
+/// preserving their potentially sensitive contents.
+Future<NotificationHistory?> persistNotificationEvent(
+  AppDatabase database,
+  Map<String, dynamic> event,
+) async {
+  final eventId = event['eventId'];
+  if (eventId is! String || eventId.isEmpty ||
+      event['packageName'] is! String || event['timestamp'] is! int ||
+      event['title'] is! String || event['text'] is! String) {
+    throw const FormatException('Invalid notification event');
+  }
+  return database.transaction(() async {
+    final existing = await (database.select(database.notificationHistories)
+          ..where((h) => h.eventId.equals(eventId)))
+        .getSingleOrNull();
+    if (existing != null) return existing;
 
-/// 알림 스트림을 구독하고 파싱된 거래를 [detectedNotificationTransactionProvider]에 저장
+    final title = event['title'] as String;
+    final text = event['text'] as String;
+    final combined = '$title $text';
+    final transactionLike = RegExp(
+      r'승인|결제|사용|출금|입금|이체|환급|환불|취소|거절|실패|급여|수신',
+    ).hasMatch(combined);
+    if (!transactionLike) return null;
+
+    final ambiguous = RegExp(r'취소|거절|실패|환불').hasMatch(combined);
+    final parsed = ambiguous ? null : parseNotification(event);
+    final safeTitle = title.trim();
+    final fallbackTitle = safeTitle.length > 50
+        ? safeTitle.substring(0, 50)
+        : safeTitle;
+    final id = await database.into(database.notificationHistories).insert(
+      NotificationHistoriesCompanion.insert(
+        packageName: event['packageName'] as String,
+        amount: parsed?.amount ?? 0,
+        type: parsed?.type ?? 'unknown',
+        merchant: Value(parsed == null
+            ? (fallbackTitle.isEmpty ? null : fallbackTitle)
+            : (parsed.merchant.isEmpty ? null : parsed.merchant)),
+        suggestedCategory: Value(parsed?.suggestedCategoryKeyword),
+        detectedAt: DateTime.fromMillisecondsSinceEpoch(event['timestamp'] as int),
+        eventId: Value(eventId),
+        status: const Value('pending'),
+      ),
+    );
+    return (database.select(database.notificationHistories)
+          ..where((h) => h.id.equals(id)))
+        .getSingle();
+  });
+}
+
+/// Previously confirmed category choices stay on the device and are used only
+/// while the category still exists, is active, and matches the transaction type.
+Future<String?> findNotificationCategory(
+  AppDatabase database,
+  String? merchant,
+  String type,
+  String? keyword,
+) async {
+  if (type != 'expense' && type != 'income') return null;
+  final key = normalizeNotificationMerchant(merchant ?? '');
+  if (key.isNotEmpty) {
+    final rule = await (database.select(database.merchantCategoryRules)
+          ..where((r) => r.merchantKey.equals(key) & r.type.equals(type)))
+        .getSingleOrNull();
+    if (rule != null) {
+      final category = await (database.select(database.categories)
+            ..where((c) => c.localId.equals(rule.categoryId) &
+                c.type.equals(type) & c.isActive.equals(true)))
+          .getSingleOrNull();
+      if (category != null) return category.localId;
+    }
+  }
+  if (keyword == null || keyword.isEmpty) return null;
+  final categories = await (database.select(database.categories)
+        ..where((c) => c.type.equals(type) & c.isActive.equals(true))
+        ..orderBy([(c) => OrderingTerm.asc(c.sortOrder)]))
+      .get();
+  for (final category in categories) {
+    if (category.name.contains(keyword)) return category.localId;
+  }
+  return null;
+}
+
+class _NotificationResumeObserver with WidgetsBindingObserver {
+  _NotificationResumeObserver(this.onResume);
+  final VoidCallback onResume;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) onResume();
+  }
+}
+
+/// The native queue is acknowledged only after each candidate is committed to
+/// the local database. Replays are safe because eventId has a unique index.
 final notificationListenerProvider = Provider<void>((ref) {
-  final enabled = ref.watch(notificationListenerEnabledProvider);
-  if (!enabled) return;
+  if (!ref.watch(notificationListenerEnabledProvider)) return;
 
-  StreamSubscription<Map<String, dynamic>>? sub;
+  final database = ref.read(appDatabaseProvider);
+  var disposed = false;
+  Future<void> work = Future<void>.value();
 
-  sub = NotificationChannel.stream.listen((event) {
+  Future<void> handle(Map<String, dynamic> event) async {
+    final saved = await persistNotificationEvent(database, event);
+    await NotificationChannel.acknowledgeNotifications([event['eventId'] as String]);
+    if (disposed || saved == null || saved.status != 'pending' || saved.type == 'unknown') return;
     final parsed = parseNotification(event);
     if (parsed == null) return;
+    ref.read(detectedNotificationTransactionProvider.notifier).state =
+        ParsedNotificationTransaction(
+      amount: saved.amount,
+      type: saved.type,
+      merchant: saved.merchant ?? '',
+      rawTitle: parsed.rawTitle,
+      rawText: parsed.rawText,
+      detectedAt: saved.detectedAt,
+      cardName: parsed.cardName,
+      suggestedCategoryKeyword: saved.suggestedCategory,
+      historyId: saved.id,
+    );
+  }
 
-    // 동일 금액 + 3초 이내 중복 알림 무시
-    final key = '${parsed.amount}_${parsed.detectedAt.millisecondsSinceEpoch ~/ 3000}';
-    final lastKey = ref.read(_lastNotificationKey);
-    if (key == lastKey) return;
-    ref.read(_lastNotificationKey.notifier).state = key;
+  void enqueue(Future<void> Function() action) {
+    work = work.then((_) async {
+      if (disposed) return;
+      try {
+        await action();
+        if (!disposed) ref.read(notificationCaptureErrorProvider.notifier).state = false;
+      } catch (error) {
+        if (!disposed) ref.read(notificationCaptureErrorProvider.notifier).state = true;
+        debugPrint('Notification capture processing failed: $error');
+      }
+    });
+  }
 
-    ref.read(detectedNotificationTransactionProvider.notifier).state = parsed;
+  void drain() => enqueue(() async {
+        final pending = await NotificationChannel.getPendingNotifications();
+        for (final event in pending) {
+          await handle(event);
+        }
+        final dropped = await NotificationChannel.getDroppedNotificationCount();
+        if (!disposed) ref.read(notificationDroppedCountProvider.notifier).state = dropped;
+      });
 
-    // 이력 DB 저장 (최대 200건 유지)
-    final db = ref.read(appDatabaseProvider);
-    db
-        .insertNotificationHistory(
-          packageName: event['package'] as String? ?? '',
-          amount: parsed.amount,
-          type: parsed.type,
-          merchant: parsed.merchant.isEmpty ? null : parsed.merchant,
-          suggestedCategory: parsed.suggestedCategoryKeyword,
-          detectedAt: parsed.detectedAt,
-        )
-        .then((_) => db.deleteOldNotificationHistories());
+  // Start listening before taking a snapshot; a periodic drain also closes any
+  // race while the native stream subscription is being established.
+  final subscription = NotificationChannel.stream.listen(
+    (event) => enqueue(() => handle(event)),
+    onError: (Object error, StackTrace stackTrace) {
+      if (!disposed) ref.read(notificationCaptureErrorProvider.notifier).state = true;
+    },
+  );
+  final observer = _NotificationResumeObserver(drain);
+  WidgetsBinding.instance.addObserver(observer);
+  final retry = Timer.periodic(const Duration(seconds: 30), (_) => drain());
+  drain();
+  ref.onDispose(() {
+    disposed = true;
+    retry.cancel();
+    WidgetsBinding.instance.removeObserver(observer);
+    subscription.cancel();
   });
-
-  ref.onDispose(() => sub?.cancel());
 });

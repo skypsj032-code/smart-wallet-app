@@ -192,11 +192,6 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
                                     runSpacing: AppSpacing.sm,
                                     children: [
                                       _StatusPill(label: _statusLabel(draft.status)),
-                                      if (draft.confidence != null)
-                                        _StatusPill(
-                                          label:
-                                              '인식률 ${draft.confidence!.toStringAsFixed(2)}',
-                                        ),
                                     ],
                                   ),
                                 ),
@@ -266,7 +261,10 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
                         : () async {
                             final router = GoRouter.of(context);
                             final controller = ref.read(ocrCaptureProvider.notifier);
-                            await controller.runCaptureFlow();
+                            final camera = _controller!;
+                            await controller.runCaptureFlow(
+                              captureImage: () async => (await camera.takePicture()).path,
+                            );
                             if (!mounted) {
                               return;
                             }

@@ -1064,8 +1064,8 @@ class _NotificationListenerCardState
                 ref.read(notificationListenerEnabledProvider.notifier).toggle(value);
               },
               secondary: const Icon(Icons.notifications_active_outlined),
-              title: const Text('알림 자동 기록'),
-              subtitle: const Text('카드·은행 결제 알림을 읽어 거래를 자동 제안합니다.'),
+              title: const Text('결제 알림 감지'),
+              subtitle: const Text('카드·은행 알림을 확인 목록에 모아요. 거래는 확인 후 기록됩니다.'),
             ),
             permissionAsync.when(
               data: (granted) {

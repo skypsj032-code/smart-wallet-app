@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,11 +15,11 @@ class OcrCaptureException implements Exception {
 class OcrExtractedText {
   const OcrExtractedText({
     required this.rawText,
-    required this.confidence,
+    this.confidence,
   });
 
   final String rawText;
-  final double confidence;
+  final double? confidence;
 }
 
 class ParsedOcrDraft {
@@ -32,7 +30,7 @@ class ParsedOcrDraft {
   });
 
   final String storeName;
-  final int amount;
+  final int? amount;
   final String categoryGuess;
 }
 
@@ -89,7 +87,12 @@ class OcrService {
       );
     }
 
-    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    // Android already bundles ML Kit's Korean model. Keep the existing iOS
+    // recognizer until its Korean model has also been configured and tested.
+    final script = defaultTargetPlatform == TargetPlatform.android
+        ? TextRecognitionScript.korean
+        : TextRecognitionScript.latin;
+    final recognizer = TextRecognizer(script: script);
 
     try {
       final inputImage = InputImage.fromFilePath(imagePath);
@@ -98,29 +101,25 @@ class OcrService {
 
       if (rawText.isEmpty) {
         throw const OcrCaptureException(
-          'No readable text was found. Retake the receipt or continue with manual entry.',
+          '읽을 수 있는 글자를 찾지 못했어요. 다시 촬영하거나 직접 입력해 주세요.',
         );
       }
 
-      final lineCount = recognized.blocks.fold<int>(
-        0,
-        (sum, block) => sum + block.lines.length,
-      );
-      final confidence = min(0.99, max(0.1, lineCount / 20));
-
-      return OcrExtractedText(
-        rawText: rawText,
-        confidence: confidence,
-      );
+      // ML Kit does not provide a reliable receipt-level accuracy score here.
+      return OcrExtractedText(rawText: rawText);
     } on OcrCaptureException {
       rethrow;
     } catch (error, stackTrace) {
       debugPrint('OCR text extraction failed: $error\n$stackTrace');
       throw const OcrCaptureException(
-        'Text extraction failed. Retake the receipt and try again.',
+        '영수증을 읽지 못했어요. 다시 촬영하거나 직접 입력해 주세요.',
       );
     } finally {
-      await recognizer.close();
+      try {
+        await recognizer.close();
+      } catch (error, stackTrace) {
+        debugPrint('Closing the OCR recognizer failed: $error\n$stackTrace');
+      }
     }
   }
 
@@ -138,7 +137,7 @@ class OcrService {
     }
 
     final storeName = _pickStoreName(lines);
-    final amount = _pickAmount(rawText, lines);
+    final amount = _pickAmount(lines);
     final categoryGuess = _guessCategory(rawText, storeName);
 
     return ParsedOcrDraft(
@@ -168,6 +167,8 @@ class OcrService {
   bool _looksLikeNoise(String lowerLine) {
     return lowerLine.startsWith('tel') ||
         lowerLine.startsWith('fax') ||
+        RegExp(r'^(?:전화|팩스|사업자|주소|영수증|카드\s*영수증|신용카드\s*매출전표|고객용)')
+            .hasMatch(lowerLine) ||
         lowerLine.contains('approval') ||
         lowerLine.contains('승인') ||
         lowerLine.contains('합계') ||
@@ -176,58 +177,98 @@ class OcrService {
         lowerLine.contains('vat') ||
         lowerLine.contains('card') ||
         lowerLine.contains('cash') ||
-        RegExp(r'^[\d\W]+$').hasMatch(lowerLine);
+        RegExp(r'^[\d\s,.:;()\[\]#*/+%₩￦-]+$').hasMatch(lowerLine);
   }
 
-  int _pickAmount(String rawText, List<String> lines) {
-    final labeledPatterns = <RegExp>[
-      RegExp(r'(?:total|amount|sum)[^\d]{0,10}(\d[\d,]*)', caseSensitive: false),
-      RegExp(r'(?:합계|총액|결제금액|총 결제금액|금액)[^\d]{0,10}(\d[\d,]*)'),
-    ];
+  int? _pickAmount(List<String> lines) {
+    // A cancellation/refund is not necessarily an expense. Ask the user to
+    // choose the amount instead of silently treating it as a new purchase.
+    final cancellation = RegExp(
+      r'^\s*(?:승인\s*취소|결제\s*취소|취소\s*영수증|'
+      r'환불(?:\s*(?:영수증|금액|완료))?|반품(?:\s*(?:영수증|금액|완료))?|'
+      r'refund(?:ed)?|cancelled|canceled)(?=\s|$|[:：])',
+      caseSensitive: false,
+    );
+    if (lines.any(cancellation.hasMatch)) {
+      return null;
+    }
 
-    final labeledCandidates = <int>[];
-    for (final line in lines) {
-      for (final pattern in labeledPatterns) {
-        for (final match in pattern.allMatches(line)) {
-          final parsed = _parseNumber(match.group(1));
-          if (parsed != null) {
-            labeledCandidates.add(parsed);
+    final paymentLabel = RegExp(
+      r'(?:최종\s*|총\s*|실\s*)?결제\s*(?:할\s*)?(?:금액|합계)|'
+      r'지불\s*금액|청구\s*금액|받을\s*금액|'
+      r'amount\s*due|balance\s*due|payment\s*amount',
+      caseSensitive: false,
+    );
+    final totalLabel = RegExp(
+      r'(?:최종\s*|총\s*)?합계|총\s*금액|총액|\btotal\b',
+      caseSensitive: false,
+    );
+    final nonFinalPrefix = RegExp(
+      r'상품|할인|쿠폰|공급|과세|면세|부가세|세금|소계|포인트|잔액|'
+      r'subtotal|discount|vat|tax',
+      caseSensitive: false,
+    );
+
+    // An explicit amount due is more useful than a pre-discount total. If
+    // equally strong labels conflict, leave the amount empty for review.
+    for (final label in [paymentLabel, totalLabel]) {
+      final amounts = <int>{};
+      var foundLabel = false;
+      var hasUnreadableAmount = false;
+      for (var index = 0; index < lines.length; index++) {
+        final line = lines[index];
+        for (final match in label.allMatches(line)) {
+          final prefix = line.substring(0, match.start);
+          final isAfterDiscount = identical(label, paymentLabel) &&
+              RegExp(r'할인\s*(?:적용\s*)?후\s*$').hasMatch(prefix);
+          if (nonFinalPrefix.hasMatch(prefix) && !isAfterDiscount) {
+            continue;
+          }
+          foundLabel = true;
+          final amount = _amountAfterLabel(line, match.end, lines, index);
+          if (amount == null) {
+            hasUnreadableAmount = true;
+          } else {
+            amounts.add(amount);
           }
         }
       }
+      if (foundLabel) {
+        return !hasUnreadableAmount && amounts.length == 1 ? amounts.single : null;
+      }
     }
 
-    if (labeledCandidates.isNotEmpty) {
-      return labeledCandidates.reduce(max);
-    }
-
-    final generalMatches = RegExp(r'\d[\d,]{2,}').allMatches(rawText);
-    final values = generalMatches
-        .map((match) => _parseNumber(match.group(0)))
-        .whereType<int>()
-        .where((value) => value > 0 && value < 100000000)
-        .toList();
-
-    if (values.isEmpty) {
-      throw const OcrCaptureException(
-        'A total amount could not be identified from the OCR text.',
-      );
-    }
-
-    return values.reduce(max);
+    return null;
   }
 
-  int? _parseNumber(String? rawValue) {
-    if (rawValue == null) {
-      return null;
+  int? _amountAfterLabel(String line, int labelEnd, List<String> lines, int index) {
+    final remainder = line.substring(labelEnd);
+    final sameLine = RegExp(
+      r'^\s*[:：=]?\s*[₩￦]?\s*(\d[\d,]*)(?:\s*원)?(?=\s|$)',
+    ).firstMatch(remainder);
+    if (sameLine != null) {
+      return _parseAmountNumber(sameLine.group(1)!);
     }
 
-    final digitsOnly = rawValue.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digitsOnly.isEmpty) {
+    // OCR may split a label and its value into consecutive lines. Do not use
+    // a line containing additional text, which could be an item or a phone.
+    if (RegExp(r'^\s*[:：=]?\s*$').hasMatch(remainder) && index + 1 < lines.length) {
+      final nextLine = RegExp(
+        r'^\s*[₩￦]?\s*(\d[\d,]*)(?:\s*원)?\s*$',
+      ).firstMatch(lines[index + 1]);
+      if (nextLine != null) {
+        return _parseAmountNumber(nextLine.group(1)!);
+      }
+    }
+    return null;
+  }
+
+  int? _parseAmountNumber(String rawValue) {
+    if (!RegExp(r'^(?:\d{1,3}(?:,\d{3})+|\d+)$').hasMatch(rawValue)) {
       return null;
     }
-
-    return int.tryParse(digitsOnly);
+    final value = int.tryParse(rawValue.replaceAll(',', ''));
+    return value != null && value > 0 && value < 100000000 ? value : null;
   }
 
   /// 영수증 텍스트를 분석해 가장 가까운 기본 카테고리 ID를 반환한다.

@@ -110,6 +110,8 @@ class BackupService {
             (data['recurringSpendOverrides'] as List<dynamic>).length,
         'notificationHistoryCount':
             (data['notificationHistories'] as List<dynamic>).length,
+        'merchantCategoryRuleCount':
+            (data['merchantCategoryRules'] as List<dynamic>).length,
         'ocrDraftCount': (data['ocrDrafts'] as List<dynamic>).length,
       },
       'data': data,
@@ -143,6 +145,8 @@ class BackupService {
         await _database.select(_database.recurringSpendOverrides).get();
     final notifications =
         await _database.select(_database.notificationHistories).get();
+    final merchantRules =
+        await _database.select(_database.merchantCategoryRules).get();
     final ocrDrafts = await _database.select(_database.ocrDrafts).get();
     final settings = await _database.select(_database.appSettings).get();
     return {
@@ -153,6 +157,7 @@ class BackupService {
       'recurringExpenses': recurring.map(_recurringExpenseToJson).toList(),
       'recurringSpendOverrides': overrides.map(_recurringSpendOverrideToJson).toList(),
       'notificationHistories': notifications.map(_notificationHistoryToJson).toList(),
+      'merchantCategoryRules': merchantRules.map(_merchantCategoryRuleToJson).toList(),
       'ocrDrafts': ocrDrafts.map(_ocrDraftToJson).toList(),
       'settings': settings.isEmpty ? null : _settingsToJson(settings.first),
     };
@@ -219,7 +224,8 @@ class BackupService {
       warnings.add('이전 백업은 파일 손상 여부를 완전히 확인할 수 없습니다.');
     }
     if (const [
-      'recurringExpenses', 'recurringSpendOverrides', 'notificationHistories', 'ocrDrafts',
+      'recurringExpenses', 'recurringSpendOverrides', 'notificationHistories',
+      'merchantCategoryRules', 'ocrDrafts',
     ].any((key) => !data.containsKey(key))) {
       warnings.add('이전 백업에 없는 항목은 현재 기기의 데이터를 유지합니다.');
     }
@@ -262,6 +268,8 @@ class BackupService {
         data['recurringSpendOverrides'] as List<dynamic>?;
     final notificationHistoriesData =
         data['notificationHistories'] as List<dynamic>?;
+    final merchantCategoryRulesData =
+        data['merchantCategoryRules'] as List<dynamic>?;
     final ocrDraftsData = data['ocrDrafts'] as List<dynamic>?;
     final settingsData = data['settings'] as Map<String, dynamic>?;
     var retainedRecurringExpenseCount = 0;
@@ -308,6 +316,9 @@ class BackupService {
       }
       if (notificationHistoriesData != null) {
         await _database.delete(_database.notificationHistories).go();
+      }
+      if (merchantCategoryRulesData != null) {
+        await _database.delete(_database.merchantCategoryRules).go();
       }
       if (ocrDraftsData != null) {
         await _database.delete(_database.ocrDrafts).go();
@@ -439,6 +450,21 @@ class BackupService {
                   merchant: Value(raw['merchant'] as String?),
                   suggestedCategory: Value(raw['suggestedCategory'] as String?),
                   detectedAt: DateTime.parse(raw['detectedAt'] as String),
+                  eventId: Value(raw['eventId'] as String?),
+                  status: Value((raw['status'] as String?) ?? 'legacy'),
+                  transactionId: Value(raw['transactionId'] as String?),
+                )).toList(),
+          );
+        }
+        if (merchantCategoryRulesData != null) {
+          batch.insertAll(
+            _database.merchantCategoryRules,
+            merchantCategoryRulesData.cast<Map<String, dynamic>>().map((raw) =>
+                MerchantCategoryRulesCompanion.insert(
+                  merchantKey: raw['merchantKey'] as String,
+                  type: raw['type'] as String,
+                  categoryId: raw['categoryId'] as String,
+                  updatedAt: DateTime.parse(raw['updatedAt'] as String),
                 )).toList(),
           );
         }
@@ -465,6 +491,28 @@ class BackupService {
           );
         }
       });
+
+      // Old backups can omit notification history while replacing the ledger.
+      // Preserve those events, but don't claim a missing transaction exists.
+      if (notificationHistoriesData == null) {
+        final restoredIds = transactionsData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId'] as String)
+            .toSet();
+        final retained = await _database.select(_database.notificationHistories).get();
+        final staleIds = retained
+            .where((item) => item.transactionId != null &&
+                !restoredIds.contains(item.transactionId))
+            .map((item) => item.id)
+            .toList();
+        if (staleIds.isNotEmpty) {
+          await (_database.update(_database.notificationHistories)
+                ..where((item) => item.id.isIn(staleIds)))
+              .write(const NotificationHistoriesCompanion(
+            status: Value('legacy'),
+            transactionId: Value(null),
+          ));
+        }
+      }
 
       if (settingsData != null) {
         await _database.into(_database.appSettings).insert(
@@ -580,6 +628,7 @@ class BackupService {
       'recurringExpenses',
       'recurringSpendOverrides',
       'notificationHistories',
+      'merchantCategoryRules',
       'ocrDrafts',
     ]) {
       final value = dataValue[key];
@@ -611,6 +660,7 @@ class BackupService {
         'recurringExpenses': 'recurringExpenseCount',
         'recurringSpendOverrides': 'recurringSpendOverrideCount',
         'notificationHistories': 'notificationHistoryCount',
+        'merchantCategoryRules': 'merchantCategoryRuleCount',
         'ocrDrafts': 'ocrDraftCount',
       };
       for (final entry in sectionCounts.entries) {
@@ -638,6 +688,7 @@ class BackupService {
       if (value == null) continue;
       final records = section == 'settings' ? [value] : value as List<dynamic>;
       final ids = <Object>{};
+      final eventIds = <String>{};
       for (final record in records) {
         if (record is! Map<String, dynamic>) {
           throw BackupFormatException('$section contains an invalid record.');
@@ -652,12 +703,54 @@ class BackupService {
             });
           }
         }
+        if (section == 'notificationHistories') {
+          if (schemaVersionValue >= 10) {
+            _validateBackupRecord(section, record, fields: _modernNotificationFields);
+          } else {
+            // Pre-v10 backups omit these keys, even when their values are null.
+            for (final field in _modernNotificationFields.entries) {
+              if (record.containsKey(field.key)) {
+                _validateBackupRecord(section, record,
+                    fields: {field.key: field.value});
+              }
+            }
+          }
+          final eventId = record['eventId'] as String?;
+          if (eventId != null && (eventId.isEmpty || !eventIds.add(eventId))) {
+            throw const BackupFormatException(
+              'notificationHistories contains an invalid or duplicate event id.',
+            );
+          }
+          final status = record['status'] as String?;
+          if (status != null &&
+              !const {'legacy', 'pending', 'recorded', 'ignored'}.contains(status)) {
+            throw const BackupFormatException('notificationHistories has an invalid status.');
+          }
+        }
         final idKey = section == 'notificationHistories' ? 'id' :
             section == 'recurringSpendOverrides' ? 'groupKey' :
             section == 'settings' ? 'id' : 'localId';
-        if (!ids.add(record[idKey] as Object)) {
+        final Object identifier = section == 'merchantCategoryRules'
+            ? (record['merchantKey'], record['type'])
+            : record[idKey] as Object;
+        if (!ids.add(identifier)) {
           throw BackupFormatException('$section contains duplicate identifiers.');
         }
+      }
+    }
+
+    final transactionIds = (dataValue['transactions'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map((record) => record['localId'] as String)
+        .toSet();
+    for (final record in (dataValue['notificationHistories'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()) {
+      final linkedId = record['transactionId'] as String?;
+      if ((record['status'] == 'recorded' && linkedId == null) ||
+          (linkedId != null && !transactionIds.contains(linkedId))) {
+        throw const BackupFormatException(
+          'notificationHistories contains a missing transaction link.',
+        );
       }
     }
 
@@ -705,6 +798,10 @@ class BackupService {
       'id': 'int', 'packageName': 'string', 'amount': 'int', 'type': 'string',
       'merchant': 'string?', 'suggestedCategory': 'string?', 'detectedAt': 'date',
     },
+    'merchantCategoryRules': {
+      'merchantKey': 'string', 'type': 'string', 'categoryId': 'string',
+      'updatedAt': 'date',
+    },
     'ocrDrafts': {
       'localId': 'string', 'sourceImagePath': 'string?', 'ocrRawText': 'string?',
       'ocrConfidence': 'number?', 'ocrStatus': 'string', 'parsedStoreName': 'string?',
@@ -718,6 +815,10 @@ class BackupService {
     'type': 'string', 'cadence': 'string', 'weekday': 'int?',
     'lastSuggestedCycleKey': 'string?', 'lastCompletedCycleKey': 'string?',
     'lastDismissedCycleKey': 'string?',
+  };
+
+  static const _modernNotificationFields = <String, String>{
+    'eventId': 'string?', 'status': 'string', 'transactionId': 'string?',
   };
 
   void _validateBackupRecord(String section, Map<String, dynamic> record,
@@ -833,6 +934,16 @@ class BackupService {
         'merchant': item.merchant,
         'suggestedCategory': item.suggestedCategory,
         'detectedAt': item.detectedAt.toIso8601String(),
+        'eventId': item.eventId,
+        'status': item.status,
+        'transactionId': item.transactionId,
+      };
+
+  Map<String, dynamic> _merchantCategoryRuleToJson(MerchantCategoryRule item) => {
+        'merchantKey': item.merchantKey,
+        'type': item.type,
+        'categoryId': item.categoryId,
+        'updatedAt': item.updatedAt.toIso8601String(),
       };
 
   Map<String, dynamic> _ocrDraftToJson(OcrDraft item) => {

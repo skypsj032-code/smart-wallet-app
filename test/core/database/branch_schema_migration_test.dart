@@ -35,6 +35,7 @@ void main() {
     expect((await database.customSelect('SELECT local_id FROM transactions').get())
         .single.data['local_id'], 'transaction-before-upgrade');
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
+    await _expectNotificationStorageV10(database);
   });
 
   test('Korean version 4 keeps exclusions while creating scheduled expenses',
@@ -63,6 +64,7 @@ void main() {
     expect(await _tableExists(database, 'notification_histories'), isTrue);
     expect((await database.customSelect('SELECT local_id FROM transactions').get())
         .single.data['local_id'], 'transaction-before-upgrade');
+    await _expectNotificationStorageV10(database);
   });
 
   test('design version 4 preserves scheduled expense completion state', () async {
@@ -91,6 +93,7 @@ void main() {
     expect(rows.single.data['cadence'], 'monthly');
     expect(rows.single.data['last_completed_cycle_key'], '2026-04');
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
+    await _expectNotificationStorageV10(database);
   });
 
   test('fresh databases include both types of recurring data', () async {
@@ -113,6 +116,7 @@ void main() {
     expect(await _tableExists(database, 'recurring_spend_overrides'), isTrue);
     expect((await database.customSelect('SELECT local_id FROM recurring_expenses').get())
         .single.data['local_id'], 'keep-schedule');
+    await _expectNotificationStorageV10(database);
   });
 
   test('a failed upgrade rolls back earlier changes to the original database',
@@ -200,4 +204,20 @@ Future<bool> _tableExists(AppDatabase database, String tableName) async {
     variables: [Variable.withString(tableName)],
   ).get();
   return rows.isNotEmpty;
+}
+
+Future<void> _expectNotificationStorageV10(AppDatabase database) async {
+  final columns = await database.customSelect(
+    'PRAGMA table_info(notification_histories)',
+  ).get();
+  expect(columns.map((row) => row.data['name']),
+      containsAll(['event_id', 'status', 'transaction_id']));
+  expect(await _tableExists(database, 'merchant_category_rules'), isTrue);
+  final index = await database.customSelect('''
+    SELECT name FROM sqlite_master WHERE type = 'index'
+      AND name = 'notification_histories_event_id_idx'
+  ''').get();
+  expect(index, hasLength(1));
+  expect((await database.customSelect('PRAGMA user_version').getSingle())
+      .data.values.single, 10);
 }

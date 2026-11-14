@@ -37,6 +37,10 @@ void main() {
     final label = dashboardNarrativeSemanticLabel(snapshot);
 
     expect(label, contains('Dashboard insight.'));
+    expect(label, contains('이번 달 소비 날씨'));
+    expect(label, contains('₩260,000'));
+    expect(label, contains('₩1,000,000'));
+    expect(label, contains('26%'));
     expect(label, contains('식비'));
     expect(label, contains('42%가 식비에 모였어요.'));
   });
@@ -62,8 +66,7 @@ void main() {
     await tester.pumpWidget(_DashboardAccessibilityApp(router: router));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('최근 내역 보기'));
-    await tester.pumpAndSettle();
+    expect(find.text('이번 달 소비 날씨'), findsOneWidget);
 
     expect(
       find.bySemanticsLabel(
@@ -71,6 +74,10 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    await tester.ensureVisible(find.text('최근 내역 보기'));
+    await tester.pumpAndSettle();
+
     expect(
       find.bySemanticsLabel(
         'Open quick entry. Today already has recorded transactions, so you can add one more entry.',
@@ -99,6 +106,9 @@ class _DashboardAccessibilityApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
+        dashboardPendingNotificationCountProvider.overrideWith(
+          (ref) => Stream.value(0),
+        ),
         dashboardSummaryProvider.overrideWith(
           (ref) => Stream.value(_fakeDashboardSummary()),
         ),

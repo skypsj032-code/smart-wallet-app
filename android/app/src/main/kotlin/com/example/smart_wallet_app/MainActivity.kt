@@ -76,6 +76,49 @@ class MainActivity : FlutterActivity() {
                     openBatteryOptimizationSettings()
                     result.success(null)
                 }
+                "configureCaptureEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled")
+                    if (enabled == null) {
+                        result.error("invalid_arguments", "Missing capture setting.", null)
+                    } else {
+                        try {
+                            SmartWalletNotificationService.configureCaptureEnabled(applicationContext, enabled)
+                            result.success(null)
+                        } catch (_: Exception) {
+                            result.error("notification_queue_error", "Could not change notification capture.", null)
+                        }
+                    }
+                }
+                "getPendingNotifications" -> {
+                    try {
+                        result.success(SmartWalletNotificationService.getPendingNotifications(applicationContext))
+                    } catch (_: Exception) {
+                        result.error("notification_queue_error", "Could not read pending notifications.", null)
+                    }
+                }
+                "acknowledgeNotifications" -> {
+                    val ids = call.argument<List<*>>("eventIds")
+                    if (ids == null || ids.any { it !is String || it.isEmpty() }) {
+                        result.error("invalid_arguments", "Invalid notification event IDs.", null)
+                    } else {
+                        try {
+                            SmartWalletNotificationService.acknowledgeNotifications(
+                                applicationContext,
+                                ids.filterIsInstance<String>(),
+                            )
+                            result.success(null)
+                        } catch (_: Exception) {
+                            result.error("notification_queue_error", "Could not acknowledge notifications.", null)
+                        }
+                    }
+                }
+                "getDroppedNotificationCount" -> {
+                    try {
+                        result.success(SmartWalletNotificationService.getDroppedNotificationCount(applicationContext))
+                    } catch (_: Exception) {
+                        result.error("notification_queue_error", "Could not read notification overflow count.", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

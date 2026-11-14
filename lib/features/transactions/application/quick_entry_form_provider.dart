@@ -21,6 +21,8 @@ class QuickEntryFormState {
     this.toAccountId,
     this.categoryId,
     this.editingId,
+    this.notificationHistoryId,
+    this.notificationMerchant,
   });
 
   final TransactionEntryType type;
@@ -32,6 +34,9 @@ class QuickEntryFormState {
   final String? toAccountId;
   final String? categoryId;
   final String? editingId;
+  /// 알림에서 시작한 입력만 원본 후보와 연결한다.
+  final int? notificationHistoryId;
+  final String? notificationMerchant;
 
   bool get canSubmit {
     if (amount.trim().isEmpty) {
@@ -72,6 +77,8 @@ class QuickEntryFormState {
     Object? toAccountId = _quickEntryUnset,
     Object? categoryId = _quickEntryUnset,
     Object? editingId = _quickEntryUnset,
+    Object? notificationHistoryId = _quickEntryUnset,
+    Object? notificationMerchant = _quickEntryUnset,
   }) {
     return QuickEntryFormState(
       type: type ?? this.type,
@@ -89,6 +96,10 @@ class QuickEntryFormState {
           identical(categoryId, _quickEntryUnset) ? this.categoryId : categoryId as String?,
       editingId:
           identical(editingId, _quickEntryUnset) ? this.editingId : editingId as String?,
+      notificationHistoryId: identical(notificationHistoryId, _quickEntryUnset)
+          ? this.notificationHistoryId : notificationHistoryId as int?,
+      notificationMerchant: identical(notificationMerchant, _quickEntryUnset)
+          ? this.notificationMerchant : notificationMerchant as String?,
     );
   }
 }
@@ -115,6 +126,8 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
       toAccountId: type == TransactionEntryType.transfer ? state.toAccountId : null,
       categoryId: type == TransactionEntryType.transfer ? null : state.categoryId,
       editingId: state.editingId,
+      notificationHistoryId: state.notificationHistoryId,
+      notificationMerchant: state.notificationMerchant,
     );
   }
 
@@ -151,6 +164,14 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   void setCategory(String? categoryId) {
     if (_isSubmitting) return;
     state = state.copyWith(categoryId: categoryId);
+  }
+
+  void setNotificationOrigin(int? historyId, String? merchant) {
+    if (_isSubmitting) return;
+    state = state.copyWith(
+      notificationHistoryId: historyId,
+      notificationMerchant: merchant,
+    );
   }
 
   void setEditingId(String? editingId) {

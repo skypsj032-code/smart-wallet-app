@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:drift/drift.dart' as drift;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/app/theme/app_theme.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
+import 'package:smart_wallet_app/core/database/providers/database_providers.dart';
 import 'package:smart_wallet_app/features/calendar/application/calendar_provider.dart';
 import 'package:smart_wallet_app/features/dashboard/application/dashboard_narrative.dart';
 import 'package:smart_wallet_app/features/dashboard/application/detected_recurring_spend_provider.dart';
@@ -16,7 +21,74 @@ import 'package:smart_wallet_app/features/dashboard/presentation/dashboard_scree
 import 'package:smart_wallet_app/features/recurring_expenses/application/recurring_expense_service.dart';
 import 'package:smart_wallet_app/features/statistics/application/statistics_provider.dart';
 
+import '../../test_support/sqlite_test_setup.dart';
+
 void main() {
+  setUpAll(configureSqliteForTests);
+
+  test('pending count includes older pending histories and excludes others',
+      () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final firstDay = DateTime(2026, 1, 1);
+    await database.batch((batch) {
+      batch.insert(
+        database.notificationHistories,
+        NotificationHistoriesCompanion.insert(
+          packageName: 'bank',
+          amount: 1000,
+          type: 'expense',
+          detectedAt: firstDay,
+          status: const drift.Value('pending'),
+        ),
+      );
+      for (var i = 1; i <= 101; i++) {
+        batch.insert(
+          database.notificationHistories,
+          NotificationHistoriesCompanion.insert(
+            packageName: 'bank',
+            amount: 1000,
+            type: 'expense',
+            detectedAt: firstDay.add(Duration(minutes: i)),
+            status: const drift.Value('legacy'),
+          ),
+        );
+      }
+      for (final status in ['recorded', 'ignored']) {
+        batch.insert(
+          database.notificationHistories,
+          NotificationHistoriesCompanion.insert(
+            packageName: 'bank',
+            amount: 1000,
+            type: 'expense',
+            detectedAt: firstDay.add(const Duration(minutes: 102)),
+            status: drift.Value(status),
+          ),
+        );
+      }
+      batch.insert(
+        database.notificationHistories,
+        NotificationHistoriesCompanion.insert(
+          packageName: 'bank',
+          amount: 2000,
+          type: 'income',
+          detectedAt: firstDay.add(const Duration(minutes: 103)),
+          status: const drift.Value('pending'),
+        ),
+      );
+    });
+
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+    ]);
+    addTearDown(container.dispose);
+
+    expect(
+      await container.read(dashboardPendingNotificationCountProvider.future),
+      2,
+    );
+  });
+
   testWidgets('dashboard calendar card opens the calendar route',
       (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
@@ -61,6 +133,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Statistics Route'), findsOneWidget);
+  });
+
+  testWidgets('notification history stays reachable as pending count changes',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final router = _buildRouter();
+    addTearDown(router.dispose);
+    final pending = StreamController<int>();
+    addTearDown(pending.close);
+    final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
+
+    await tester.pumpWidget(_DashboardTestApp(
+      router: router,
+      pendingNotifications: pending.stream,
+    ));
+    pending.add(2);
+    await tester.pumpAndSettle();
+
+    expect(find.text('확인 대기 중인 알림 2건'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('알림 수신 이력. 확인 대기 중인 알림 2건.'),
+      findsOneWidget,
+    );
+
+    pending.add(0);
+    await tester.pumpAndSettle();
+    expect(find.text('확인 대기 중인 알림 0건'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const Key('dashboard-open-notification-history')),
+    );
+    await tester.tap(
+      find.byKey(const Key('dashboard-open-notification-history')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Notification History Route'), findsOneWidget);
   });
 
   testWidgets('weather header and detected recurring spending coexist',
@@ -118,15 +227,20 @@ class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
     this.snapshot = const DetectedRecurringSpendSnapshot(groups: [], excludedKeys: {}),
+    this.pendingNotifications,
   });
 
   final GoRouter router;
   final DetectedRecurringSpendSnapshot snapshot;
+  final Stream<int>? pendingNotifications;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
+        dashboardPendingNotificationCountProvider.overrideWith(
+          (ref) => pendingNotifications ?? Stream.value(0),
+        ),
         detectedRecurringSpendProvider.overrideWith((ref) {
           final excluded = ref.watch(_testExcludedProvider);
           return AsyncData(DetectedRecurringSpendSnapshot(
@@ -238,6 +352,12 @@ GoRouter _buildRouter() {
         path: '/statistics',
         builder: (context, state) => const Scaffold(
           body: Center(child: Text('Statistics Route')),
+        ),
+      ),
+      GoRoute(
+        path: '/notification-history',
+        builder: (context, state) => const Scaffold(
+          body: Center(child: Text('Notification History Route')),
         ),
       ),
       GoRoute(

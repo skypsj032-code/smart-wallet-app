@@ -96,8 +96,8 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
     return const OcrDraftState();
   }
 
-  Future<void> runCaptureFlow() async {
-    await simulateCapture();
+  Future<void> runCaptureFlow({Future<String> Function()? captureImage}) async {
+    await simulateCapture(captureImage: captureImage);
     if (state.status == OcrFlowStatus.failed) {
       return;
     }
@@ -110,12 +110,14 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
     await simulateParse();
   }
 
-  Future<void> simulateCapture() async {
+  Future<void> simulateCapture({Future<String> Function()? captureImage}) async {
     final previousImagePath = state.imagePath;
-    state = const OcrDraftState(status: OcrFlowStatus.capturing);
+    state = state.copyWith(status: OcrFlowStatus.capturing, errorMessage: null);
 
     try {
-      final imagePath = await ref.read(ocrServiceProvider).captureReceipt();
+      final imagePath = captureImage == null
+          ? await ref.read(ocrServiceProvider).captureReceipt()
+          : await captureImage();
       final id = await ref.read(ocrDraftRepositoryProvider).createDraft(
             status: OcrFlowStatus.capturing.name,
             imagePath: imagePath,
@@ -164,8 +166,10 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
       );
 
       await _persistState(status: OcrFlowStatus.extracted);
-    } catch (error) {
-      await fail('Text extraction failed. $error');
+    } on OcrCaptureException catch (error) {
+      await fail(error.message);
+    } catch (_) {
+      await fail('영수증을 읽지 못했어요. 다시 촬영하거나 직접 입력해 주세요.');
     }
   }
 
@@ -187,10 +191,15 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
         storeName: parsed.storeName,
         amount: parsed.amount,
         categoryGuess: parsed.categoryGuess,
-        errorMessage: null,
+        errorMessage: parsed.amount == null
+            ? '결제금액을 확실히 찾지 못했어요. 영수증을 확인하고 직접 입력해 주세요.'
+            : null,
       );
 
-      await _persistState(status: OcrFlowStatus.reviewRequired);
+      await _persistState(
+        status: OcrFlowStatus.reviewRequired,
+        errorMessage: state.errorMessage,
+      );
     } catch (error) {
       state = state.copyWith(
         status: OcrFlowStatus.reviewRequired,
@@ -211,11 +220,6 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
 
     state = state.copyWith(
       status: OcrFlowStatus.capturing,
-      rawText: '',
-      confidence: null,
-      storeName: null,
-      amount: null,
-      categoryGuess: null,
       errorMessage: null,
     );
     await _persistState(status: OcrFlowStatus.capturing);
@@ -232,10 +236,7 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
       state = state.copyWith(
         status: OcrFlowStatus.reviewRequired,
         rawText: '',
-        storeName: null,
-        amount: null,
-        categoryGuess: null,
-        errorMessage: 'Paste or edit the OCR text first, then try again.',
+        errorMessage: 'OCR 텍스트를 입력하거나 수정한 뒤 다시 시도해 주세요.',
       );
       await _persistState(
         status: OcrFlowStatus.reviewRequired,
@@ -258,16 +259,18 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
         storeName: parsed.storeName,
         amount: parsed.amount,
         categoryGuess: parsed.categoryGuess,
-        errorMessage: null,
+        errorMessage: parsed.amount == null
+            ? '결제금액을 확실히 찾지 못했어요. 영수증을 확인하고 직접 입력해 주세요.'
+            : null,
       );
-      await _persistState(status: OcrFlowStatus.reviewRequired);
+      await _persistState(
+        status: OcrFlowStatus.reviewRequired,
+        errorMessage: state.errorMessage,
+      );
     } catch (error) {
       state = state.copyWith(
         status: OcrFlowStatus.reviewRequired,
-        storeName: null,
-        amount: null,
-        categoryGuess: null,
-        errorMessage: 'The text was updated, but the suggestion still needs manual fixes. $error',
+        errorMessage: '텍스트로 추천을 만들지 못했어요. 기존 내용을 확인해 주세요.',
       );
       await _persistState(
         status: OcrFlowStatus.reviewRequired,

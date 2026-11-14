@@ -22,6 +22,7 @@ part 'app_database.g.dart';
     BackupMetadata,
     OcrDrafts,
     NotificationHistories,
+    MerchantCategoryRules,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -29,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -172,6 +173,30 @@ class AppDatabase extends _$AppDatabase {
               !await _tableExists('recurring_spend_overrides')) {
             await m.createTable(recurringSpendOverrides);
           }
+          if (from < 10) {
+            // Earlier branch schemas did not all contain this table. The
+            // earlier createTable call may also have created it with the
+            // current columns already, so inspect each column independently.
+            if (!await _tableExists('notification_histories')) {
+              await m.createTable(notificationHistories);
+            }
+            if (!await _tableHasColumn('notification_histories', 'event_id')) {
+              await m.addColumn(notificationHistories, notificationHistories.eventId);
+            }
+            if (!await _tableHasColumn('notification_histories', 'status')) {
+              await m.addColumn(notificationHistories, notificationHistories.status);
+            }
+            if (!await _tableHasColumn('notification_histories', 'transaction_id')) {
+              await m.addColumn(notificationHistories, notificationHistories.transactionId);
+            }
+            if (!await _tableExists('merchant_category_rules')) {
+              await m.createTable(merchantCategoryRules);
+            }
+            await customStatement('''
+              CREATE UNIQUE INDEX IF NOT EXISTS notification_histories_event_id_idx
+              ON notification_histories (event_id) WHERE event_id IS NOT NULL;
+            ''');
+          }
           // Persist the version in the same transaction as the schema. This
           // makes an interrupted upgrade safe to retry on the next launch.
           await customStatement('PRAGMA user_version = $to');
@@ -190,6 +215,12 @@ class AppDatabase extends _$AppDatabase {
       variables: [Variable.withString(name)],
     ).get();
     return rows.isNotEmpty;
+  }
+
+  Future<bool> _tableHasColumn(String table, String column) async {
+    // Called only with schema-owned table names from this migration.
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return rows.any((row) => row.data['name'] == column);
   }
 
   Stream<Set<String>> watchNotRecurringGroupKeys() {
@@ -304,11 +335,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<NotificationHistory>> watchNotificationHistories(
-      {int limit = 100}) {
-    return (select(notificationHistories)
-          ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)])
-          ..limit(limit))
-        .watch();
+      {int? limit}) {
+    final query = select(notificationHistories)
+      ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]);
+    if (limit != null) query.limit(limit);
+    return query.watch();
   }
 
   Future<void> deleteOldNotificationHistories({int keepCount = 200}) async {
@@ -316,9 +347,21 @@ class AppDatabase extends _$AppDatabase {
           ..orderBy([(h) => OrderingTerm.desc(h.detectedAt)]))
         .get();
     if (all.length <= keepCount) return;
-    final toDelete = all.sublist(keepCount).map((h) => h.id).toList();
-    await (delete(notificationHistories)..where((h) => h.id.isIn(toDelete)))
-        .go();
+    // A retained event id is the durable duplicate-prevention record.
+    // Pending and old unverified histories also must never be discarded.
+    final toDelete = all.reversed
+        .where((h) => h.eventId == null &&
+            (h.status == 'recorded' || h.status == 'ignored'))
+        .take(all.length - keepCount)
+        .map((h) => h.id)
+        .toList();
+    if (toDelete.isNotEmpty) {
+      await (delete(notificationHistories)
+            ..where((h) => h.id.isIn(toDelete) &
+                h.eventId.isNull() &
+                (h.status.equals('recorded') | h.status.equals('ignored'))))
+          .go();
+    }
   }
 
   /// 최근 [dayRange]일간 감지된 알림 건수를 반환한다.

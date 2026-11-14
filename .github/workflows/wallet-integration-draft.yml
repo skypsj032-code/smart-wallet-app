@@ -119,12 +119,12 @@ jobs:
           $gradlePath = 'C:\smart wallet\app\android\app\build.gradle.kts'
           $gradle = Get-Content -LiteralPath $gradlePath -Raw
           if (-not $gradle.Contains('applicationId = "com.example.smart_wallet_app"')) { throw 'Original application ID not found' }
-          $gradle = $gradle.Replace('applicationId = "com.example.smart_wallet_app"', 'applicationId = "com.example.smart_wallet_app.preview"')
+          $gradle = $gradle.Replace('applicationId = "com.example.smart_wallet_app"', 'applicationId = "com.example.smart_wallet_app.axpreview"')
           Set-Content -LiteralPath $gradlePath -Value $gradle -Encoding utf8
           $manifestPath = 'C:\smart wallet\app\android\app\src\main\AndroidManifest.xml'
           $manifest = Get-Content -LiteralPath $manifestPath -Raw
           if (-not $manifest.Contains('android:label="smart_wallet_app"')) { throw 'Original label not found' }
-          $manifest = $manifest.Replace('android:label="smart_wallet_app"', 'android:label="Smart Wallet Preview"')
+          $manifest = $manifest.Replace('android:label="smart_wallet_app"', 'android:label="Smart Wallet AX Preview"')
           Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding utf8
       - name: Build separate Android preview
         shell: pwsh
@@ -140,10 +140,10 @@ jobs:
           if (-not $aapt) { throw 'Android build tools not found' }
           $badging = & $aapt dump badging $apk
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not ($badging | Select-String -Pattern "package: name='com\.example\.smart_wallet_app\.preview'")) { throw 'Unexpected application ID' }
+          if (-not ($badging | Select-String -Pattern "package: name='com\.example\.smart_wallet_app\.axpreview'")) { throw 'Unexpected application ID' }
           if (-not ($badging | Select-String -Pattern "launchable-activity: name='com\.example\.smart_wallet_app\.MainActivity'")) { throw 'Unexpected launch activity' }
       - uses: actions/upload-artifact@v4
         with:
-          name: smart-wallet-preview-arm64
+          name: smart-wallet-ax-preview-arm64
           path: 'C:\smart wallet\app\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk'
           retention-days: 7
