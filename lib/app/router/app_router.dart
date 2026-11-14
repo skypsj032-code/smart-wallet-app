@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/app_motion.dart';
 import '../../features/accounts/presentation/accounts_screen.dart';
 import '../../features/budgets/presentation/budget_screen.dart';
 import '../../features/calendar/presentation/calendar_screen.dart';
@@ -18,6 +19,7 @@ import '../../features/settings/presentation/lock_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/timeline/presentation/timeline_screen.dart';
+import '../../features/transactions/application/quick_entry_form_provider.dart';
 import '../../features/transactions/presentation/quick_entry_screen.dart';
 import '../../features/tools/presentation/tools_screen.dart';
 
@@ -52,21 +54,27 @@ int routeTabIndex(String location) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final appSettings = ref.watch(appSettingsProvider).asData?.value;
-  final isSessionUnlocked = ref.watch(sessionUnlockedProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
+      final appSettings = ref.read(appSettingsProvider).asData?.value;
+      final isSessionUnlocked = ref.read(sessionUnlockedProvider);
       final isLockRoute = state.matchedLocation == '/lock';
 
-      if (appSettings != null &&
-          appSettings.appLockEnabled &&
-          !isSessionUnlocked) {
+      // Treat unknown lock settings as locked until the settings stream has
+      // produced a valid value. The lock screen handles loading and errors.
+      if (appSettings == null) {
+        return isLockRoute ? null : '/lock';
+      }
+
+      if (appSettings.appLockEnabled && !isSessionUnlocked) {
         return isLockRoute ? null : '/lock';
       }
 
       if (isLockRoute) {
+        if (ref.read(quickEntryFormProvider.notifier).needsRestoreAfterLock) {
+          return '/quick-entry';
+        }
         return '/';
       }
 
@@ -182,15 +190,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Re-evaluate lock redirects without resetting the navigation stack when
+  // settings change (including after a backup restore).
+  ref.listen(appSettingsProvider, (_, __) => router.refresh());
+  ref.listen(sessionUnlockedProvider, (_, __) => router.refresh());
+  ref.onDispose(router.dispose);
+  return router;
 });
 
-NoTransitionPage<void> _buildShellPage({
+CustomTransitionPage<void> _buildShellPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  return NoTransitionPage<void>(
+  return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
+    transitionDuration: AppMotion.normal,
+    reverseTransitionDuration: AppMotion.fast,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: AppMotion.decelerate,
+        reverseCurve: AppMotion.accelerate,
+      );
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.025, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -198,8 +235,7 @@ NoTransitionPage<void> _buildTransitionPage({
   required GoRouterState state,
   required Widget child,
 }) {
-  // AppShell의 AnimatedSwitcher가 화면 전환 애니메이션을 담당하므로
-  // 라우터 레벨에서는 별도 트랜지션 없이 즉시 교체합니다.
+  // 잠금 화면은 즉시 표시해 기존 화면이 노출되는 시간을 줄입니다.
   return NoTransitionPage<void>(
     key: state.pageKey,
     child: child,

@@ -118,8 +118,7 @@ abstract final class AppTheme {
           final inactiveColor = isDark
               ? Colors.white.withValues(alpha: 0.72)
               : const Color(0xFF2A1F0E).withValues(alpha: 0.76);
-          return AppTypography.mono(
-            brightness: brightness,
+          return textTheme.labelLarge?.copyWith(
             color: selected ? activeColor : inactiveColor,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           );
@@ -243,12 +242,10 @@ abstract final class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surfaceContainerHigh,
         selectedColor: scheme.primary.withValues(alpha: 0.14),
-        labelStyle: AppTypography.mono(
-          brightness: brightness,
+        labelStyle: textTheme.labelLarge?.copyWith(
           color: scheme.onSurfaceVariant,
         ),
-        secondaryLabelStyle: AppTypography.mono(
-          brightness: brightness,
+        secondaryLabelStyle: textTheme.labelLarge?.copyWith(
           color: scheme.primary,
           fontWeight: FontWeight.w600,
         ),

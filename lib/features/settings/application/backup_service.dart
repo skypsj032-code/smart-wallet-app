@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -56,6 +57,7 @@ class BackupPreview {
     required this.createdAt,
     required this.appVersion,
     required this.summary,
+    this.warnings = const [],
   });
 
   final int backupVersion;
@@ -63,6 +65,7 @@ class BackupPreview {
   final DateTime createdAt;
   final String appVersion;
   final BackupSummary summary;
+  final List<String> warnings;
 }
 
 class BackupFormatException implements Exception {
@@ -78,16 +81,16 @@ class BackupService {
   BackupService(this._database);
 
   final AppDatabase _database;
-  static const int backupVersion = 1;
+  static const int backupVersion = 2;
 
   Future<BackupPayload> exportJsonBackup() async {
-    final transactionsData = await _database.select(_database.transactions).get();
-    final categoriesData = await _database.select(_database.categories).get();
-    final budgetsData = await _database.select(_database.budgets).get();
-    final accountsData = await _database.select(_database.accounts).get();
-    final recurringExpensesData =
-        await _database.select(_database.recurringExpenses).get();
-    final settingsData = await _database.select(_database.appSettings).get();
+    // Read every section from the same SQLite snapshot.
+    final data = await _database.transaction(_readBackupData);
+    final transactionsData = data['transactions'] as List<dynamic>;
+    final categoriesData = data['categories'] as List<dynamic>;
+    final budgetsData = data['budgets'] as List<dynamic>;
+    final accountsData = data['accounts'] as List<dynamic>;
+    final recurringExpensesData = data['recurringExpenses'] as List<dynamic>;
 
     final createdAt = DateTime.now().toUtc();
     final payload = {
@@ -96,30 +99,28 @@ class BackupService {
       'createdAt': createdAt.toIso8601String(),
       'appVersion': '0.1.0',
       'deviceId': 'local-device',
+      'dataChecksum': sha256.convert(utf8.encode(jsonEncode(data))).toString(),
       'summary': {
         'transactionCount': transactionsData.length,
         'categoryCount': categoriesData.length,
         'budgetCount': budgetsData.length,
         'accountCount': accountsData.length,
         'recurringExpenseCount': recurringExpensesData.length,
+        'recurringSpendOverrideCount':
+            (data['recurringSpendOverrides'] as List<dynamic>).length,
+        'notificationHistoryCount':
+            (data['notificationHistories'] as List<dynamic>).length,
+        'merchantCategoryRuleCount':
+            (data['merchantCategoryRules'] as List<dynamic>).length,
+        'ocrDraftCount': (data['ocrDrafts'] as List<dynamic>).length,
       },
-      'data': {
-        'transactions': transactionsData.map(_transactionToJson).toList(),
-        'categories': categoriesData.map(_categoryToJson).toList(),
-        'budgets': budgetsData.map(_budgetToJson).toList(),
-        'accounts': accountsData.map(_accountToJson).toList(),
-        'recurringExpenses':
-            recurringExpensesData.map(_recurringExpenseToJson).toList(),
-        'settings': settingsData.isEmpty ? null : _settingsToJson(settingsData.first),
-      },
+      'data': data,
     };
 
     final fileName = 'smart_wallet_backup_${createdAt.millisecondsSinceEpoch}.json';
 
     // JSON 직렬화는 CPU 집약적이므로 별도 Isolate에서 실행해 UI 프레임 드롭 방지.
-    final jsonString = await Isolate.run(
-      () => const JsonEncoder.withIndent('  ').convert(payload),
-    );
+    final jsonString = await _encodeBackupJson(payload);
 
     return BackupPayload(
       json: jsonString,
@@ -132,6 +133,34 @@ class BackupService {
       ),
       fileName: fileName,
     );
+  }
+
+  Future<Map<String, dynamic>> _readBackupData() async {
+    final transactions = await _database.select(_database.transactions).get();
+    final categories = await _database.select(_database.categories).get();
+    final budgets = await _database.select(_database.budgets).get();
+    final accounts = await _database.select(_database.accounts).get();
+    final recurring = await _database.select(_database.recurringExpenses).get();
+    final overrides =
+        await _database.select(_database.recurringSpendOverrides).get();
+    final notifications =
+        await _database.select(_database.notificationHistories).get();
+    final merchantRules =
+        await _database.select(_database.merchantCategoryRules).get();
+    final ocrDrafts = await _database.select(_database.ocrDrafts).get();
+    final settings = await _database.select(_database.appSettings).get();
+    return {
+      'transactions': transactions.map(_transactionToJson).toList(),
+      'categories': categories.map(_categoryToJson).toList(),
+      'budgets': budgets.map(_budgetToJson).toList(),
+      'accounts': accounts.map(_accountToJson).toList(),
+      'recurringExpenses': recurring.map(_recurringExpenseToJson).toList(),
+      'recurringSpendOverrides': overrides.map(_recurringSpendOverrideToJson).toList(),
+      'notificationHistories': notifications.map(_notificationHistoryToJson).toList(),
+      'merchantCategoryRules': merchantRules.map(_merchantCategoryRuleToJson).toList(),
+      'ocrDrafts': ocrDrafts.map(_ocrDraftToJson).toList(),
+      'settings': settings.isEmpty ? null : _settingsToJson(settings.first),
+    };
   }
 
   Future<File> saveBackupFile(BackupPayload payload) async {
@@ -189,41 +218,111 @@ class BackupService {
 
   Future<BackupPreview> inspectJsonBackup(String jsonText) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
-    final summaryData = decoded['summary'] as Map<String, dynamic>? ?? const {};
+    final data = decoded['data'] as Map<String, dynamic>;
+    final warnings = <String>[];
+    if (decoded['backupVersion'] == 1) {
+      warnings.add('이전 백업은 파일 손상 여부를 완전히 확인할 수 없습니다.');
+    }
+    if (const [
+      'recurringExpenses', 'recurringSpendOverrides', 'notificationHistories',
+      'merchantCategoryRules', 'ocrDrafts',
+    ].any((key) => !data.containsKey(key))) {
+      warnings.add('이전 백업에 없는 항목은 현재 기기의 데이터를 유지합니다.');
+    }
+    if ((data['ocrDrafts'] as List<dynamic>?)?.isNotEmpty == true) {
+      warnings.add('영수증 사진 원본은 백업에 포함되지 않습니다.');
+    }
 
     return BackupPreview(
       backupVersion: decoded['backupVersion'] as int,
       schemaVersion: decoded['schemaVersion'] as int,
       createdAt: DateTime.parse(decoded['createdAt'] as String),
       appVersion: decoded['appVersion'] as String? ?? 'unknown',
+      warnings: warnings,
       summary: BackupSummary(
-        transactionCount: (summaryData['transactionCount'] as num?)?.toInt() ?? 0,
-        categoryCount: (summaryData['categoryCount'] as num?)?.toInt() ?? 0,
-        budgetCount: (summaryData['budgetCount'] as num?)?.toInt() ?? 0,
-        accountCount: (summaryData['accountCount'] as num?)?.toInt() ?? 0,
-        recurringExpenseCount:
-            (summaryData['recurringExpenseCount'] as num?)?.toInt() ?? 0,
+        transactionCount: (data['transactions'] as List<dynamic>).length,
+        categoryCount: (data['categories'] as List<dynamic>).length,
+        budgetCount: (data['budgets'] as List<dynamic>).length,
+        accountCount: (data['accounts'] as List<dynamic>).length,
+        recurringExpenseCount: (data['recurringExpenses'] as List<dynamic>?)?.length ?? 0,
       ),
     );
   }
 
-  Future<BackupSummary> restoreJsonBackup(String jsonText) async {
+  Future<BackupSummary> restoreJsonBackup(
+    String jsonText, {
+    String? expectedCurrentJson,
+  }) async {
     final decoded = await _decodeAndValidateBackup(jsonText);
+    final expectedCurrent = expectedCurrentJson == null
+        ? null
+        : await _decodeAndValidateBackup(expectedCurrentJson);
     final data = decoded['data'] as Map<String, dynamic>;
 
     final transactionsData = (data['transactions'] as List<dynamic>? ?? const []);
     final categoriesData = (data['categories'] as List<dynamic>? ?? const []);
     final budgetsData = (data['budgets'] as List<dynamic>? ?? const []);
     final accountsData = (data['accounts'] as List<dynamic>? ?? const []);
-    final recurringExpensesData =
-        (data['recurringExpenses'] as List<dynamic>? ?? const []);
+    final recurringExpensesData = data['recurringExpenses'] as List<dynamic>?;
+    final recurringSpendOverridesData =
+        data['recurringSpendOverrides'] as List<dynamic>?;
+    final notificationHistoriesData =
+        data['notificationHistories'] as List<dynamic>?;
+    final merchantCategoryRulesData =
+        data['merchantCategoryRules'] as List<dynamic>?;
+    final ocrDraftsData = data['ocrDrafts'] as List<dynamic>?;
     final settingsData = data['settings'] as Map<String, dynamic>?;
+    var retainedRecurringExpenseCount = 0;
 
     await _database.transaction(() async {
+      // The safety file is written before the restore transaction starts.
+      // Stop if anything changed in that interval so newer records are not
+      // replaced without being present in the safety backup.
+      if (expectedCurrent != null) {
+        final currentData = await _readBackupData();
+        if (jsonEncode(currentData) != jsonEncode(expectedCurrent['data'])) {
+          throw const BackupFormatException(
+            '안전 백업을 만든 뒤 새 기록이 생겨 복원을 멈췄어요. 다시 시도해 주세요.',
+          );
+        }
+      }
+      // The PIN never leaves the device as part of a shareable backup.
+      final localSettings =
+          await _database.select(_database.appSettings).getSingleOrNull();
+      if (recurringExpensesData == null) {
+        final retained = await _database.select(_database.recurringExpenses).get();
+        final accountIds = accountsData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId']).toSet();
+        final categoryIds = categoriesData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId']).toSet();
+        for (final item in retained) {
+          if (!accountIds.contains(item.accountId) ||
+              (item.categoryId != null && !categoryIds.contains(item.categoryId))) {
+            throw const BackupFormatException(
+              '기존 정기거래와 연결된 계좌 또는 카테고리가 백업에 없어 복원을 멈췄어요.',
+            );
+          }
+        }
+        retainedRecurringExpenseCount = retained.length;
+      }
       await _database.delete(_database.transactions).go();
       await _database.delete(_database.categories).go();
       await _database.delete(_database.budgets).go();
-      await _database.delete(_database.recurringExpenses).go();
+      if (recurringExpensesData != null) {
+        await _database.delete(_database.recurringExpenses).go();
+      }
+      if (recurringSpendOverridesData != null) {
+        await _database.delete(_database.recurringSpendOverrides).go();
+      }
+      if (notificationHistoriesData != null) {
+        await _database.delete(_database.notificationHistories).go();
+      }
+      if (merchantCategoryRulesData != null) {
+        await _database.delete(_database.merchantCategoryRules).go();
+      }
+      if (ocrDraftsData != null) {
+        await _database.delete(_database.ocrDrafts).go();
+      }
       await _database.delete(_database.accounts).go();
       await _database.delete(_database.appSettings).go();
 
@@ -305,7 +404,7 @@ class BackupService {
 
         batch.insertAll(
           _database.recurringExpenses,
-          recurringExpensesData.cast<Map<String, dynamic>>().map((raw) =>
+          (recurringExpensesData ?? const <dynamic>[]).cast<Map<String, dynamic>>().map((raw) =>
               RecurringExpensesCompanion.insert(
                 localId: raw['localId'] as String,
                 name: raw['name'] as String,
@@ -318,13 +417,102 @@ class BackupService {
                 categoryId: Value(raw['categoryId'] as String?),
                 isActive: Value((raw['isActive'] as bool?) ?? true),
                 lastSuggestedCycleKey: Value(raw['lastSuggestedCycleKey'] as String?),
-                lastCompletedCycleKey: Value(raw['lastCompletedCycleKey'] as String?),
+                lastCompletedCycleKey: Value(
+                  (raw['lastCompletedCycleKey'] ?? raw['lastCreatedMonthKey']) as String?,
+                ),
                 lastDismissedCycleKey: Value(raw['lastDismissedCycleKey'] as String?),
                 createdAt: DateTime.parse(raw['createdAt'] as String),
                 lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
               )).toList(),
         );
+
+        if (recurringSpendOverridesData != null) {
+          batch.insertAll(
+            _database.recurringSpendOverrides,
+            recurringSpendOverridesData.cast<Map<String, dynamic>>().map((raw) =>
+                RecurringSpendOverridesCompanion.insert(
+                  groupKey: raw['groupKey'] as String,
+                  actionType: raw['actionType'] as String,
+                  createdAt: DateTime.parse(raw['createdAt'] as String),
+                  lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
+                )).toList(),
+          );
+        }
+        if (notificationHistoriesData != null) {
+          batch.insertAll(
+            _database.notificationHistories,
+            notificationHistoriesData.cast<Map<String, dynamic>>().map((raw) =>
+                NotificationHistoriesCompanion.insert(
+                  id: Value(raw['id'] as int),
+                  packageName: raw['packageName'] as String,
+                  amount: raw['amount'] as int,
+                  type: raw['type'] as String,
+                  merchant: Value(raw['merchant'] as String?),
+                  suggestedCategory: Value(raw['suggestedCategory'] as String?),
+                  detectedAt: DateTime.parse(raw['detectedAt'] as String),
+                  eventId: Value(raw['eventId'] as String?),
+                  status: Value((raw['status'] as String?) ?? 'legacy'),
+                  transactionId: Value(raw['transactionId'] as String?),
+                )).toList(),
+          );
+        }
+        if (merchantCategoryRulesData != null) {
+          batch.insertAll(
+            _database.merchantCategoryRules,
+            merchantCategoryRulesData.cast<Map<String, dynamic>>().map((raw) =>
+                MerchantCategoryRulesCompanion.insert(
+                  merchantKey: raw['merchantKey'] as String,
+                  type: raw['type'] as String,
+                  categoryId: raw['categoryId'] as String,
+                  updatedAt: DateTime.parse(raw['updatedAt'] as String),
+                )).toList(),
+          );
+        }
+        if (ocrDraftsData != null) {
+          batch.insertAll(
+            _database.ocrDrafts,
+            ocrDraftsData.cast<Map<String, dynamic>>().map((raw) =>
+                OcrDraftsCompanion.insert(
+                  localId: raw['localId'] as String,
+                  sourceImagePath: Value(raw['sourceImagePath'] as String?),
+                  ocrRawText: Value(raw['ocrRawText'] as String?),
+                  ocrConfidence: Value((raw['ocrConfidence'] as num?)?.toDouble()),
+                  ocrStatus: raw['ocrStatus'] as String,
+                  parsedStoreName: Value(raw['parsedStoreName'] as String?),
+                  parsedTotalAmount: Value(raw['parsedTotalAmount'] as int?),
+                  parsedTransactionDate: Value(raw['parsedTransactionDate'] == null
+                      ? null
+                      : DateTime.parse(raw['parsedTransactionDate'] as String)),
+                  parsedCategoryGuess: Value(raw['parsedCategoryGuess'] as String?),
+                  errorMessage: Value(raw['errorMessage'] as String?),
+                  createdAt: DateTime.parse(raw['createdAt'] as String),
+                  lastModifiedAt: DateTime.parse(raw['lastModifiedAt'] as String),
+                )).toList(),
+          );
+        }
       });
+
+      // Old backups can omit notification history while replacing the ledger.
+      // Preserve those events, but don't claim a missing transaction exists.
+      if (notificationHistoriesData == null) {
+        final restoredIds = transactionsData.cast<Map<String, dynamic>>()
+            .map((raw) => raw['localId'] as String)
+            .toSet();
+        final retained = await _database.select(_database.notificationHistories).get();
+        final staleIds = retained
+            .where((item) => item.transactionId != null &&
+                !restoredIds.contains(item.transactionId))
+            .map((item) => item.id)
+            .toList();
+        if (staleIds.isNotEmpty) {
+          await (_database.update(_database.notificationHistories)
+                ..where((item) => item.id.isIn(staleIds)))
+              .write(const NotificationHistoriesCompanion(
+            status: Value('legacy'),
+            transactionId: Value(null),
+          ));
+        }
+      }
 
       if (settingsData != null) {
         await _database.into(_database.appSettings).insert(
@@ -334,10 +522,13 @@ class BackupService {
                 weekStart: Value((settingsData['weekStart'] as String?) ?? 'monday'),
                 themeMode: Value((settingsData['themeMode'] as String?) ?? 'system'),
                 defaultCategorySeedVersion: Value(
-                  (settingsData['defaultCategorySeedVersion'] as int?) ?? 0,
+                  (settingsData['defaultCategorySeedVersion'] as int?) ??
+                      localSettings?.defaultCategorySeedVersion ??
+                      0,
                 ),
-                appLockEnabled: const Value(false),
-                biometricEnabled: Value((settingsData['biometricEnabled'] as bool?) ?? false),
+                appLockEnabled: Value(localSettings?.appLockEnabled ?? false),
+                biometricEnabled: Value(localSettings?.biometricEnabled ?? false),
+                pinCode: Value(localSettings?.pinCode),
                 exportIncludeDeleted: Value(
                   (settingsData['exportIncludeDeleted'] as bool?) ?? false,
                 ),
@@ -345,6 +536,8 @@ class BackupService {
                 lastModifiedAt: DateTime.parse(settingsData['lastModifiedAt'] as String),
               ),
             );
+      } else if (localSettings != null) {
+        await _database.into(_database.appSettings).insert(localSettings);
       }
     });
 
@@ -354,13 +547,19 @@ class BackupService {
       categoryCount: categoriesData.length,
       budgetCount: budgetsData.length,
       accountCount: accountsData.length,
-      recurringExpenseCount: recurringExpensesData.length,
+      recurringExpenseCount:
+          recurringExpensesData?.length ?? retainedRecurringExpenseCount,
     );
   }
 
   Future<Map<String, dynamic>> _decodeAndValidateBackup(String jsonText) async {
     // JSON 디코딩은 대형 파일에서 CPU 집약적이므로 별도 Isolate에서 실행.
-    final decodedDynamic = await Isolate.run(() => jsonDecode(jsonText));
+    final dynamic decodedDynamic;
+    try {
+      decodedDynamic = await _decodeBackupJson(jsonText);
+    } on FormatException {
+      throw const BackupFormatException('Backup JSON is invalid.');
+    }
     if (decodedDynamic is! Map<String, dynamic>) {
       throw const BackupFormatException('Backup file top-level structure is invalid.');
     }
@@ -375,9 +574,9 @@ class BackupService {
       throw const BackupFormatException('backupVersion is missing or invalid.');
     }
 
-    if (backupVersionValue != backupVersion) {
+    if (backupVersionValue != 1 && backupVersionValue != backupVersion) {
       throw BackupFormatException(
-        'Unsupported backup version: $backupVersionValue. Current app supports version $backupVersion only.',
+        'Unsupported backup version: $backupVersionValue.',
       );
     }
 
@@ -385,7 +584,7 @@ class BackupService {
       throw const BackupFormatException('schemaVersion is missing or invalid.');
     }
 
-    if (schemaVersionValue > _database.schemaVersion) {
+    if (schemaVersionValue < 1 || schemaVersionValue > _database.schemaVersion) {
       throw BackupFormatException(
         'Backup was created with newer schema version $schemaVersionValue.',
       );
@@ -405,12 +604,32 @@ class BackupService {
       throw const BackupFormatException('data payload is invalid.');
     }
 
+    if (backupVersionValue == 2) {
+      final checksum = decoded['dataChecksum'];
+      final actual = sha256.convert(utf8.encode(jsonEncode(dataValue))).toString();
+      if (checksum is! String || checksum != actual) {
+        throw const BackupFormatException('백업 파일의 내용이 손상되었거나 변경됐어요.');
+      }
+    }
+
     for (final key in const [
       'transactions',
       'categories',
       'budgets',
       'accounts',
+    ]) {
+      final value = dataValue[key];
+      if (value is! List<dynamic>) {
+        throw BackupFormatException('$key payload is invalid.');
+      }
+    }
+
+    for (final key in const [
       'recurringExpenses',
+      'recurringSpendOverrides',
+      'notificationHistories',
+      'merchantCategoryRules',
+      'ocrDrafts',
     ]) {
       final value = dataValue[key];
       if (value != null && value is! List<dynamic>) {
@@ -418,12 +637,212 @@ class BackupService {
       }
     }
 
+    final summary = decoded['summary'];
+    if (summary != null && summary is! Map<String, dynamic>) {
+      throw const BackupFormatException('summary payload is invalid.');
+    }
+    if (backupVersionValue == 1 &&
+        (summary is! Map<String, dynamic> ||
+            !const [
+              'transactionCount',
+              'categoryCount',
+              'budgetCount',
+              'accountCount',
+            ].every(summary.containsKey))) {
+      throw const BackupFormatException('Legacy backup summary is incomplete.');
+    }
+    if (summary is Map<String, dynamic>) {
+      const sectionCounts = {
+        'transactions': 'transactionCount',
+        'categories': 'categoryCount',
+        'budgets': 'budgetCount',
+        'accounts': 'accountCount',
+        'recurringExpenses': 'recurringExpenseCount',
+        'recurringSpendOverrides': 'recurringSpendOverrideCount',
+        'notificationHistories': 'notificationHistoryCount',
+        'merchantCategoryRules': 'merchantCategoryRuleCount',
+        'ocrDrafts': 'ocrDraftCount',
+      };
+      for (final entry in sectionCounts.entries) {
+        if (!summary.containsKey(entry.value)) continue;
+        final count = summary[entry.value];
+        final section = dataValue[entry.key];
+        if (count is! int || count < 0 ||
+            (section is List && section.length != count) ||
+            (section == null && count != 0)) {
+          throw BackupFormatException('${entry.key} count does not match the backup data.');
+        }
+      }
+    }
+
+    if (!dataValue.containsKey('settings')) {
+      throw const BackupFormatException('settings payload is missing.');
+    }
     final settingsValue = dataValue['settings'];
     if (settingsValue != null && settingsValue is! Map<String, dynamic>) {
       throw const BackupFormatException('settings payload is invalid.');
     }
 
+    for (final section in _recordFields.keys) {
+      final value = dataValue[section];
+      if (value == null) continue;
+      final records = section == 'settings' ? [value] : value as List<dynamic>;
+      final ids = <Object>{};
+      final eventIds = <String>{};
+      for (final record in records) {
+        if (record is! Map<String, dynamic>) {
+          throw BackupFormatException('$section contains an invalid record.');
+        }
+        _validateBackupRecord(section, record);
+        if (section == 'recurringExpenses') {
+          if (schemaVersionValue >= 6) {
+            _validateBackupRecord(section, record, fields: _modernRecurringFields);
+          } else if (schemaVersionValue >= 4) {
+            _validateBackupRecord(section, record, fields: const {
+              'lastCreatedMonthKey': 'string?',
+            });
+          }
+        }
+        if (section == 'notificationHistories') {
+          if (schemaVersionValue >= 10) {
+            _validateBackupRecord(section, record, fields: _modernNotificationFields);
+          } else {
+            // Pre-v10 backups omit these keys, even when their values are null.
+            for (final field in _modernNotificationFields.entries) {
+              if (record.containsKey(field.key)) {
+                _validateBackupRecord(section, record,
+                    fields: {field.key: field.value});
+              }
+            }
+          }
+          final eventId = record['eventId'] as String?;
+          if (eventId != null && (eventId.isEmpty || !eventIds.add(eventId))) {
+            throw const BackupFormatException(
+              'notificationHistories contains an invalid or duplicate event id.',
+            );
+          }
+          final status = record['status'] as String?;
+          if (status != null &&
+              !const {'legacy', 'pending', 'recorded', 'ignored'}.contains(status)) {
+            throw const BackupFormatException('notificationHistories has an invalid status.');
+          }
+        }
+        final idKey = section == 'notificationHistories' ? 'id' :
+            section == 'recurringSpendOverrides' ? 'groupKey' :
+            section == 'settings' ? 'id' : 'localId';
+        final Object identifier = section == 'merchantCategoryRules'
+            ? (record['merchantKey'], record['type'])
+            : record[idKey] as Object;
+        if (!ids.add(identifier)) {
+          throw BackupFormatException('$section contains duplicate identifiers.');
+        }
+      }
+    }
+
+    final transactionIds = (dataValue['transactions'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map((record) => record['localId'] as String)
+        .toSet();
+    for (final record in (dataValue['notificationHistories'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()) {
+      final linkedId = record['transactionId'] as String?;
+      if ((record['status'] == 'recorded' && linkedId == null) ||
+          (linkedId != null && !transactionIds.contains(linkedId))) {
+        throw const BackupFormatException(
+          'notificationHistories contains a missing transaction link.',
+        );
+      }
+    }
+
     return decoded;
+  }
+
+  static const _recordFields = <String, Map<String, String>>{
+    'transactions': {
+      'localId': 'string', 'type': 'string', 'amount': 'int', 'occurredAt': 'date',
+      'accountId': 'string?', 'fromAccountId': 'string?', 'toAccountId': 'string?',
+      'categoryId': 'string?', 'merchantName': 'string?', 'paymentMethod': 'string?',
+      'memo': 'string?', 'tagJson': 'string?', 'createdAt': 'date',
+      'lastModifiedAt': 'date', 'deletedAt': 'date?',
+    },
+    'categories': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'iconName': 'string?',
+      'colorHex': 'string?', 'isDefault': 'bool', 'isActive': 'bool', 'sortOrder': 'int',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'budgets': {
+      'localId': 'string', 'monthKey': 'string', 'categoryId': 'string?',
+      'amountLimit': 'int', 'alert50Enabled': 'bool', 'alert80Enabled': 'bool',
+      'alert100Enabled': 'bool', 'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'accounts': {
+      'localId': 'string', 'name': 'string', 'type': 'string', 'colorHex': 'string?',
+      'includeInNetWorth': 'bool', 'isActive': 'bool', 'createdAt': 'date',
+      'lastModifiedAt': 'date',
+    },
+    'recurringExpenses': {
+      'localId': 'string', 'name': 'string', 'amount': 'int',
+      'dayOfMonth': 'int?', 'accountId': 'string', 'categoryId': 'string?',
+      'isActive': 'bool', 'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'settings': {
+      'id': 'int', 'currencyCode': 'string', 'weekStart': 'string', 'themeMode': 'string',
+      'appLockEnabled': 'bool', 'biometricEnabled': 'bool', 'exportIncludeDeleted': 'bool',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+    'recurringSpendOverrides': {
+      'groupKey': 'string', 'actionType': 'string', 'createdAt': 'date',
+      'lastModifiedAt': 'date',
+    },
+    'notificationHistories': {
+      'id': 'int', 'packageName': 'string', 'amount': 'int', 'type': 'string',
+      'merchant': 'string?', 'suggestedCategory': 'string?', 'detectedAt': 'date',
+    },
+    'merchantCategoryRules': {
+      'merchantKey': 'string', 'type': 'string', 'categoryId': 'string',
+      'updatedAt': 'date',
+    },
+    'ocrDrafts': {
+      'localId': 'string', 'sourceImagePath': 'string?', 'ocrRawText': 'string?',
+      'ocrConfidence': 'number?', 'ocrStatus': 'string', 'parsedStoreName': 'string?',
+      'parsedTotalAmount': 'int?', 'parsedTransactionDate': 'date?',
+      'parsedCategoryGuess': 'string?', 'errorMessage': 'string?',
+      'createdAt': 'date', 'lastModifiedAt': 'date',
+    },
+  };
+
+  static const _modernRecurringFields = <String, String>{
+    'type': 'string', 'cadence': 'string', 'weekday': 'int?',
+    'lastSuggestedCycleKey': 'string?', 'lastCompletedCycleKey': 'string?',
+    'lastDismissedCycleKey': 'string?',
+  };
+
+  static const _modernNotificationFields = <String, String>{
+    'eventId': 'string?', 'status': 'string', 'transactionId': 'string?',
+  };
+
+  void _validateBackupRecord(String section, Map<String, dynamic> record,
+      {Map<String, String>? fields}) {
+    for (final field in (fields ?? _recordFields[section]!).entries) {
+      if (!record.containsKey(field.key)) {
+        throw BackupFormatException('$section record is missing ${field.key}.');
+      }
+      final value = record[field.key];
+      final valid = switch (field.value) {
+        'string' => value is String,
+        'string?' => value == null || value is String,
+        'int' => value is int,
+        'int?' => value == null || value is int,
+        'number?' => value == null || value is num,
+        'bool' => value is bool,
+        'date' => value is String && DateTime.tryParse(value) != null,
+        'date?' => value == null || (value is String && DateTime.tryParse(value) != null),
+        _ => false,
+      };
+      if (!valid) {
+        throw BackupFormatException('$section record has an invalid ${field.key}.');
+      }
+    }
   }
 
   Map<String, dynamic> _transactionToJson(Transaction transaction) => {
@@ -498,6 +917,50 @@ class BackupService {
         'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
       };
 
+  Map<String, dynamic> _recurringSpendOverrideToJson(
+          RecurringSpendOverride item) =>
+      {
+        'groupKey': item.groupKey,
+        'actionType': item.actionType,
+        'createdAt': item.createdAt.toIso8601String(),
+        'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> _notificationHistoryToJson(NotificationHistory item) => {
+        'id': item.id,
+        'packageName': item.packageName,
+        'amount': item.amount,
+        'type': item.type,
+        'merchant': item.merchant,
+        'suggestedCategory': item.suggestedCategory,
+        'detectedAt': item.detectedAt.toIso8601String(),
+        'eventId': item.eventId,
+        'status': item.status,
+        'transactionId': item.transactionId,
+      };
+
+  Map<String, dynamic> _merchantCategoryRuleToJson(MerchantCategoryRule item) => {
+        'merchantKey': item.merchantKey,
+        'type': item.type,
+        'categoryId': item.categoryId,
+        'updatedAt': item.updatedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> _ocrDraftToJson(OcrDraft item) => {
+        'localId': item.localId,
+        'sourceImagePath': item.sourceImagePath,
+        'ocrRawText': item.ocrRawText,
+        'ocrConfidence': item.ocrConfidence,
+        'ocrStatus': item.ocrStatus,
+        'parsedStoreName': item.parsedStoreName,
+        'parsedTotalAmount': item.parsedTotalAmount,
+        'parsedTransactionDate': item.parsedTransactionDate?.toIso8601String(),
+        'parsedCategoryGuess': item.parsedCategoryGuess,
+        'errorMessage': item.errorMessage,
+        'createdAt': item.createdAt.toIso8601String(),
+        'lastModifiedAt': item.lastModifiedAt.toIso8601String(),
+      };
+
   Map<String, dynamic> _settingsToJson(AppSetting settings) => {
         'id': settings.id,
         'currencyCode': settings.currencyCode,
@@ -511,6 +974,15 @@ class BackupService {
         'lastModifiedAt': settings.lastModifiedAt.toIso8601String(),
       };
 }
+
+// Keep isolate closures outside BackupService so they only capture transferable
+// JSON data and never capture the database connection or its async locks.
+Future<String> _encodeBackupJson(Map<String, dynamic> payload) => Isolate.run(
+      () => const JsonEncoder.withIndent('  ').convert(payload),
+    );
+
+Future<dynamic> _decodeBackupJson(String jsonText) =>
+    Isolate.run(() => jsonDecode(jsonText));
 
 final backupServiceProvider = Provider<BackupService>((ref) {
   final database = ref.watch(appDatabaseProvider);

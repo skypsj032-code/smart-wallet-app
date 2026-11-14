@@ -6,6 +6,28 @@ import 'package:smart_wallet_app/features/statistics/application/statistics_prov
 import 'package:smart_wallet_app/shared/widgets/glass_card.dart';
 
 void main() {
+  testWidgets('the month preview fits on a narrow phone with larger text', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.2)),
+        child: child!,
+      ),
+      home: Scaffold(body: SingleChildScrollView(
+        child: DashboardHomeLinksCard(
+          onOpenCalendar: _noop, onOpenStatistics: _noop,
+          calendarSummary: _calendarSummary(), calendarMonthPreview: _calendarPreview(),
+          monthIncome: 300000, monthExpense: 120000,
+          topExpenseCategories: _topCategories(), topExpenseCategoryLabel: '식비',
+        ),
+      )),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-calendar-day-5')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('DashboardHomeLinksCard shows previews without folding',
       (WidgetTester tester) async {
     await tester.pumpWidget(
