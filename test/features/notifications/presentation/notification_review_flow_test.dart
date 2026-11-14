@@ -10,25 +10,41 @@ import 'package:smart_wallet_app/features/notifications/application/notification
 import 'package:smart_wallet_app/features/notifications/presentation/notification_history_screen.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_form_provider.dart';
 
+import '../../../test_support/sqlite_test_setup.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase database;
+  ProviderContainer? activeContainer;
+  GoRouter? activeRouter;
 
-  setUp(() {
-    database = AppDatabase.forTesting(NativeDatabase.memory());
-  });
+  setUpAll(configureSqliteForTests);
 
-  tearDown(() async => database.close());
+  void testReview(String description, Future<void> Function(WidgetTester) body) {
+    testWidgets(description, (tester) async {
+      database = AppDatabase.forTesting(NativeDatabase.memory());
+      try {
+        await body(tester);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        activeRouter?.dispose();
+        activeRouter = null;
+        activeContainer?.dispose();
+        activeContainer = null;
+        await _pumpDatabase(tester, database.close);
+      }
+    });
+  }
 
-  Future<int> addHistory({
+  Future<int> addHistory(WidgetTester tester, {
     required String status,
     String? merchant,
     String type = 'expense',
     int amount = 5400,
     DateTime? at,
   }) {
-    return database.into(database.notificationHistories).insert(
+    return _pumpDatabase(tester, () => database.into(database.notificationHistories).insert(
           NotificationHistoriesCompanion.insert(
             packageName: 'card.app',
             amount: amount,
@@ -37,10 +53,10 @@ void main() {
             status: Value(status),
             detectedAt: at ?? DateTime.now(),
           ),
-        );
+        ));
   }
 
-  Future<void> addTransaction({
+  Future<void> addTransaction(WidgetTester tester, {
     required String id,
     required DateTime at,
     String? merchant,
@@ -49,7 +65,7 @@ void main() {
     int amount = 5400,
     bool deleted = false,
   }) async {
-    await database.into(database.transactions).insert(
+    await _pumpDatabase(tester, () => database.into(database.transactions).insert(
           TransactionsCompanion.insert(
             localId: id,
             type: type,
@@ -61,7 +77,7 @@ void main() {
             lastModifiedAt: at,
             deletedAt: Value(deleted ? at : null),
           ),
-        );
+        ));
   }
 
   Future<ProviderContainer> open(WidgetTester tester) async {
@@ -78,42 +94,44 @@ void main() {
         builder: (_, __) => const Scaffold(body: Text('입력 화면')),
       ),
     ]);
-    addTearDown(() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      router.dispose();
-      container.dispose();
-    });
+    activeContainer = container;
+    activeRouter = router;
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child: MaterialApp.router(routerConfig: router),
     ));
+    await _pumpUntil(tester,
+        () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
+        'notification history');
     await tester.pumpAndSettle();
     return container;
   }
 
-  testWidgets('pending items can be ignored and restored', (tester) async {
-    final id = await addHistory(status: 'pending', merchant: '커피집');
+  testReview('pending items can be ignored and restored', (tester) async {
+    final id = await addHistory(tester, status: 'pending', merchant: '커피집');
     await open(tester);
 
     expect(find.textContaining('· 확인 필요'), findsOneWidget);
     await tester.tap(find.byTooltip('이 알림 제외'));
     await tester.pumpAndSettle();
     expect(find.textContaining('제외됨'), findsOneWidget);
-    var row = await (database.select(database.notificationHistories)
-          ..where((t) => t.id.equals(id)))
-        .getSingle();
+    var row = await _pumpDatabase(tester, () =>
+        (database.select(database.notificationHistories)
+              ..where((t) => t.id.equals(id)))
+            .getSingle());
     expect(row.status, 'ignored');
 
     await tester.tap(find.byTooltip('다시 확인하기'));
     await tester.pumpAndSettle();
-    row = await (database.select(database.notificationHistories)
-          ..where((t) => t.id.equals(id)))
-        .getSingle();
+    row = await _pumpDatabase(tester, () =>
+        (database.select(database.notificationHistories)
+              ..where((t) => t.id.equals(id)))
+            .getSingle());
     expect(row.status, 'pending');
   });
 
-  testWidgets('recorded items cannot open another transaction', (tester) async {
-    await addHistory(status: 'recorded', merchant: '이미 기록한 상점');
+  testReview('recorded items cannot open another transaction', (tester) async {
+    await addHistory(tester, status: 'recorded', merchant: '이미 기록한 상점');
     await open(tester);
     await tester.tap(find.text('이미 기록한 상점'));
     await tester.pump();
@@ -121,10 +139,10 @@ void main() {
     expect(find.text('입력 화면'), findsNothing);
   });
 
-  testWidgets('legacy item needs explicit confirmation before entering',
+  testReview('legacy item needs explicit confirmation before entering',
       (tester) async {
     final old = DateTime.now().subtract(const Duration(days: 2));
-    final id = await addHistory(status: 'legacy', merchant: '예전 상점', at: old);
+    final id = await addHistory(tester, status: 'legacy', merchant: '예전 상점', at: old);
     final container = await open(tester);
     await tester.tap(find.text('예전 상점'));
     await tester.pumpAndSettle();
@@ -136,9 +154,9 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, id);
   });
 
-  testWidgets('old pending alerts show the year and need review', (tester) async {
+  testReview('old pending alerts show the year and need review', (tester) async {
     final old = DateTime.now().subtract(const Duration(days: 2));
-    final id = await addHistory(status: 'pending', merchant: '오래된 결제', at: old);
+    final id = await addHistory(tester, status: 'pending', merchant: '오래된 결제', at: old);
     final container = await open(tester);
     expect(find.textContaining('${old.year}/'), findsOneWidget);
     await tester.tap(find.text('오래된 결제'));
@@ -150,11 +168,11 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, id);
   });
 
-  testWidgets('old pending with a matching transaction shows one warning',
+  testReview('old pending with a matching transaction shows one warning',
       (tester) async {
     final old = DateTime.now().subtract(const Duration(days: 2));
-    await addTransaction(id: 'old-manual', at: old, memo: '별다방');
-    await addHistory(status: 'pending', merchant: '별다방', at: old);
+    await addTransaction(tester, id: 'old-manual', at: old, memo: '별다방');
+    await addHistory(tester, status: 'pending', merchant: '별다방', at: old);
     await open(tester);
     await tester.tap(find.text('별다방'));
     await tester.pumpAndSettle();
@@ -165,11 +183,11 @@ void main() {
     expect(find.text('입력 화면'), findsOneWidget);
   });
 
-  testWidgets('legacy with a matching transaction shows one combined warning',
+  testReview('legacy with a matching transaction shows one combined warning',
       (tester) async {
     final old = DateTime.now().subtract(const Duration(days: 2));
-    await addTransaction(id: 'old-manual', at: old, memo: '별다방');
-    await addHistory(status: 'legacy', merchant: '별다방', at: old);
+    await addTransaction(tester, id: 'old-manual', at: old, memo: '별다방');
+    await addHistory(tester, status: 'legacy', merchant: '별다방', at: old);
     await open(tester);
     await tester.tap(find.text('별다방'));
     await tester.pumpAndSettle();
@@ -182,9 +200,9 @@ void main() {
     expect(find.text('입력 화면'), findsOneWidget);
   });
 
-  testWidgets('unknown amount stays blank for a person to review',
+  testReview('unknown amount stays blank for a person to review',
       (tester) async {
-    await addHistory(status: 'pending', merchant: '확인할 알림', type: 'unknown', amount: 0);
+    await addHistory(tester, status: 'pending', merchant: '확인할 알림', type: 'unknown', amount: 0);
     final container = await open(tester);
     expect(find.text('금액 확인 필요'), findsOneWidget);
     await tester.tap(find.text('확인할 알림'));
@@ -195,9 +213,9 @@ void main() {
     expect(container.read(quickEntryFormProvider).amount, isEmpty);
   });
 
-  testWidgets('opening a candidate asks before replacing a new draft',
+  testReview('opening a candidate asks before replacing a new draft',
       (tester) async {
-    final candidateId = await addHistory(status: 'pending', merchant: '새 결제');
+    final candidateId = await addHistory(tester, status: 'pending', merchant: '새 결제');
     final container = await open(tester);
     container.read(quickEntryFormProvider.notifier).setAmount('7800');
     container.read(quickEntryFormProvider.notifier).setMemo('작성하던 내용');
@@ -219,11 +237,11 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
   });
 
-  testWidgets('similar recorded payment warns without discarding the new one',
+  testReview('similar recorded payment warns without discarding the new one',
       (tester) async {
     final at = DateTime.now();
-    await addHistory(status: 'recorded', merchant: '별다방', at: at);
-    final candidateId = await addHistory(
+    await addHistory(tester, status: 'recorded', merchant: '별다방', at: at);
+    final candidateId = await addHistory(tester, 
       status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
     );
     final container = await open(tester);
@@ -236,11 +254,11 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
   });
 
-  testWidgets('same amount at a different merchant is not treated as duplicate',
+  testReview('same amount at a different merchant is not treated as duplicate',
       (tester) async {
     final at = DateTime.now();
-    await addHistory(status: 'recorded', merchant: '별다방', at: at);
-    final candidateId = await addHistory(
+    await addHistory(tester, status: 'recorded', merchant: '별다방', at: at);
+    final candidateId = await addHistory(tester, 
       status: 'pending', merchant: '김밥집', at: at.add(const Duration(minutes: 1)),
     );
     final container = await open(tester);
@@ -251,11 +269,11 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
   });
 
-  testWidgets('manual entry memo matching a candidate triggers a warning',
+  testReview('manual entry memo matching a candidate triggers a warning',
       (tester) async {
     final at = DateTime.now();
-    await addTransaction(id: 'manual', at: at, memo: '별다방');
-    await addHistory(
+    await addTransaction(tester, id: 'manual', at: at, memo: '별다방');
+    await addHistory(tester, 
       status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
     );
     await open(tester);
@@ -265,11 +283,11 @@ void main() {
     expect(find.text('입력 화면'), findsNothing);
   });
 
-  testWidgets('receipt merchant matching a candidate triggers a warning',
+  testReview('receipt merchant matching a candidate triggers a warning',
       (tester) async {
     final at = DateTime.now();
-    await addTransaction(id: 'receipt', at: at, merchant: '별다방');
-    await addHistory(
+    await addTransaction(tester, id: 'receipt', at: at, merchant: '별다방');
+    await addHistory(tester, 
       status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
     );
     await open(tester);
@@ -278,18 +296,18 @@ void main() {
     expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
   });
 
-  testWidgets('unrelated and deleted transactions do not block a candidate',
+  testReview('unrelated and deleted transactions do not block a candidate',
       (tester) async {
     final at = DateTime.now();
-    await addTransaction(id: 'other-merchant', at: at, memo: '김밥집');
-    await addTransaction(id: 'partial-memo', at: at, memo: '별다방 점심');
-    await addTransaction(id: 'other-amount', at: at, merchant: '별다방', amount: 5500);
-    await addTransaction(id: 'deleted', at: at, merchant: '별다방', deleted: true);
-    await addTransaction(id: 'other-type', at: at, merchant: '별다방', type: 'income');
-    await addTransaction(
+    await addTransaction(tester, id: 'other-merchant', at: at, memo: '김밥집');
+    await addTransaction(tester, id: 'partial-memo', at: at, memo: '별다방 점심');
+    await addTransaction(tester, id: 'other-amount', at: at, merchant: '별다방', amount: 5500);
+    await addTransaction(tester, id: 'deleted', at: at, merchant: '별다방', deleted: true);
+    await addTransaction(tester, id: 'other-type', at: at, merchant: '별다방', type: 'income');
+    await addTransaction(tester, 
       id: 'older', at: at.subtract(const Duration(minutes: 6)), merchant: '별다방',
     );
-    final candidateId = await addHistory(status: 'pending', merchant: '별다방', at: at);
+    final candidateId = await addHistory(tester, status: 'pending', merchant: '별다방', at: at);
     final container = await open(tester);
     await tester.tap(find.text('별다방'));
     await tester.pumpAndSettle();
@@ -298,7 +316,7 @@ void main() {
     expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
   });
 
-  testWidgets('overflow and capture failures are visible when history is empty',
+  testReview('overflow and capture failures are visible when history is empty',
       (tester) async {
     final container = await open(tester);
     container.read(notificationDroppedCountProvider.notifier).state = 3;
@@ -307,4 +325,34 @@ void main() {
     expect(find.textContaining('알림 3건을 놓쳤어요'), findsOneWidget);
     expect(find.textContaining('알림을 불러오지 못했어요'), findsOneWidget);
   });
+}
+
+// NativeDatabase.memory runs in the test isolate. Pump its futures in the
+// widget-test fakeAsync zone instead of awaiting them without advancing time.
+Future<T> _pumpDatabase<T>(
+    WidgetTester tester, Future<T> Function() operation) async {
+  var completed = false;
+  late T value;
+  Object? failure;
+  StackTrace? failureStack;
+  operation().then((result) {
+    value = result;
+    completed = true;
+  }, onError: (Object error, StackTrace stack) {
+    failure = error;
+    failureStack = stack;
+    completed = true;
+  });
+  await _pumpUntil(tester, () => completed, 'database operation');
+  if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+  return value;
+}
+
+Future<void> _pumpUntil(
+    WidgetTester tester, bool Function() condition, String description) async {
+  for (var i = 0; i < 200; i++) {
+    if (condition()) return;
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  if (!condition()) fail('Timed out while waiting for $description');
 }

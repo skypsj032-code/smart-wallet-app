@@ -294,6 +294,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         body: '수정한 OCR 텍스트로 추천을 다시 만들어요. '
                             '현재 상호명, 금액, 카테고리는 새 추천으로 바뀝니다.',
                         confirmLabel: '추천 다시 만들기',
+                        force: draft.hasRawText || draft.hasParsedStoreName || draft.hasParsedAmount,
                       )) {
                         return;
                       }
@@ -340,6 +341,7 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
                         title: '저장된 사진으로 OCR을 다시 실행할까요?',
                         body:
                             '다시 실행하면 이 화면에서 수정한 내용이 새 초안으로 덮어써질 수 있습니다.',
+                        force: draft.hasRawText || draft.hasParsedStoreName || draft.hasParsedAmount,
                       )) {
                         return;
                       }
@@ -615,8 +617,9 @@ class _OcrReviewScreenState extends ConsumerState<OcrReviewScreen> {
     required String title,
     required String body,
     String confirmLabel = '변경 내용 버리기',
+    bool force = false,
   }) async {
-    if (!_hasUnsavedChanges) {
+    if (!_hasUnsavedChanges && !force) {
       return true;
     }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,7 +25,6 @@ import '../../statistics/application/statistics_provider.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../recurring_expenses/application/recurring_expense_service.dart';
 import '../application/dashboard_summary_provider.dart';
-import '../application/detected_recurring_spend_provider.dart';
 import '../application/recurring_transaction_suggestion_provider.dart';
 import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
@@ -61,26 +62,43 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
+  Timer? _midnightTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Home can be reopened after a date or time-zone change while another
-    // route was visible, without an app lifecycle transition.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.invalidate(detectedRecurringClockProvider);
+      if (mounted) _refreshDateAndScheduleTimer();
     });
+  }
+
+  void _refreshDateAndScheduleTimer() {
+    final now = ref.read(dashboardNowProvider)();
+    final date = DateTime(now.year, now.month, now.day);
+    if (ref.read(dashboardDateProvider) != date) {
+      ref.read(dashboardDateProvider.notifier).state = date;
+    }
+    _midnightTimer?.cancel();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(
+      nextMidnight.difference(now) + const Duration(milliseconds: 50),
+      () {
+        if (mounted) _refreshDateAndScheduleTimer();
+      },
+    );
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      ref.invalidate(detectedRecurringClockProvider);
+      _refreshDateAndScheduleTimer();
     }
   }
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

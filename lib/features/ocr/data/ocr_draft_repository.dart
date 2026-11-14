@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 
+class OcrDraftMissingException implements Exception {
+  const OcrDraftMissingException();
+}
+
 // Older schemas have no column for a partially typed amount. Keep the text
 // alongside the existing error in a versioned envelope that backups preserve.
 class OcrReviewMetadata {
@@ -90,7 +94,7 @@ class OcrDraftRepository {
     String? categoryGuess,
     String? errorMessage,
   }) async {
-    await (_database.update(_database.ocrDrafts)
+    final updated = await (_database.update(_database.ocrDrafts)
           ..where((tbl) => tbl.localId.equals(localId)))
         .write(
       OcrDraftsCompanion(
@@ -105,6 +109,7 @@ class OcrDraftRepository {
         lastModifiedAt: Value(DateTime.now()),
       ),
     );
+    if (updated != 1) throw const OcrDraftMissingException();
   }
 
   Stream<OcrDraft?> watchLatestDraft() {

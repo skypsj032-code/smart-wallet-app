@@ -128,6 +128,9 @@ Future<NotificationHistory?> persistNotificationEvent(
     final hasExpense = RegExp(r'승인|사용|결제|출금|이체').hasMatch(combined);
     final ambiguous = RegExp(r'취소|거절|실패|환불|잔액|한도|누적|잔여|포인트|마일리지')
             .hasMatch(combined) ||
+        RegExp(r'해외|수수료|\b(?:usd|jpy|eur|gbp|cny|aud|cad|hkd|sgd)\b|[\$€£¥]',
+                caseSensitive: false)
+            .hasMatch(combined) ||
         amountCount > 1 || (hasIncome && hasExpense);
     final parsed = ambiguous ? null : parseNotification(event);
     final safeTitle = title.trim();

@@ -259,6 +259,11 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
                     onPressed: _initializing || _cameraError != null || isBusy
                         ? null
                         : () async {
+                            if (hasDraft || draft.hasParsedStoreName) {
+                              final confirmed = await _confirmReplaceDraft();
+                              if (!confirmed || !mounted ||
+                                  !identical(draft, ref.read(ocrCaptureProvider))) return;
+                            }
                             final router = GoRouter.of(context);
                             final controller = ref.read(ocrCaptureProvider.notifier);
                             final camera = _controller!;
@@ -292,6 +297,11 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
               const SizedBox(height: AppSpacing.sm),
               FilledButton.tonalIcon(
                 onPressed: () async {
+                  if (draft.hasRawText || draft.hasParsedStoreName || draft.hasParsedAmount) {
+                    final confirmed = await _confirmReplaceDraft();
+                    if (!confirmed || !mounted ||
+                        !identical(draft, ref.read(ocrCaptureProvider))) return;
+                  }
                   final router = GoRouter.of(context);
                   await ref.read(ocrCaptureProvider.notifier).retryFromCapturedImage();
                   if (!mounted) {
@@ -322,6 +332,27 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmReplaceDraft() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('기존 영수증 초안을 바꿀까요?'),
+            content: const Text('다시 인식하면 상호명, 금액과 수정한 내용이 바뀔 수 있어요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('초안 유지'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('다시 인식'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   String _bannerTitle(OcrDraftState draft) {

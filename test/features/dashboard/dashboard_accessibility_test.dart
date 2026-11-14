@@ -92,6 +92,8 @@ void main() {
     );
 
     semantics.dispose();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }
 

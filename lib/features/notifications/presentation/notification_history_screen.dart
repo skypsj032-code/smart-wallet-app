@@ -216,6 +216,8 @@ Future<bool> confirmReplacingQuickEntryDraft(BuildContext context, WidgetRef ref
   }
   final hasDraft = draft.amount.trim().isNotEmpty || draft.memo.trim().isNotEmpty ||
       draft.occurredAt != null || draft.type != TransactionEntryType.expense ||
+      draft.accountId != null || draft.fromAccountId != null ||
+      draft.toAccountId != null || draft.categoryId != null ||
       draft.notificationHistoryId != null;
   if (!hasDraft) return true;
   final confirmed = await _confirmNotice(

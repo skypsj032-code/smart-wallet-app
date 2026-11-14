@@ -109,6 +109,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Calendar Route'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('dashboard statistics card opens the statistics route',
@@ -133,6 +135,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Statistics Route'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('notification history stays reachable as pending count changes',
@@ -171,6 +175,8 @@ void main() {
       expect(find.text('Notification History Route'), findsOneWidget);
     } finally {
       semantics.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     }
   });
 
@@ -180,28 +186,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
-    for (final entry in [
-      ('january', DateTime(2026, 1, 31, 12), 10000, 100000),
-      ('february', DateTime(2026, 2, 1, 12), 40000, 200000),
-    ]) {
-      await db.into(db.transactions).insert(TransactionsCompanion.insert(
-            localId: entry.$1,
-            type: 'expense',
-            amount: entry.$3,
-            occurredAt: entry.$2,
-            createdAt: entry.$2,
-            lastModifiedAt: entry.$2,
-          ));
-      final monthKey =
-          '${entry.$2.year}-${entry.$2.month.toString().padLeft(2, '0')}';
-      await db.into(db.budgets).insert(BudgetsCompanion.insert(
-            localId: entry.$1,
-            monthKey: monthKey,
-            amountLimit: entry.$4,
-            createdAt: entry.$2,
-            lastModifiedAt: entry.$2,
-          ));
-    }
+    await _seedMonthlyDashboardData(db);
     var currentTime = DateTime(2026, 1, 31, 23, 59);
     final router = _buildRouter();
     addTearDown(router.dispose);
@@ -218,6 +203,37 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       currentTime = DateTime(2026, 2, 1, 8);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('기록된 지출 1건 · ₩40,000'), findsOneWidget);
+      expect(find.textContaining('예산 ₩200,000'), findsOneWidget);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
+  });
+
+  testWidgets('home advances its month at midnight while it remains open',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedMonthlyDashboardData(db);
+    var currentTime = DateTime(2026, 1, 31, 23, 59, 50);
+    final router = _buildRouter();
+    addTearDown(router.dispose);
+    try {
+      await tester.pumpWidget(_DashboardTestApp(
+        router: router,
+        database: db,
+        currentTime: () => currentTime,
+      ));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('기록된 지출 1건 · ₩10,000'), findsOneWidget);
+
+      currentTime = DateTime(2026, 2, 1);
+      await tester.pump(const Duration(seconds: 11));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('기록된 지출 1건 · ₩40,000'), findsOneWidget);
@@ -279,6 +295,31 @@ void main() {
   });
 }
 
+Future<void> _seedMonthlyDashboardData(AppDatabase db) async {
+  for (final entry in [
+    ('january', DateTime(2026, 1, 31, 12), 10000, 100000),
+    ('february', DateTime(2026, 2, 1, 12), 40000, 200000),
+  ]) {
+    await db.into(db.transactions).insert(TransactionsCompanion.insert(
+          localId: entry.$1,
+          type: 'expense',
+          amount: entry.$3,
+          occurredAt: entry.$2,
+          createdAt: entry.$2,
+          lastModifiedAt: entry.$2,
+        ));
+    final monthKey =
+        '${entry.$2.year}-${entry.$2.month.toString().padLeft(2, '0')}';
+    await db.into(db.budgets).insert(BudgetsCompanion.insert(
+          localId: entry.$1,
+          monthKey: monthKey,
+          amountLimit: entry.$4,
+          createdAt: entry.$2,
+          lastModifiedAt: entry.$2,
+        ));
+  }
+}
+
 class _DashboardTestApp extends StatelessWidget {
   const _DashboardTestApp({
     required this.router,
@@ -300,9 +341,7 @@ class _DashboardTestApp extends StatelessWidget {
       overrides: [
         if (database != null) appDatabaseProvider.overrideWithValue(database!),
         if (currentTime != null)
-          detectedRecurringClockProvider.overrideWith(
-            (ref) => Stream.value(currentTime!()),
-          ),
+          dashboardNowProvider.overrideWithValue(currentTime!),
         dashboardPendingNotificationCountProvider.overrideWith(
           (ref) => pendingNotifications ?? Stream.value(0),
         ),

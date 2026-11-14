@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/ocr_draft_repository.dart';
+import '../data/ocr_image_store.dart';
 import '../data/ocr_service.dart';
 
 const _ocrDraftUnset = Object();
@@ -93,6 +92,7 @@ class OcrDraftState {
 
 class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
   String? _trackedImagePath;
+  late OcrImageStore _imageStore;
   String? _storedDraftId;
   void Function()? _releaseDraft;
   bool _disposed = false;
@@ -103,6 +103,7 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
 
   @override
   OcrDraftState build() {
+    _imageStore = ref.read(ocrImageStoreProvider);
     final restoreLease = ref.keepAlive();
     final restoreRevision = _editRevision;
     ref.onDispose(() {
@@ -117,7 +118,14 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
         if (_disposed || _editRevision != restoreRevision ||
             saved == null || saved.ocrStatus == 'discarded') return;
         final storedPath = saved.sourceImagePath;
-        final imageExists = storedPath != null && await File(storedPath).exists();
+        String? safePath;
+        if (storedPath != null) {
+          try {
+            safePath = await _imageStore.validateOwnedPath(storedPath);
+          } catch (error, stackTrace) {
+            debugPrint('Ignoring unavailable OCR image: $error\n$stackTrace');
+          }
+        }
         if (_disposed || _editRevision != restoreRevision) return;
         final metadata = OcrReviewMetadata.decode(saved.errorMessage);
         var status = OcrFlowStatus.values.firstWhere(
@@ -128,12 +136,12 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
           status = OcrFlowStatus.reviewRequired;
         }
         _storedDraftId = saved.localId;
-        _trackedImagePath = imageExists ? storedPath : null;
+        _trackedImagePath = safePath;
         _retainDraft();
         state = OcrDraftState(
           localId: saved.localId,
           status: status,
-          imagePath: imageExists ? storedPath : null,
+          imagePath: safePath,
           rawText: saved.ocrRawText ?? '',
           confidence: saved.ocrConfidence,
           storeName: saved.parsedStoreName,
@@ -199,10 +207,16 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
     final previousImagePath = state.imagePath;
     state = state.copyWith(status: OcrFlowStatus.capturing, errorMessage: null);
 
+    String? newlyOwnedImage;
     try {
-      final imagePath = captureImage == null
+      final capturedPath = captureImage == null
           ? await ref.read(ocrServiceProvider).captureReceipt()
           : await captureImage();
+      final imagePath = await _imageStore.importCapturedImage(
+        capturedPath,
+        fromCameraCapture: true,
+      );
+      newlyOwnedImage = imagePath;
       final id = await ref.read(ocrDraftRepositoryProvider).createDraft(
             status: OcrFlowStatus.capturing.name,
             imagePath: imagePath,
@@ -215,10 +229,12 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
         imagePath: imagePath,
       );
       _trackedImagePath = imagePath;
+      newlyOwnedImage = null;
       if (previousImagePath != null && previousImagePath != imagePath) {
         await _deleteCapturedImage(previousImagePath);
       }
     } catch (error) {
+      if (newlyOwnedImage != null) await _deleteCapturedImage(newlyOwnedImage);
       await fail('Could not capture the receipt. $error');
     }
   }
@@ -406,9 +422,9 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
         status: OcrFlowStatus.reviewRequired,
         errorMessage: validationMessage,
       );
-    } catch (_) {
+    } catch (error) {
       if (!_disposed) {
-        state = state.copyWith(errorMessage: '수정 내용을 저장하지 못했어요. 다시 시도해 주세요.');
+        state = state.copyWith(errorMessage: _saveFailureMessage(error));
       }
       return false;
     }
@@ -438,7 +454,7 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
       (Object error, StackTrace stackTrace) {
         debugPrint('Saving OCR review edits failed: $error\n$stackTrace');
         if (!_disposed) {
-          state = state.copyWith(errorMessage: '수정 내용을 저장하지 못했어요. 다시 시도해 주세요.');
+          state = state.copyWith(errorMessage: _saveFailureMessage(error));
         }
       },
     ));
@@ -531,22 +547,12 @@ class OcrCaptureController extends AutoDisposeNotifier<OcrDraftState> {
     return int.tryParse(digitsOnly);
   }
 
+  String _saveFailureMessage(Object error) => error is OcrDraftMissingException
+      ? '초안을 찾지 못해 저장할 수 없어요. 입력한 내용은 이 화면에 남아 있어요.'
+      : '수정 내용을 저장하지 못했어요. 다시 시도해 주세요.';
+
   Future<void> _deleteCapturedImage(String? imagePath) async {
-    final normalizedPath = imagePath?.trim();
-    if (normalizedPath == null || normalizedPath.isEmpty) {
-      return;
-    }
-
-    final file = File(normalizedPath);
-    if (!await file.exists()) {
-      return;
-    }
-
-    try {
-      await file.delete();
-    } catch (error, stackTrace) {
-      debugPrint('Failed to delete OCR temp image: $error\n$stackTrace');
-    }
+    await _imageStore.deleteOwnedImage(imagePath);
   }
 }
 

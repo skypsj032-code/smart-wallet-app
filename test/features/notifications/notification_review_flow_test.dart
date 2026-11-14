@@ -50,12 +50,16 @@ void main() {
         database, event('conflict', '출금 처리 후 입금 5,000원'));
     final balanceOnly = await persistNotificationEvent(
         database, event('balance-only', '출금 완료 잔액 100,000원'));
+    final overseasFee = await persistNotificationEvent(
+        database, event('overseas-fee', '해외 승인 USD 12.50 해외이용수수료 500원'));
     expect(balance!.type, 'unknown');
     expect(balance.amount, 0);
     expect(conflicting!.type, 'unknown');
     expect(conflicting.amount, 0);
     expect(balanceOnly!.type, 'unknown');
     expect(balanceOnly.amount, 0);
+    expect(overseasFee!.type, 'unknown');
+    expect(overseasFee.amount, 0);
   });
 
   test('interest-only bank notices remain reviewable as income', () async {

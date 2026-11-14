@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_wallet_app/features/ocr/application/ocr_capture_provider.dart';
+import 'package:smart_wallet_app/features/ocr/presentation/ocr_capture_screen.dart';
 import 'package:smart_wallet_app/features/ocr/presentation/ocr_review_screen.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_form_provider.dart';
 import 'package:smart_wallet_app/features/transactions/application/quick_entry_options_provider.dart';
@@ -14,6 +15,7 @@ class _ReviewController extends OcrCaptureController {
   @override
   OcrDraftState build() => const OcrDraftState(
         status: OcrFlowStatus.reviewRequired,
+        imagePath: 'fake-receipt.jpg',
         rawText: '동네마트\n결제금액 12,000원',
         confidence: 0.8, // 기존 초안에 저장되어 있을 수 있는 값
         storeName: '동네마트',
@@ -224,6 +226,59 @@ void main() {
     expect(next.amount, '12000');
     expect(next.notificationHistoryId, isNull);
     expect(next.notificationMerchant, isNull);
+  });
+
+  _testAndroidWidgets('검토 화면을 다시 열어도 저장된 수정은 재인식 전 확인한다', (tester) async {
+    final container = await _openReview(tester, Stream.value(const []));
+    await tester.enterText(find.widgetWithText(TextField, '상호명'), '보존할 상호');
+    final router = GoRouter.of(tester.element(find.byType(OcrReviewScreen)));
+    router.go('/quick-entry');
+    await tester.pumpAndSettle();
+    router.go('/');
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('추천 다시 만들기'), 300, scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('추천 다시 만들기'));
+    await tester.pumpAndSettle();
+    expect(find.text('추천을 다시 만들까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정하기'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('OCR 다시 실행'), 300, scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('OCR 다시 실행'));
+    await tester.pumpAndSettle();
+    expect(find.text('저장된 사진으로 OCR을 다시 실행할까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 수정하기'));
+    await tester.pumpAndSettle();
+    expect(container.read(ocrCaptureProvider).storeName, '보존할 상호');
+  });
+
+  _testAndroidWidgets('촬영 화면에서 저장 사진을 다시 인식하기 전 기존 초안 교체를 확인한다',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1;
+    try {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [ocrCaptureProvider.overrideWith(_ReviewController.new)],
+          child: const MaterialApp(home: OcrCaptureScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('저장된 사진으로 OCR 재시도'));
+      await tester.pumpAndSettle();
+      expect(find.text('기존 영수증 초안을 바꿀까요?'), findsOneWidget);
+      await tester.tap(find.text('초안 유지'));
+      await tester.pumpAndSettle();
+      expect(find.text('기존 영수증 초안을 바꿀까요?'), findsNothing);
+    } finally {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
   });
 }
 
