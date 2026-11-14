@@ -205,11 +205,12 @@ class _MiniMonthCalendar extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: leadingBlanks + daysInMonth,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
-            childAspectRatio: 1.18,
+            // Reserve room for the date and count at larger text sizes.
+            mainAxisExtent: 20 + MediaQuery.textScalerOf(context).scale(32),
           ),
           itemBuilder: (context, index) {
             if (index < leadingBlanks) {
@@ -270,6 +271,8 @@ class _MiniCalendarDayCell extends StatelessWidget {
         children: [
           Text(
             '$dayNumber',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
@@ -279,6 +282,8 @@ class _MiniCalendarDayCell extends StatelessWidget {
           if (hasFlow)
             Text(
               '${summary!.transactionCount}건',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,

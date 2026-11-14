@@ -15,15 +15,19 @@ import '../../../app/theme/app_sizes.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../budgets/application/budget_alert_provider.dart';
 import '../../notifications/presentation/notification_transaction_banner.dart';
+import '../../settings/application/settings_provider.dart';
+import '../../transactions/application/quick_entry_exit_coordinator.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({
     super.key,
     required this.child,
+    this.showNotificationFeatures = true,
   });
 
   final Widget child;
+  final bool showNotificationFeatures;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -73,6 +77,36 @@ class _AppShellState extends ConsumerState<AppShell>
   Widget build(BuildContext context) {
     final currentIndex = _locationToIndex(context);
     final form = ref.watch(quickEntryFormProvider);
+    final isSubmitting = ref.watch(quickEntrySubmitStateProvider);
+    final pendingNotice = ref.watch(quickEntrySaveNoticeProvider);
+    if (pendingNotice != null) {
+      // Rebuild when lock settings or session state resolve; never consume a
+      // save result on an old shell that is about to be hidden by the lock.
+      ref.watch(appSettingsProvider);
+      ref.watch(sessionUnlockedProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final settings = ref.read(appSettingsProvider).asData?.value;
+        if (settings == null ||
+            (settings.appLockEnabled && !ref.read(sessionUnlockedProvider)) ||
+            GoRouter.of(context).routerDelegate.currentConfiguration.uri.path == '/lock') {
+          return;
+        }
+        final notices = ref.read(quickEntrySaveNoticeProvider.notifier);
+        if (!identical(notices.state, pendingNotice)) return;
+        notices.state = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(pendingNotice.message)),
+        );
+        final currentForm = ref.read(quickEntryFormProvider);
+        if (pendingNotice.closeEditor &&
+            currentForm.amount.isEmpty &&
+            currentForm.editingId == null &&
+            GoRouterState.of(context).uri.path == '/quick-entry') {
+          context.go('/');
+        }
+      });
+    }
 
     // 예산 임계값 초과 감지 → 앱 내 SnackBar 알림
     ref.listen<BudgetAlertEvent?>(budgetAlertProvider, (_, event) {
@@ -94,7 +128,10 @@ class _AppShellState extends ConsumerState<AppShell>
     });
     final location = GoRouterState.of(context).uri.toString();
     final hideGlobalQuickPanel =
-        location.startsWith('/quick-entry') || location.startsWith('/lock');
+        location.startsWith('/quick-entry') ||
+        location.startsWith('/lock') ||
+        form.editingId != null ||
+        isSubmitting;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -117,55 +154,17 @@ class _AppShellState extends ConsumerState<AppShell>
         child: Scaffold(
           body: Stack(
             children: [
-              ClipRect(
-                child: AnimatedSwitcher(
-                  duration: AppMotion.normal,
-                  reverseDuration: AppMotion.fast,
-                  switchInCurve: AppMotion.decelerate,
-                  switchOutCurve: AppMotion.accelerate,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: AppMotion.decelerate,
-                      reverseCurve: AppMotion.accelerate,
-                    );
-
-                    return ColoredBox(
-                      color: theme.scaffoldBackgroundColor,
-                      child: FadeTransition(
-                        opacity: curved,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.025, 0),
-                            end: Offset.zero,
-                          ).animate(curved),
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey(location),
-                    child: widget.child,
-                  ),
-                ),
-              ),
+              // ShellRoute supplies one Navigator; keeping two copies during
+              // an AnimatedSwitcher transition duplicates its GlobalKey.
+              ClipRect(child: widget.child),
               // 알림 감지 배너 — 화면 최상단에 오버레이
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: NotificationTransactionBanner(),
-              ),
+              if (widget.showNotificationFeatures)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NotificationTransactionBanner(),
+                ),
               // 멀티태스킹/앱 스위처 금융정보 노출 방지
               // Offstage: 보안 모드 활성 시 하위 트리 렌더링 중단 → GPU Overdraw 방지
               if (_obscured)
@@ -277,11 +276,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                       borderColor: Colors.transparent,
                                       selectedBorderColor: Colors.transparent,
                                       constraints: const BoxConstraints(
-                                        minHeight: 30,
-                                        minWidth: 38,
+                                        minHeight: 48,
+                                        minWidth: 48,
                                       ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
+                                      textStyle: theme.textTheme.labelLarge?.copyWith(
                                         fontWeight: FontWeight.w600,
                                       ),
                                       children: const [
@@ -325,10 +323,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                     ),
                                   ),
                                   const SizedBox(width: AppSpacing.sm),
-                                  // 기록 버튼 — 작게
+                                  // 금액을 확인한 뒤 상세 입력 화면으로 이동
                                   SizedBox(
-                                    width: 48,
-                                    height: 34,
+                                    width: 56,
+                                    height: 48,
                                     child: FilledButton(
                                       onPressed: form.amount.trim().isNotEmpty
                                           ? () => _submit(context, form)
@@ -340,12 +338,11 @@ class _AppShellState extends ConsumerState<AppShell>
                                             AppRadius.md,
                                           ),
                                         ),
-                                        textStyle: const TextStyle(
-                                          fontSize: 12,
+                                        textStyle: theme.textTheme.labelLarge?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                      child: const Text('기록'),
+                                      child: const Text('다음'),
                                     ),
                                   ),
                                 ],
@@ -356,7 +353,16 @@ class _AppShellState extends ConsumerState<AppShell>
                           selectedIndex: currentIndex,
                           labelBehavior:
                               NavigationDestinationLabelBehavior.alwaysShow,
-                          onDestinationSelected: (index) {
+                          onDestinationSelected: (index) async {
+                            if (ref.read(quickEntrySubmitStateProvider)) return;
+                            if (ref.read(quickEntryFormProvider).editingId != null &&
+                                !await ref.read(quickEntryExitCoordinatorProvider).confirmExit()) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            if (ref.read(quickEntryFormProvider).editingId == null) {
+                              ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+                            }
                             switch (index) {
                               case 0:
                                 context.go('/');
@@ -440,7 +446,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   void _submit(BuildContext context, QuickEntryFormState form) {
-    if (!context.mounted) {
+    if (!context.mounted || ref.read(quickEntrySubmitStateProvider)) {
       return;
     }
 
@@ -453,7 +459,19 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Future<bool> _handleBackPressed(BuildContext context, String location) async {
+    if (ref.read(quickEntrySubmitStateProvider)) return false;
     final router = GoRouter.of(context);
+
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId != null) {
+      final allowed = await ref.read(quickEntryExitCoordinatorProvider).confirmExit();
+      if (!allowed || !context.mounted) return false;
+    }
+
+    if (location.startsWith('/quick-entry') &&
+        ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
 
     if (router.canPop()) {
       router.pop();

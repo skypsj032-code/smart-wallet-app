@@ -10,8 +10,8 @@ import '../../../app/theme/app_radius.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_hero_panel.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/app_status_chip.dart';
 import '../application/quick_entry_category_actions_provider.dart';
+import '../application/quick_entry_exit_coordinator.dart';
 import '../application/quick_entry_form_provider.dart';
 import '../application/quick_entry_options_provider.dart';
 import '../data/transaction_repository.dart';
@@ -23,12 +23,16 @@ class QuickEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<QuickEntryScreen> createState() => _QuickEntryScreenState();
 }
 
+enum _EditExitChoice { keepEditing, discard, save }
+
 class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     with RestorationMixin {
   final _amountController = RestorableTextEditingController();
   final _memoController = RestorableTextEditingController();
   late final FocusNode _amountFocusNode;
   late final FocusNode _memoFocusNode;
+  late final QuickEntryExitCoordinator _exitCoordinator;
+  bool _allowDirectPop = false;
 
   /// OS 프로세스 킬 후 복원 중일 때 true.
   /// 첫 build()에서 Riverpod→컨트롤러 동기화를 건너뛰고
@@ -43,7 +47,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     registerForRestoration(_amountController, 'amount');
     registerForRestoration(_memoController, 'memo');
     if (initialRestore) {
-      _isRestoring = true;
+      _isRestoring = _amountController.value.text.isNotEmpty ||
+          _memoController.value.text.isNotEmpty;
     }
   }
 
@@ -52,10 +57,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     super.initState();
     _amountFocusNode = FocusNode();
     _memoFocusNode = FocusNode();
+    _exitCoordinator = ref.read(quickEntryExitCoordinatorProvider);
+    _exitCoordinator.attach(this, _confirmEditingExit);
   }
 
   @override
   void dispose() {
+    _exitCoordinator.detach(this);
     _amountController.dispose();
     _memoController.dispose();
     _amountFocusNode.dispose();
@@ -141,41 +149,21 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         _selectedCategoryName(categoryOptions, form.categoryId);
     final validationMessages = _validationMessages(form);
 
-    return AppScaffold(
+    final screen = AppScaffold(
       title: isEditing ? '거래 수정' : '빠른 입력',
       hideGlobalQuickPanel: true,
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
         children: [
           AppHeroPanel(
-            eyebrow: AppStatusChip(
-              label: isEditing ? 'EDIT ENTRY' : 'EXPANDED ENTRY',
-              dotColor:
-                  isEditing ? AppColors.primary : _chipColorFor(form.type),
-            ),
             title: _heroTitleFor(form.type, isEditing),
             body: _heroBodyFor(form.type, isEditing),
-            footer: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                AppStatusChip(
-                  label: _labelForType(form.type),
-                  dotColor: _chipColorFor(form.type),
-                ),
-                AppStatusChip(
-                  label: _heroDateLabel(occurredAt),
-                  foregroundColor: Colors.white.withValues(alpha: 0.88),
-                  backgroundColor: Colors.white.withValues(alpha: 0.06),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           if (isEditing) ...[
             _EditingBanner(
               isSubmitting: isSubmitting,
-              onReset: () => ref.read(quickEntryFormProvider.notifier).reset(),
+              onReset: () => _exitCoordinator.confirmExit(),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -207,6 +195,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
           _AmountPanel(
             controller: _amountController.value,
             memoController: _memoController.value,
+            isSubmitting: isSubmitting,
             amountFocusNode: _amountFocusNode,
             memoFocusNode: _memoFocusNode,
             form: form,
@@ -393,11 +382,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
               child: FilledButton(
               onPressed: form.canSubmit && !isSubmitting
                   ? () {
-                      developer.log(
-                        'quick_entry_submit_pressed type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
-                        name: 'quick_entry',
-                      );
-                      _submit(context, ref, form);
+                      _submit();
                     }
                   : null,
               style: FilledButton.styleFrom(
@@ -435,6 +420,79 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
         ],
       ),
     );
+    return PopScope<void>(
+      canPop: _allowDirectPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_allowDirectPop && !isSubmitting) _requestExitAndLeave();
+      },
+      child: AbsorbPointer(absorbing: isSubmitting, child: screen),
+    );
+  }
+
+  Future<bool> _confirmEditingExit() async {
+    if (!mounted) return false;
+    final form = ref.read(quickEntryFormProvider);
+    if (form.editingId == null) return true;
+    if (ref.read(quickEntrySubmitStateProvider)) return false;
+
+    final choice = await showDialog<_EditExitChoice>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('수정 내용을 저장할까요?'),
+        content: const Text('저장하지 않으면 이번에 수정한 내용이 사라져요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.keepEditing),
+            child: const Text('계속 수정'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.discard),
+            child: const Text('저장 안 함'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_EditExitChoice.save),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null || choice == _EditExitChoice.keepEditing) {
+      return false;
+    }
+    if (choice == _EditExitChoice.discard) {
+      ref.read(quickEntryFormProvider.notifier).reset();
+      return true;
+    }
+
+    final current = ref.read(quickEntryFormProvider);
+    if (!current.canSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장할 수 있도록 항목을 먼저 확인해 주세요.')),
+      );
+      return false;
+    }
+    return _persist(current);
+  }
+
+  Future<void> _requestExitAndLeave() async {
+    if (await _exitCoordinator.confirmExit() && mounted) _leaveScreen();
+  }
+
+  void _leaveScreen() {
+    if (!mounted) return;
+    if (ref.read(quickEntryFormProvider).editingId == null) {
+      ref.read(quickEntryFormProvider.notifier).abandonFailedSaveRestoration();
+    }
+    setState(() => _allowDirectPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/timeline');
+      }
+    });
   }
 
   List<String> _validationMessages(QuickEntryFormState form) {
@@ -863,52 +921,16 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
   }
 
   String _heroTitleFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '${_labelForType(type)} 기록을 차분하게 다듬고 있어요';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '지출 흐름을 조금 더 또렷하게 남겨둘게요';
-      case TransactionEntryType.income:
-        return '들어온 흐름을 놓치지 않게 바로 적어둘게요';
-      case TransactionEntryType.transfer:
-        return '계좌 사이의 움직임을 한 번에 정리할 수 있어요';
-    }
+    return '${_labelForType(type)} ${isEditing ? '수정' : '기록'}';
   }
 
   String _heroBodyFor(TransactionEntryType type, bool isEditing) {
-    if (isEditing) {
-      return '금액, 메모, 계좌를 수정하고 저장하세요.';
-    }
-
-    switch (type) {
-      case TransactionEntryType.expense:
-        return '금액과 카테고리를 입력하고 저장하세요.';
-      case TransactionEntryType.income:
-        return '금액과 계좌를 입력하고 저장하세요.';
-      case TransactionEntryType.transfer:
-        return '보내는 계좌와 받는 계좌를 선택하세요.';
-    }
-  }
-
-  Color _chipColorFor(TransactionEntryType type) {
-    switch (type) {
-      case TransactionEntryType.expense:
-        return AppColors.expense;
-      case TransactionEntryType.income:
-        return AppColors.income;
-      case TransactionEntryType.transfer:
-        return AppColors.primary;
-    }
-  }
-
-  String _heroDateLabel(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$month.$day $hour:$minute';
+    if (isEditing) return '내용을 확인하고 수정해 주세요.';
+    return switch (type) {
+      TransactionEntryType.expense => '금액과 분류를 확인하고 저장해 주세요.',
+      TransactionEntryType.income => '금액과 계좌를 확인하고 저장해 주세요.',
+      TransactionEntryType.transfer => '보내는 계좌와 받는 계좌를 선택해 주세요.',
+    };
   }
 
   String _categoryTypeFor(TransactionEntryType type) {
@@ -922,65 +944,53 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen>
     }
   }
 
-  Future<void> _submit(
-    BuildContext context,
-    WidgetRef ref,
-    QuickEntryFormState form,
-  ) async {
-    ref.read(quickEntrySubmitStateProvider.notifier).state = true;
-    developer.log(
-      'quick_entry_submit_start editingId=${form.editingId} type=${form.type} amount=${form.amount} accountId=${form.accountId} fromAccountId=${form.fromAccountId} toAccountId=${form.toAccountId} categoryId=${form.categoryId} memo=${form.memo}',
-      name: 'quick_entry',
-    );
+  Future<void> _submit() async {
+    final form = ref.read(quickEntryFormProvider);
+    if (!form.canSubmit) return;
+    if (await _persist(form) && mounted) _leaveScreen();
+  }
 
+  Future<bool> _persist(QuickEntryFormState form) async {
+    final submission = ref.read(quickEntrySubmitStateProvider.notifier);
+    final notice = ref.read(quickEntrySaveNoticeProvider.notifier);
+    if (submission.state) return false;
+    final formController = ref.read(quickEntryFormProvider.notifier);
+    final repository = ref.read(transactionRepositoryProvider);
+    final releaseForm = formController.retainDuringSave();
+    FocusScope.of(context).unfocus();
+    submission.state = true;
     try {
       if (form.editingId != null) {
-        await ref
-            .read(transactionRepositoryProvider)
-            .updateFromQuickEntry(form);
+        await repository.updateFromQuickEntry(form);
       } else {
-        await ref
-            .read(transactionRepositoryProvider)
-            .createFromQuickEntry(form);
+        await repository.createFromQuickEntry(form);
       }
       developer.log('quick_entry_submit_success', name: 'quick_entry');
-      ref.read(quickEntryFormProvider.notifier).reset();
+      final cleared = formController.clearIfCurrent(form);
+      final message = form.editingId != null
+          ? '${_labelForType(form.type)} 거래를 수정했어요.'
+          : '${_labelForType(form.type)} 거래를 저장했어요.';
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null
-                  ? '${_labelForType(form.type)} 거래를 수정했어요.'
-                  : '${_labelForType(form.type)} 거래를 저장했어요.',
-            ),
-          ),
-        );
-
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/timeline');
-        }
-      }
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: !mounted && cleared);
+      return cleared;
     } catch (error, stackTrace) {
+      formController.retainAfterFailedSave();
       developer.log(
         'quick_entry_submit_failed error=$error',
         name: 'quick_entry',
         error: error,
         stackTrace: stackTrace,
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.',
-            ),
-          ),
-        );
-      }
+      final message = form.editingId != null ? '거래를 수정하지 못했어요.' : '거래를 저장하지 못했어요.';
+      notice.state = QuickEntrySaveNotice(message: message, closeEditor: false);
+      return false;
     } finally {
-      ref.read(quickEntrySubmitStateProvider.notifier).state = false;
+      try {
+        submission.state = false;
+      } on StateError {
+        // The whole provider container may have been disposed during save.
+      }
+      releaseForm();
     }
   }
 
@@ -1086,6 +1096,7 @@ class _AmountPanel extends StatelessWidget {
   const _AmountPanel({
     required this.controller,
     required this.memoController,
+    required this.isSubmitting,
     required this.form,
     required this.occurredAt,
     required this.selectedAccountName,
@@ -1100,6 +1111,7 @@ class _AmountPanel extends StatelessWidget {
 
   final TextEditingController controller;
   final TextEditingController memoController;
+  final bool isSubmitting;
   final FocusNode? amountFocusNode;
   final FocusNode? memoFocusNode;
   final QuickEntryFormState form;
@@ -1139,6 +1151,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: controller,
+              readOnly: isSubmitting,
               focusNode: amountFocusNode,
               onChanged: onAmountChanged,
               textInputAction: TextInputAction.next,
@@ -1190,6 +1203,7 @@ class _AmountPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: memoController,
+              readOnly: isSubmitting,
               focusNode: memoFocusNode,
               onChanged: onMemoChanged,
               maxLines: 2,

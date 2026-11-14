@@ -294,13 +294,18 @@ class _WealthHeroBackdropPainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: isDark
               ? [
+                  Colors.transparent,
                   const Color(0xFF4E82A3).withValues(alpha: 0.18),
                   const Color(0xFF2D536E).withValues(alpha: 0.08),
+                  Colors.transparent,
                 ]
               : [
-                  const Color(0xFF78BDEB).withValues(alpha: 0.24),
-                  const Color(0xFF5EA6D9).withValues(alpha: 0.10),
+                  Colors.transparent,
+                  const Color(0xFF78BDEB).withValues(alpha: 0.20),
+                  const Color(0xFF5EA6D9).withValues(alpha: 0.08),
+                  Colors.transparent,
                 ],
+          stops: const [0, 0.22, 0.75, 1],
         ).createShader(waterRect),
     );
 
@@ -324,9 +329,16 @@ class _WealthHeroBackdropPainter extends CustomPainter {
     canvas.drawPath(
       farHill,
       Paint()
-        ..color = isDark
-            ? const Color(0xFF5D8294).withValues(alpha: 0.10)
-            : const Color(0xFF9DDDB8).withValues(alpha: 0.16),
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            isDark
+                ? const Color(0xFF5D8294).withValues(alpha: 0.10)
+                : const Color(0xFF9DDDB8).withValues(alpha: 0.16),
+            Colors.transparent,
+          ],
+        ).createShader(rect),
     );
 
     final frontHill = Path()
@@ -355,11 +367,11 @@ class _WealthHeroBackdropPainter extends CustomPainter {
           colors: isDark
               ? [
                   const Color(0xFF2F5463).withValues(alpha: 0.22),
-                  const Color(0xFF1E3943).withValues(alpha: 0.10),
+                  Colors.transparent,
                 ]
               : [
                   const Color(0xFF86D7A7).withValues(alpha: 0.22),
-                  const Color(0xFF5DB08C).withValues(alpha: 0.12),
+                  Colors.transparent,
                 ],
         ).createShader(rect),
     );

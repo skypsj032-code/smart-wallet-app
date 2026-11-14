@@ -35,7 +35,7 @@ void main() {
 
   test('restore disables app lock when backup has no PIN code', () async {
     final backupJson = jsonEncode({
-      'backupVersion': BackupService.backupVersion,
+      'backupVersion': 1,
       'schemaVersion': database.schemaVersion,
       'createdAt': DateTime(2026, 5, 4).toUtc().toIso8601String(),
       'appVersion': '0.1.0',

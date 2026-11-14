@@ -62,6 +62,14 @@ void main() {
     expect(find.text('JSON 백업 만들기'), findsOneWidget);
     expect(find.text('CSV 내보내기'), findsOneWidget);
     await tester.scrollUntilVisible(
+      find.text('알림 자동 기록 안내'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('결제 알림 자동 감지를 사용할 수 없어요'), findsOneWidget);
+    expect(find.text('결제 알림 감지'), findsNothing);
+    await tester.scrollUntilVisible(
       find.text('화면 모드'),
       300,
       scrollable: find.byType(Scrollable).first,

@@ -21,6 +21,8 @@ class QuickEntryFormState {
     this.toAccountId,
     this.categoryId,
     this.editingId,
+    this.notificationHistoryId,
+    this.notificationMerchant,
   });
 
   final TransactionEntryType type;
@@ -32,6 +34,9 @@ class QuickEntryFormState {
   final String? toAccountId;
   final String? categoryId;
   final String? editingId;
+  /// 알림에서 시작한 입력만 원본 후보와 연결한다.
+  final int? notificationHistoryId;
+  final String? notificationMerchant;
 
   bool get canSubmit {
     if (amount.trim().isEmpty) {
@@ -72,6 +77,8 @@ class QuickEntryFormState {
     Object? toAccountId = _quickEntryUnset,
     Object? categoryId = _quickEntryUnset,
     Object? editingId = _quickEntryUnset,
+    Object? notificationHistoryId = _quickEntryUnset,
+    Object? notificationMerchant = _quickEntryUnset,
   }) {
     return QuickEntryFormState(
       type: type ?? this.type,
@@ -89,17 +96,25 @@ class QuickEntryFormState {
           identical(categoryId, _quickEntryUnset) ? this.categoryId : categoryId as String?,
       editingId:
           identical(editingId, _quickEntryUnset) ? this.editingId : editingId as String?,
+      notificationHistoryId: identical(notificationHistoryId, _quickEntryUnset)
+          ? this.notificationHistoryId : notificationHistoryId as int?,
+      notificationMerchant: identical(notificationMerchant, _quickEntryUnset)
+          ? this.notificationMerchant : notificationMerchant as String?,
     );
   }
 }
 
 class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> {
+  void Function()? _releaseEdit;
+  bool _failedSaveNeedsRestore = false;
+
   @override
   QuickEntryFormState build() {
     return const QuickEntryFormState();
   }
 
   void setType(TransactionEntryType type) {
+    if (_isSubmitting) return;
     state = QuickEntryFormState(
       type: type,
       amount: state.amount,
@@ -109,44 +124,73 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
       fromAccountId:
           type == TransactionEntryType.transfer ? state.fromAccountId ?? state.accountId : null,
       toAccountId: type == TransactionEntryType.transfer ? state.toAccountId : null,
-      categoryId: type == TransactionEntryType.transfer ? null : state.categoryId,
+      categoryId: type != state.type || type == TransactionEntryType.transfer
+          ? null
+          : state.categoryId,
       editingId: state.editingId,
+      notificationHistoryId: state.notificationHistoryId,
+      notificationMerchant: state.notificationMerchant,
     );
   }
 
   void setAmount(String amount) {
+    if (_isSubmitting) return;
     state = state.copyWith(amount: amount);
   }
 
   void setMemo(String memo) {
+    if (_isSubmitting) return;
     state = state.copyWith(memo: memo);
   }
 
   void setOccurredAt(DateTime? occurredAt) {
+    if (_isSubmitting) return;
     state = state.copyWith(occurredAt: occurredAt);
   }
 
   void setAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(accountId: accountId);
   }
 
   void setFromAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(fromAccountId: accountId);
   }
 
   void setToAccount(String? accountId) {
+    if (_isSubmitting) return;
     state = state.copyWith(toAccountId: accountId);
   }
 
   void setCategory(String? categoryId) {
+    if (_isSubmitting) return;
     state = state.copyWith(categoryId: categoryId);
   }
 
+  void setNotificationOrigin(int? historyId, String? merchant) {
+    if (_isSubmitting) return;
+    state = state.copyWith(
+      notificationHistoryId: historyId,
+      notificationMerchant: merchant,
+    );
+  }
+
   void setEditingId(String? editingId) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
+    if (editingId == null) {
+      _stopRetainingEdit();
+    } else {
+      _retainEdit();
+    }
     state = state.copyWith(editingId: editingId);
   }
 
   void loadTransaction(Transaction transaction) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
+    _retainEdit();
     state = QuickEntryFormState(
       type: _mapTransactionType(transaction.type),
       amount: transaction.amount.toString(),
@@ -161,6 +205,9 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void loadTemplate(Transaction transaction) {
+    if (_isSubmitting) return;
+    _failedSaveNeedsRestore = false;
+    _stopRetainingEdit();
     final type = _mapTransactionType(transaction.type);
     state = QuickEntryFormState(
       type: type,
@@ -179,7 +226,50 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 
   void reset() {
+    if (_isSubmitting) return;
     state = const QuickEntryFormState();
+    _failedSaveNeedsRestore = false;
+    _stopRetainingEdit();
+  }
+
+  /// Clear only the exact snapshot that was successfully saved.
+  bool clearIfCurrent(QuickEntryFormState submitted) {
+    if (!identical(state, submitted)) return false;
+    state = const QuickEntryFormState();
+    _failedSaveNeedsRestore = false;
+    _stopRetainingEdit();
+    return true;
+  }
+
+  bool get _isSubmitting => ref.read(quickEntrySubmitStateProvider);
+
+  /// Keep a failed new entry available if the editor was covered by the lock.
+  void retainAfterFailedSave() {
+    _failedSaveNeedsRestore = true;
+    _retainEdit();
+  }
+
+  bool get needsRestoreAfterLock =>
+      state.editingId != null || _failedSaveNeedsRestore || _isSubmitting;
+
+  void abandonFailedSaveRestoration() {
+    if (!_failedSaveNeedsRestore) return;
+    _failedSaveNeedsRestore = false;
+    if (state.editingId == null) _stopRetainingEdit();
+  }
+
+  /// Holds the form until an asynchronous write finishes, even if the app
+  /// becomes locked and the editor widget is temporarily removed.
+  void Function() retainDuringSave() => ref.keepAlive().close;
+
+  void _retainEdit() {
+    _releaseEdit ??= ref.keepAlive().close;
+  }
+
+  void _stopRetainingEdit() {
+    final release = _releaseEdit;
+    _releaseEdit = null;
+    release?.call();
   }
 
   TransactionEntryType _mapTransactionType(String type) {
@@ -195,10 +285,21 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
   }
 }
 
-/// 제출 진행 중 플래그 — QuickEntryScreen 생명주기와 동기화.
-/// autoDispose: 화면이 닫히면 자동으로 false로 초기화 (좀비 상태 방지).
+/// Keep the submission flag across a temporary lock screen to prevent a
+/// second write while the original save is still running.
 final quickEntrySubmitStateProvider =
-    StateProvider.autoDispose<bool>((ref) => false);
+    StateProvider<bool>((ref) => false);
+
+class QuickEntrySaveNotice {
+  const QuickEntrySaveNotice({required this.message, required this.closeEditor});
+
+  final String message;
+  final bool closeEditor;
+}
+
+/// Delivers the result if a lock screen disposed the submitting widget.
+final quickEntrySaveNoticeProvider =
+    StateProvider<QuickEntrySaveNotice?>((ref) => null);
 
 final quickEntryFormProvider =
     NotifierProvider.autoDispose<QuickEntryFormController, QuickEntryFormState>(

@@ -1,8 +1,49 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
+
+class OcrDraftMissingException implements Exception {
+  const OcrDraftMissingException();
+}
+
+// Older schemas have no column for a partially typed amount. Keep the text
+// alongside the existing error in a versioned envelope that backups preserve.
+class OcrReviewMetadata {
+  const OcrReviewMetadata({this.amountText, this.errorMessage});
+
+  final String? amountText;
+  final String? errorMessage;
+  static const _prefix = '__ocr_review_v1__:';
+
+  String? encode() {
+    if (amountText == null) return errorMessage;
+    return '$_prefix${jsonEncode({'amountText': amountText, 'errorMessage': errorMessage})}';
+  }
+
+  static OcrReviewMetadata decode(String? value) {
+    if (value == null || !value.startsWith(_prefix)) {
+      return OcrReviewMetadata(errorMessage: value);
+    }
+    try {
+      final data = jsonDecode(value.substring(_prefix.length));
+      if (data is Map<String, dynamic> &&
+          data['amountText'] is String &&
+          (data['errorMessage'] == null || data['errorMessage'] is String)) {
+        return OcrReviewMetadata(
+          amountText: data['amountText'] as String,
+          errorMessage: data['errorMessage'] as String?,
+        );
+      }
+    } catch (_) {
+      // Treat malformed/older contents as a regular message.
+    }
+    return OcrReviewMetadata(errorMessage: value);
+  }
+}
 
 class OcrDraftRepository {
   OcrDraftRepository(this._database);
@@ -53,7 +94,7 @@ class OcrDraftRepository {
     String? categoryGuess,
     String? errorMessage,
   }) async {
-    await (_database.update(_database.ocrDrafts)
+    final updated = await (_database.update(_database.ocrDrafts)
           ..where((tbl) => tbl.localId.equals(localId)))
         .write(
       OcrDraftsCompanion(
@@ -68,6 +109,7 @@ class OcrDraftRepository {
         lastModifiedAt: Value(DateTime.now()),
       ),
     );
+    if (updated != 1) throw const OcrDraftMissingException();
   }
 
   Stream<OcrDraft?> watchLatestDraft() {
