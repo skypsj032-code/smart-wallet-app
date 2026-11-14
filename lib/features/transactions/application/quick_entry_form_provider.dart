@@ -124,7 +124,9 @@ class QuickEntryFormController extends AutoDisposeNotifier<QuickEntryFormState> 
       fromAccountId:
           type == TransactionEntryType.transfer ? state.fromAccountId ?? state.accountId : null,
       toAccountId: type == TransactionEntryType.transfer ? state.toAccountId : null,
-      categoryId: type == TransactionEntryType.transfer ? null : state.categoryId,
+      categoryId: type != state.type || type == TransactionEntryType.transfer
+          ? null
+          : state.categoryId,
       editingId: state.editingId,
       notificationHistoryId: state.notificationHistoryId,
       notificationMerchant: state.notificationMerchant,

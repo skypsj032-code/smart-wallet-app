@@ -20,7 +20,7 @@ class DetectedRecurringSpendSnapshot {
   final Map<String, String> accountNames;
 }
 
-final detectedRecurringClockProvider = StreamProvider.autoDispose<DateTime>(
+final detectedRecurringClockProvider = StreamProvider<DateTime>(
   (ref) {
     late StreamController<DateTime> controller;
     Timer? timer;

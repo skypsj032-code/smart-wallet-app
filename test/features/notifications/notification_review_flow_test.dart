@@ -43,6 +43,28 @@ void main() {
     expect(cancelled.type, 'unknown');
   });
 
+  test('multiple amounts or conflicting directions need manual review', () async {
+    final balance = await persistNotificationEvent(
+        database, event('balance', '잔액 100,000원 출금 5,000원'));
+    final conflicting = await persistNotificationEvent(
+        database, event('conflict', '출금 처리 후 입금 5,000원'));
+    final balanceOnly = await persistNotificationEvent(
+        database, event('balance-only', '출금 완료 잔액 100,000원'));
+    expect(balance!.type, 'unknown');
+    expect(balance.amount, 0);
+    expect(conflicting!.type, 'unknown');
+    expect(conflicting.amount, 0);
+    expect(balanceOnly!.type, 'unknown');
+    expect(balanceOnly.amount, 0);
+  });
+
+  test('interest-only bank notices remain reviewable as income', () async {
+    final interest = await persistNotificationEvent(
+        database, event('interest', '이자 2,500원 지급'));
+    expect(interest!.type, 'income');
+    expect(interest.amount, 2500);
+  });
+
   test('saving a candidate atomically links it and remembers the chosen category once', () async {
     final now = DateTime(2026, 11, 1);
     await database.into(database.categories).insert(CategoriesCompanion.insert(
@@ -98,5 +120,39 @@ void main() {
     expect(restored.status, 'pending');
     expect(restored.transactionId, isNull);
     expect(await database.select(database.transactions).get(), isEmpty);
+  });
+
+  test('native acknowledgement happens only after durable save and can be retried', () async {
+    final received = event('ack', '승인 5,000원 스타벅스');
+    var ackCalls = 0;
+    Future<void> failFirstAck(List<String> ids) async {
+      ackCalls++;
+      expect(ids, ['ack']);
+      expect(await database.select(database.notificationHistories).get(), hasLength(1));
+      if (ackCalls == 1) throw StateError('native acknowledgement failed');
+    }
+    await expectLater(
+      persistAndAcknowledgeNotificationEvent(database, received, failFirstAck),
+      throwsStateError,
+    );
+    await persistAndAcknowledgeNotificationEvent(database, received, failFirstAck);
+    expect(ackCalls, 2);
+    expect(await database.select(database.notificationHistories).get(), hasLength(1));
+  });
+
+  test('a failed database insert never acknowledges the native event', () async {
+    await database.customStatement('''
+      CREATE TRIGGER fail_history BEFORE INSERT ON notification_histories
+      BEGIN SELECT RAISE(ABORT, 'injected failure'); END;
+    ''');
+    var acknowledged = false;
+    await expectLater(
+      persistAndAcknowledgeNotificationEvent(
+        database, event('not-acked', '승인 5,000원 스타벅스'),
+        (_) async { acknowledged = true; },
+      ),
+      throwsA(anything),
+    );
+    expect(acknowledged, isFalse);
   });
 }

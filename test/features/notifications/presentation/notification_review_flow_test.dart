@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' hide Column;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +35,31 @@ void main() {
             type: type,
             merchant: Value(merchant),
             status: Value(status),
-            detectedAt: at ?? DateTime(2026, 5, 8, 12),
+            detectedAt: at ?? DateTime.now(),
+          ),
+        );
+  }
+
+  Future<void> addTransaction({
+    required String id,
+    required DateTime at,
+    String? merchant,
+    String? memo,
+    String type = 'expense',
+    int amount = 5400,
+    bool deleted = false,
+  }) async {
+    await database.into(database.transactions).insert(
+          TransactionsCompanion.insert(
+            localId: id,
+            type: type,
+            amount: amount,
+            occurredAt: at,
+            merchantName: Value(merchant),
+            memo: Value(memo),
+            createdAt: at,
+            lastModifiedAt: at,
+            deletedAt: Value(deleted ? at : null),
           ),
         );
   }
@@ -99,7 +123,8 @@ void main() {
 
   testWidgets('legacy item needs explicit confirmation before entering',
       (tester) async {
-    final id = await addHistory(status: 'legacy', merchant: '예전 상점');
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    final id = await addHistory(status: 'legacy', merchant: '예전 상점', at: old);
     final container = await open(tester);
     await tester.tap(find.text('예전 상점'));
     await tester.pumpAndSettle();
@@ -109,6 +134,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('입력 화면'), findsOneWidget);
     expect(container.read(quickEntryFormProvider).notificationHistoryId, id);
+  });
+
+  testWidgets('old pending alerts show the year and need review', (tester) async {
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    final id = await addHistory(status: 'pending', merchant: '오래된 결제', at: old);
+    final container = await open(tester);
+    expect(find.textContaining('${old.year}/'), findsOneWidget);
+    await tester.tap(find.text('오래된 결제'));
+    await tester.pumpAndSettle();
+    expect(find.text('오래된 알림 확인'), findsOneWidget);
+    await tester.tap(find.text('확인 후 계속'));
+    await tester.pumpAndSettle();
+    expect(find.text('입력 화면'), findsOneWidget);
+    expect(container.read(quickEntryFormProvider).notificationHistoryId, id);
+  });
+
+  testWidgets('old pending with a matching transaction shows one warning',
+      (tester) async {
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    await addTransaction(id: 'old-manual', at: old, memo: '별다방');
+    await addHistory(status: 'pending', merchant: '별다방', at: old);
+    await open(tester);
+    await tester.tap(find.text('별다방'));
+    await tester.pumpAndSettle();
+    expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
+    await tester.tap(find.text('확인 후 계속'));
+    await tester.pumpAndSettle();
+    expect(find.text('오래된 알림 확인'), findsNothing);
+    expect(find.text('입력 화면'), findsOneWidget);
+  });
+
+  testWidgets('legacy with a matching transaction shows one combined warning',
+      (tester) async {
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    await addTransaction(id: 'old-manual', at: old, memo: '별다방');
+    await addHistory(status: 'legacy', merchant: '별다방', at: old);
+    await open(tester);
+    await tester.tap(find.text('별다방'));
+    await tester.pumpAndSettle();
+    expect(find.text('이전 알림 확인'), findsOneWidget);
+    expect(find.textContaining('금액·상호·시간이 비슷하니'), findsOneWidget);
+    await tester.tap(find.text('확인 후 기록'));
+    await tester.pumpAndSettle();
+    expect(find.text('비슷한 결제가 있어요'), findsNothing);
+    expect(find.text('오래된 알림 확인'), findsNothing);
+    expect(find.text('입력 화면'), findsOneWidget);
   });
 
   testWidgets('unknown amount stays blank for a person to review',
@@ -150,7 +221,7 @@ void main() {
 
   testWidgets('similar recorded payment warns without discarding the new one',
       (tester) async {
-    final at = DateTime(2026, 5, 8, 12);
+    final at = DateTime.now();
     await addHistory(status: 'recorded', merchant: '별다방', at: at);
     final candidateId = await addHistory(
       status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
@@ -167,13 +238,60 @@ void main() {
 
   testWidgets('same amount at a different merchant is not treated as duplicate',
       (tester) async {
-    final at = DateTime(2026, 5, 8, 12);
+    final at = DateTime.now();
     await addHistory(status: 'recorded', merchant: '별다방', at: at);
     final candidateId = await addHistory(
       status: 'pending', merchant: '김밥집', at: at.add(const Duration(minutes: 1)),
     );
     final container = await open(tester);
     await tester.tap(find.text('김밥집'));
+    await tester.pumpAndSettle();
+    expect(find.text('비슷한 결제가 있어요'), findsNothing);
+    expect(find.text('입력 화면'), findsOneWidget);
+    expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
+  });
+
+  testWidgets('manual entry memo matching a candidate triggers a warning',
+      (tester) async {
+    final at = DateTime.now();
+    await addTransaction(id: 'manual', at: at, memo: '별다방');
+    await addHistory(
+      status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
+    );
+    await open(tester);
+    await tester.tap(find.text('별다방'));
+    await tester.pumpAndSettle();
+    expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
+    expect(find.text('입력 화면'), findsNothing);
+  });
+
+  testWidgets('receipt merchant matching a candidate triggers a warning',
+      (tester) async {
+    final at = DateTime.now();
+    await addTransaction(id: 'receipt', at: at, merchant: '별다방');
+    await addHistory(
+      status: 'pending', merchant: '별다방', at: at.add(const Duration(minutes: 1)),
+    );
+    await open(tester);
+    await tester.tap(find.text('별다방'));
+    await tester.pumpAndSettle();
+    expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
+  });
+
+  testWidgets('unrelated and deleted transactions do not block a candidate',
+      (tester) async {
+    final at = DateTime.now();
+    await addTransaction(id: 'other-merchant', at: at, memo: '김밥집');
+    await addTransaction(id: 'partial-memo', at: at, memo: '별다방 점심');
+    await addTransaction(id: 'other-amount', at: at, merchant: '별다방', amount: 5500);
+    await addTransaction(id: 'deleted', at: at, merchant: '별다방', deleted: true);
+    await addTransaction(id: 'other-type', at: at, merchant: '별다방', type: 'income');
+    await addTransaction(
+      id: 'older', at: at.subtract(const Duration(minutes: 6)), merchant: '별다방',
+    );
+    final candidateId = await addHistory(status: 'pending', merchant: '별다방', at: at);
+    final container = await open(tester);
+    await tester.tap(find.text('별다방'));
     await tester.pumpAndSettle();
     expect(find.text('비슷한 결제가 있어요'), findsNothing);
     expect(find.text('입력 화면'), findsOneWidget);

@@ -20,15 +20,46 @@ class _ReviewController extends OcrCaptureController {
         amount: 12000,
         categoryGuess: 'expense-groceries',
       );
+
+  @override
+  void updateReviewEdits({
+    required String rawText,
+    required String storeName,
+    required String amountText,
+    required String categoryGuess,
+  }) {
+    state = state.copyWith(
+      rawText: rawText,
+      storeName: storeName,
+      amount: int.tryParse(amountText.replaceAll(RegExp(r'[^0-9]'), '')),
+      amountText: amountText,
+      categoryGuess: categoryGuess,
+    );
+  }
+
+  @override
+  Future<bool> saveReviewEdits({
+    required String rawText,
+    required String storeName,
+    required String amountText,
+    required String categoryGuess,
+  }) async {
+    updateReviewEdits(
+      rawText: rawText,
+      storeName: storeName,
+      amountText: amountText,
+      categoryGuess: categoryGuess,
+    );
+    return state.amount != null;
+  }
+
+  @override
+  Future<void> flushPendingWrites() async {}
 }
 
 void main() {
-  testWidgets('기존 초안에도 검증되지 않은 인식률이나 신뢰도를 표시하지 않는다',
+  _testAndroidWidgets('기존 초안에도 검증되지 않은 인식률이나 신뢰도를 표시하지 않는다',
       (tester) async {
-    final oldPlatform = debugDefaultTargetPlatformOverride;
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    addTearDown(() => debugDefaultTargetPlatformOverride = oldPlatform);
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [ocrCaptureProvider.overrideWith(_ReviewController.new)],
@@ -41,12 +72,8 @@ void main() {
     expect(find.text('금액 확인 필요'), findsOneWidget);
   });
 
-  testWidgets('추천을 다시 만들기 전 수정 중인 상호가 덮어써질 수 있음을 알린다',
+  _testAndroidWidgets('추천을 다시 만들기 전 수정 중인 상호가 덮어써질 수 있음을 알린다',
       (tester) async {
-    final oldPlatform = debugDefaultTargetPlatformOverride;
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    addTearDown(() => debugDefaultTargetPlatformOverride = oldPlatform);
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [ocrCaptureProvider.overrideWith(_ReviewController.new)],
@@ -64,7 +91,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('추천을 다시 만들까요?'), findsOneWidget);
-    expect(find.textContaining('저장하지 않은 상호명'), findsOneWidget);
+    expect(find.textContaining('현재 상호명'), findsOneWidget);
     await tester.tap(find.text('계속 수정하기'));
     await tester.pumpAndSettle();
 
@@ -76,7 +103,7 @@ void main() {
     expect(find.text('수정 중인 상호'), findsOneWidget);
   });
 
-  testWidgets('변경하지 않은 추천은 이름이 바뀌어도 활성 카테고리 ID로 전달한다',
+  _testAndroidWidgets('변경하지 않은 추천은 이름이 바뀌어도 활성 카테고리 ID로 전달한다',
       (tester) async {
     final container = await _openReview(
       tester,
@@ -97,7 +124,7 @@ void main() {
     expect(container.read(ocrCaptureProvider).categoryGuess, 'expense-groceries');
   });
 
-  testWidgets('수동으로 적은 이름이 활성 카테고리와 일치하면 실제 ID를 전달한다',
+  _testAndroidWidgets('수동으로 적은 이름이 활성 카테고리와 일치하면 실제 ID를 전달한다',
       (tester) async {
     final container = await _openReview(
       tester,
@@ -118,7 +145,7 @@ void main() {
     expect(container.read(ocrCaptureProvider).categoryGuess, '식비');
   });
 
-  testWidgets('추천과 일치하는 활성 카테고리가 없으면 임의의 ID를 넘기지 않는다',
+  _testAndroidWidgets('추천과 일치하는 활성 카테고리가 없으면 임의의 ID를 넘기지 않는다',
       (tester) async {
     final container = await _openReview(tester, Stream.value(const []));
 
@@ -129,7 +156,7 @@ void main() {
     expect(container.read(quickEntryFormProvider).categoryId, isNull);
   });
 
-  testWidgets('카테고리 목록을 불러오지 못해도 직접 입력으로 계속할 수 있다',
+  _testAndroidWidgets('카테고리 목록을 불러오지 못해도 직접 입력으로 계속할 수 있다',
       (tester) async {
     final container = await _openReview(
       tester,
@@ -143,7 +170,7 @@ void main() {
     expect(container.read(quickEntryFormProvider).categoryId, isNull);
   });
 
-  testWidgets('카테고리 목록을 기다리는 동안 직접 선택한 값은 덮어쓰지 않는다',
+  _testAndroidWidgets('카테고리 목록을 기다리는 동안 직접 선택한 값은 덮어쓰지 않는다',
       (tester) async {
     final categories = StreamController<List<QuickEntryCategoryOption>>();
     addTearDown(categories.close);
@@ -166,8 +193,37 @@ void main() {
     ]);
     await tester.pumpAndSettle();
 
-    expect(find.text('빠른 입력 화면'), findsOneWidget);
+    expect(find.text('작성 중인 거래를 바꿀까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 작성하기'));
+    await tester.pumpAndSettle();
+    expect(find.text('빠른 입력 화면'), findsNothing);
     expect(container.read(quickEntryFormProvider).categoryId, 'manual-choice');
+  });
+
+  _testAndroidWidgets('기존 알림 초안 교체를 취소하거나 확인하면 출처가 안전하게 처리된다',
+      (tester) async {
+    final container = await _openReview(tester, Stream.value(const []));
+    final existing = container.read(quickEntryFormProvider.notifier);
+    existing.setAmount('5000');
+    existing.setNotificationOrigin(42, '이전 알림');
+
+    await _continueFromReview(tester);
+    await tester.pumpAndSettle();
+    expect(find.text('작성 중인 거래를 바꿀까요?'), findsOneWidget);
+    await tester.tap(find.text('계속 작성하기'));
+    await tester.pumpAndSettle();
+    expect(container.read(quickEntryFormProvider).notificationHistoryId, 42);
+    expect(container.read(quickEntryFormProvider).amount, '5000');
+
+    await _continueFromReview(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('거래 바꾸기'));
+    await tester.pumpAndSettle();
+    final next = container.read(quickEntryFormProvider);
+    expect(find.text('빠른 입력 화면'), findsOneWidget);
+    expect(next.amount, '12000');
+    expect(next.notificationHistoryId, isNull);
+    expect(next.notificationMerchant, isNull);
   });
 }
 
@@ -175,8 +231,6 @@ Future<ProviderContainer> _openReview(
   WidgetTester tester,
   Stream<List<QuickEntryCategoryOption>> categories,
 ) async {
-  final oldPlatform = debugDefaultTargetPlatformOverride;
-  debugDefaultTargetPlatformOverride = TargetPlatform.android;
   final container = ProviderContainer(overrides: [
     ocrCaptureProvider.overrideWith(_ReviewController.new),
     quickEntryCategoriesProvider('expense').overrideWith((_) => categories),
@@ -196,7 +250,6 @@ Future<ProviderContainer> _openReview(
     draftSubscription.close();
     quickEntrySubscription.close();
     container.dispose();
-    debugDefaultTargetPlatformOverride = oldPlatform;
   });
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
@@ -215,4 +268,16 @@ Future<void> _continueFromReview(WidgetTester tester) async {
   );
   await tester.tap(continueButton);
   await tester.pump();
+}
+
+void _testAndroidWidgets(String description, WidgetTesterCallback callback) {
+  testWidgets(description, (tester) async {
+    final oldPlatform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await callback(tester);
+    } finally {
+      debugDefaultTargetPlatformOverride = oldPlatform;
+    }
+  });
 }

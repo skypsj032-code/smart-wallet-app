@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_wallet_app/core/database/app_database.dart';
 import 'package:smart_wallet_app/core/database/providers/database_providers.dart';
 import 'package:smart_wallet_app/features/ocr/application/ocr_capture_provider.dart';
+import 'package:smart_wallet_app/features/ocr/data/ocr_draft_repository.dart';
 import 'package:smart_wallet_app/features/ocr/data/ocr_service.dart';
 
 import '../../../test_support/sqlite_test_setup.dart';
@@ -42,6 +44,57 @@ class _RetryFailsOcrService extends _FakeOcrService {
       throw const OcrCaptureException('읽지 못했어요. 직접 입력해 주세요.');
     }
     return super.extractText(imagePath);
+  }
+}
+
+class _DelayedRestoreRepository extends OcrDraftRepository {
+  _DelayedRestoreRepository(AppDatabase database) : super(database);
+
+  final gate = Completer<void>();
+
+  @override
+  Stream<OcrDraft?> watchLatestDraft() async* {
+    final previous = await super.watchLatestDraft().first;
+    await gate.future;
+    yield previous;
+  }
+}
+
+class _DelayedWriteRepository extends OcrDraftRepository {
+  _DelayedWriteRepository(AppDatabase database) : super(database);
+
+  bool blockNext = false;
+  final started = Completer<void>();
+  final gate = Completer<void>();
+
+  @override
+  Future<void> updateDraft({
+    required String localId,
+    required String status,
+    String? imagePath,
+    String? rawText,
+    double? confidence,
+    String? storeName,
+    int? amount,
+    String? categoryGuess,
+    String? errorMessage,
+  }) async {
+    if (blockNext) {
+      blockNext = false;
+      started.complete();
+      await gate.future;
+    }
+    await super.updateDraft(
+      localId: localId,
+      status: status,
+      imagePath: imagePath,
+      rawText: rawText,
+      confidence: confidence,
+      storeName: storeName,
+      amount: amount,
+      categoryGuess: categoryGuess,
+      errorMessage: errorMessage,
+    );
   }
 }
 
@@ -228,5 +281,107 @@ void main() {
     expect(stored.ocrRawText, '수정한 영수증 텍스트');
     expect(stored.parsedTotalAmount, 13000);
     subscription.close();
+  });
+
+  test('화면 이탈과 provider 재생성 뒤에도 수정 중인 원문과 금액을 복원한다', () async {
+    final tempDir = await Directory.systemTemp.createTemp('ocr_review_restore');
+    addTearDown(() => tempDir.delete(recursive: true));
+    container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+      ocrServiceProvider.overrideWithValue(
+        _FakeOcrService(capturePath: '${tempDir.path}/receipt.jpg'),
+      ),
+    ]);
+    final first = container!.read(ocrCaptureProvider.notifier);
+    await first.waitForRestoration();
+    await first.runCaptureFlow();
+
+    first.updateReviewEdits(
+      rawText: '원문 수정 중\n둘째 줄',
+      storeName: '수정한 상호',
+      amountText: '12,',
+      categoryGuess: '직접 적은 분류',
+    );
+    expect(container!.read(ocrCaptureProvider).rawText, '원문 수정 중\n둘째 줄');
+    expect(container!.read(ocrCaptureProvider).amountText, '12,');
+    await first.flushPendingWrites();
+    container!.dispose();
+
+    container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+    ]);
+    final restored = container!.read(ocrCaptureProvider.notifier);
+    await restored.waitForRestoration();
+    final draft = container!.read(ocrCaptureProvider);
+    expect(draft.rawText, '원문 수정 중\n둘째 줄');
+    expect(draft.storeName, '수정한 상호');
+    expect(draft.amountText, '12,');
+    expect(draft.categoryGuess, '직접 적은 분류');
+  });
+
+  test('초안을 삭제한 뒤에는 provider를 다시 만들어도 복원하지 않는다', () async {
+    container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+      ocrServiceProvider.overrideWithValue(_FakeOcrService(capturePath: 'missing.jpg')),
+    ]);
+    final first = container!.read(ocrCaptureProvider.notifier);
+    await first.waitForRestoration();
+    await first.runCaptureFlow();
+    await first.reset();
+    container!.dispose();
+
+    container = ProviderContainer(overrides: [appDatabaseProvider.overrideWithValue(database)]);
+    final restored = container!.read(ocrCaptureProvider.notifier);
+    await restored.waitForRestoration();
+    expect(container!.read(ocrCaptureProvider).status, OcrFlowStatus.idle);
+    expect(container!.read(ocrCaptureProvider).rawText, isEmpty);
+  });
+
+  test('늦게 도착한 복원 결과가 그동안 수정한 내용을 덮지 않는다', () async {
+    final normal = OcrDraftRepository(database);
+    await normal.createDraft(status: 'reviewRequired', rawText: '이전 원문');
+    final delayed = _DelayedRestoreRepository(database);
+    container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+      ocrDraftRepositoryProvider.overrideWithValue(delayed),
+    ]);
+    final notifier = container!.read(ocrCaptureProvider.notifier);
+    notifier.updateReviewEdits(
+      rawText: '새로 수정한 원문',
+      storeName: '새 상호',
+      amountText: '12000',
+      categoryGuess: '',
+    );
+    delayed.gate.complete();
+    await notifier.waitForRestoration();
+    await notifier.flushPendingWrites();
+    expect(container!.read(ocrCaptureProvider).rawText, '새로 수정한 원문');
+    expect(container!.read(ocrCaptureProvider).storeName, '새 상호');
+  });
+
+  test('느린 이전 저장이 나중에 입력한 내용을 덮지 않는다', () async {
+    final delayed = _DelayedWriteRepository(database);
+    container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+      ocrDraftRepositoryProvider.overrideWithValue(delayed),
+      ocrServiceProvider.overrideWithValue(_FakeOcrService(capturePath: 'missing.jpg')),
+    ]);
+    final notifier = container!.read(ocrCaptureProvider.notifier);
+    await notifier.waitForRestoration();
+    await notifier.runCaptureFlow();
+    delayed.blockNext = true;
+    notifier.updateReviewEdits(
+      rawText: '이전 입력', storeName: '상호', amountText: '10', categoryGuess: '',
+    );
+    await delayed.started.future;
+    notifier.updateReviewEdits(
+      rawText: '마지막 입력', storeName: '상호', amountText: '200', categoryGuess: '',
+    );
+    delayed.gate.complete();
+    await notifier.flushPendingWrites();
+
+    final saved = await database.select(database.ocrDrafts).getSingle();
+    expect(saved.ocrRawText, '마지막 입력');
+    expect(saved.parsedTotalAmount, 200);
   });
 }

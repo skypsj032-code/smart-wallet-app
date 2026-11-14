@@ -7,6 +7,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/providers/database_providers.dart';
 import '../../../shared/utils/budget_totals.dart';
 import 'dashboard_narrative.dart';
+import 'detected_recurring_spend_provider.dart';
 
 class DashboardSummary {
   const DashboardSummary({
@@ -42,7 +43,10 @@ class DashboardSummary {
 
 final dashboardSummaryProvider = StreamProvider<DashboardSummary>((ref) {
   final database = ref.watch(appDatabaseProvider);
-  final now = DateTime.now();
+  // The shared clock emits at local midnight and is refreshed when home is
+  // opened or resumed, so today's values and month queries use the same day.
+  final now =
+      ref.watch(detectedRecurringClockProvider).valueOrNull ?? DateTime.now();
   final monthStart = DateTime(now.year, now.month, 1);
   final nextMonth = DateTime(now.year, now.month + 1, 1);
   final monthKey =

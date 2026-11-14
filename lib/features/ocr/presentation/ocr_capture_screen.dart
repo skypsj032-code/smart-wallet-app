@@ -101,7 +101,7 @@ class _OcrCaptureScreenState extends ConsumerState<OcrCaptureScreen>
     }
 
     final draft = ref.watch(ocrCaptureProvider);
-    final isBusy = draft.status == OcrFlowStatus.capturing;
+    final isBusy = draft.isRestoring || draft.status == OcrFlowStatus.capturing;
     final hasDraft = draft.hasImage || draft.hasRawText || draft.hasParsedAmount;
     final canOpenReview = !isBusy &&
         (draft.status == OcrFlowStatus.reviewRequired ||

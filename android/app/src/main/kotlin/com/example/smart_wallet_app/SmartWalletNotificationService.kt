@@ -181,29 +181,23 @@ class SmartWalletNotificationService : NotificationListenerService() {
             "com.kakaopaycorp.banking",
         )
 
-        // 알림 내용에 금융 키워드가 2개 이상이면 필터 통과
-        private fun containsBankingKeywords(combined: String): Boolean {
-            val keywords = listOf("카드", "승인", "사용", "출금", "입금", "결제", "이체", "원", "페이", "bank", "pay")
-            return keywords.count { combined.contains(it, ignoreCase = true) } >= 2
-        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         // Avoid reading any notification content at all until capture is enabled.
         // enqueue() checks again under the same lock in case consent changes.
         if (!isCaptureEnabled(applicationContext)) return
+        // Do not inspect or stage messages from unrelated apps merely because
+        // their text mentions banking. Only the advertised bank/card apps are
+        // within the user's opt-in. Unsupported apps require manual entry.
+        val packageName = sbn.packageName ?: ""
+        if (packageName !in bankingPackages) return
         val notification = sbn.notification ?: return
         val extras = notification.extras ?: return
         val title = (extras.getCharSequence("android.title")?.toString() ?: "")
             .take(MAX_TITLE_LENGTH)
         val text = (extras.getCharSequence("android.text")?.toString() ?: "")
             .take(MAX_TEXT_LENGTH)
-        val packageName = sbn.packageName ?: ""
-
-        val combined = "$title $text"
-        val isRelevant = packageName in bankingPackages || containsBankingKeywords(combined)
-        if (!isRelevant) return
-
         try {
             val data = HashMap<String, Any>()
             data["eventId"] = eventId(packageName, sbn.key, sbn.postTime, title, text)

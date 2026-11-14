@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show OrderingTerm, Value;
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -143,9 +143,9 @@ Future<NotificationHistory?> _currentHistory(AppDatabase db, int id) =>
         .getSingleOrNull();
 
 String _merchantKey(String? merchant) =>
-    (merchant ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+    (merchant ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
-Future<bool> _hasSimilarRecordedHistory(AppDatabase db, NotificationHistory item) async {
+Future<bool> _hasSimilarRecordedPayment(AppDatabase db, NotificationHistory item) async {
   final merchantKey = _merchantKey(item.merchant);
   if (item.amount <= 0 || merchantKey.length < 2 ||
       (item.type != 'expense' && item.type != 'income')) {
@@ -161,7 +161,24 @@ Future<bool> _hasSimilarRecordedHistory(AppDatabase db, NotificationHistory item
             h.detectedAt.isBiggerOrEqualValue(begin) &
             h.detectedAt.isSmallerOrEqualValue(end)))
       .get();
-  return rows.any((row) => row.id != item.id && _merchantKey(row.merchant) == merchantKey);
+  if (rows.any((row) => row.id != item.id && _merchantKey(row.merchant) == merchantKey)) {
+    return true;
+  }
+
+  // A manually entered or OCR transaction might have no corresponding
+  // notification history. Match the whole merchant name or memo rather than
+  // a substring, and never use deleted transactions as evidence.
+  final transactions = await (db.select(db.transactions)
+        ..where((t) =>
+            t.deletedAt.isNull() &
+            t.amount.equals(item.amount) &
+            t.type.equals(item.type) &
+            t.occurredAt.isBiggerOrEqualValue(begin) &
+            t.occurredAt.isSmallerOrEqualValue(end)))
+      .get();
+  return transactions.any((tx) =>
+      _merchantKey(tx.merchantName) == merchantKey ||
+      _merchantKey(tx.memo) == merchantKey);
 }
 
 Future<bool> _confirmNotice(
@@ -242,13 +259,38 @@ Future<bool> openNotificationHistoryItem(
     }
     if (item.status != 'pending' && item.status != 'legacy') return false;
 
+    final hasSimilarPayment = await _hasSimilarRecordedPayment(db, item);
+    if (!stillHere()) return false;
+    final isOldPending = item.status == 'pending' &&
+        DateTime.now().difference(item.detectedAt) >= const Duration(days: 1);
     if (item.status == 'legacy') {
       final confirmed = await _confirmNotice(
         context,
         title: '이전 알림 확인',
-        message: '이전 버전에서는 기록 여부를 저장하지 않아 이미 등록한 결제일 수 있어요. '
-            '가계부 내역을 먼저 확인해 주세요.',
+        message: hasSimilarPayment
+            ? '이전 버전에서는 기록 여부를 저장하지 않았어요. 이미 기록한 거래나 알림과 '
+                '금액·상호·시간이 비슷하니 가계부 내역을 먼저 확인해 주세요.'
+            : '이전 버전에서는 기록 여부를 저장하지 않아 이미 등록한 결제일 수 있어요. '
+                '가계부 내역을 먼저 확인해 주세요.',
         continueLabel: '확인 후 기록',
+      );
+      if (!confirmed || !stillHere()) return false;
+    } else if (hasSimilarPayment) {
+      final confirmed = await _confirmNotice(
+        context,
+        title: '비슷한 결제가 있어요',
+        message: '이미 기록한 거래나 알림과 금액·상호·시간이 비슷해요. '
+            '같은 결제인지 확인한 뒤 진행해 주세요.',
+        continueLabel: '확인 후 계속',
+      );
+      if (!confirmed || !stillHere()) return false;
+    } else if (isOldPending) {
+      final confirmed = await _confirmNotice(
+        context,
+        title: '오래된 알림 확인',
+        message: '알림을 받은 지 하루 이상 지났어요. 이미 직접 기록한 결제일 수 있으니 '
+            '가계부 내역을 먼저 확인해 주세요.',
+        continueLabel: '확인 후 계속',
       );
       if (!confirmed || !stillHere()) return false;
     }
@@ -262,18 +304,6 @@ Future<bool> openNotificationHistoryItem(
       );
       if (!confirmed || !stillHere()) return false;
     }
-    if (await _hasSimilarRecordedHistory(db, item)) {
-      if (!stillHere()) return false;
-      final confirmed = await _confirmNotice(
-        context,
-        title: '비슷한 결제가 있어요',
-        message: '이미 기록한 알림과 금액·상호·시간이 비슷해요. '
-            '같은 결제인지 확인한 뒤 진행해 주세요.',
-        continueLabel: '확인 후 계속',
-      );
-      if (!confirmed || !stillHere()) return false;
-    }
-
     if (ref.read(quickEntrySubmitStateProvider)) return false;
     final allowed = await confirmReplacingQuickEntryDraft(context, ref);
     if (!allowed || !stillHere()) return false;
@@ -349,7 +379,7 @@ class _HistoryTile extends StatelessWidget {
         : theme.colorScheme.onSurfaceVariant;
     final sign = isExpense ? '−' : '+';
     final dt = item.detectedAt.toLocal();
-    final date = '${dt.month}/${dt.day} '
+    final date = '${dt.year}/${dt.month}/${dt.day} '
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     final status = _statusLabel(item.status);
 

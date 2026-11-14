@@ -23,6 +23,7 @@ import '../../statistics/application/statistics_provider.dart';
 import '../../transactions/application/quick_entry_form_provider.dart';
 import '../../recurring_expenses/application/recurring_expense_service.dart';
 import '../application/dashboard_summary_provider.dart';
+import '../application/detected_recurring_spend_provider.dart';
 import '../application/recurring_transaction_suggestion_provider.dart';
 import '../application/wealth_hero_motion.dart';
 import 'dashboard_home_links_card.dart';
@@ -51,11 +52,41 @@ String dashboardTimelineActionSemanticLabel() {
   return 'Open timeline. Review the recent transaction history for today.';
 }
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Home can be reopened after a date or time-zone change while another
+    // route was visible, without an app lifecycle transition.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(detectedRecurringClockProvider);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.invalidate(detectedRecurringClockProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final totalBalanceAsync = ref.watch(totalActiveAccountBalanceProvider);
     final recurringAsync = ref.watch(activeRecurringExpensesProvider);

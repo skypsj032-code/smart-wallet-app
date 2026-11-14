@@ -117,11 +117,18 @@ Future<NotificationHistory?> persistNotificationEvent(
     final text = event['text'] as String;
     final combined = '$title $text';
     final transactionLike = RegExp(
-      r'승인|결제|사용|출금|입금|이체|환급|환불|취소|거절|실패|급여|수신',
+      r'승인|결제|사용|출금|입금|이체|환급|환불|취소|거절|실패|급여|수신|이자',
     ).hasMatch(combined);
     if (!transactionLike) return null;
 
-    final ambiguous = RegExp(r'취소|거절|실패|환불').hasMatch(combined);
+    // A balance and a payment can appear in the same notice. Never present
+    // the first number or a conflicting direction as a confirmed suggestion.
+    final amountCount = RegExp(r'[\d,]+\s*원').allMatches(combined).length;
+    final hasIncome = RegExp(r'입금|수신|급여|환급|이자').hasMatch(combined);
+    final hasExpense = RegExp(r'승인|사용|결제|출금|이체').hasMatch(combined);
+    final ambiguous = RegExp(r'취소|거절|실패|환불|잔액|한도|누적|잔여|포인트|마일리지')
+            .hasMatch(combined) ||
+        amountCount > 1 || (hasIncome && hasExpense);
     final parsed = ambiguous ? null : parseNotification(event);
     final safeTitle = title.trim();
     final fallbackTitle = safeTitle.length > 50
@@ -145,6 +152,18 @@ Future<NotificationHistory?> persistNotificationEvent(
           ..where((h) => h.id.equals(id)))
         .getSingle();
   });
+}
+
+/// Keep the native copy until the local transaction commits. If native
+/// acknowledgement fails, retrying the same event returns the existing row.
+Future<NotificationHistory?> persistAndAcknowledgeNotificationEvent(
+  AppDatabase database,
+  Map<String, dynamic> event,
+  Future<void> Function(List<String>) acknowledge,
+) async {
+  final saved = await persistNotificationEvent(database, event);
+  await acknowledge([event['eventId'] as String]);
+  return saved;
 }
 
 /// Previously confirmed category choices stay on the device and are used only
@@ -200,8 +219,9 @@ final notificationListenerProvider = Provider<void>((ref) {
   Future<void> work = Future<void>.value();
 
   Future<void> handle(Map<String, dynamic> event) async {
-    final saved = await persistNotificationEvent(database, event);
-    await NotificationChannel.acknowledgeNotifications([event['eventId'] as String]);
+    final saved = await persistAndAcknowledgeNotificationEvent(
+      database, event, NotificationChannel.acknowledgeNotifications,
+    );
     if (disposed || saved == null || saved.status != 'pending' || saved.type == 'unknown') return;
     final parsed = parseNotification(event);
     if (parsed == null) return;

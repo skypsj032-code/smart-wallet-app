@@ -144,32 +144,88 @@ void main() {
     final pending = StreamController<int>();
     addTearDown(pending.close);
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
+    try {
+      await tester.pumpWidget(_DashboardTestApp(
+        router: router,
+        pendingNotifications: pending.stream,
+      ));
+      pending.add(2);
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(_DashboardTestApp(
-      router: router,
-      pendingNotifications: pending.stream,
-    ));
-    pending.add(2);
-    await tester.pumpAndSettle();
+      expect(find.text('확인 대기 중인 알림 2건'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('알림 수신 이력. 확인 대기 중인 알림 2건.'),
+        findsOneWidget,
+      );
 
-    expect(find.text('확인 대기 중인 알림 2건'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel('알림 수신 이력. 확인 대기 중인 알림 2건.'),
-      findsOneWidget,
-    );
+      pending.add(0);
+      await tester.pumpAndSettle();
+      expect(find.text('확인 대기 중인 알림 0건'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const Key('dashboard-open-notification-history')),
+      );
+      await tester.tap(
+        find.byKey(const Key('dashboard-open-notification-history')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Notification History Route'), findsOneWidget);
+    } finally {
+      semantics.dispose();
+    }
+  });
 
-    pending.add(0);
-    await tester.pumpAndSettle();
-    expect(find.text('확인 대기 중인 알림 0건'), findsOneWidget);
-    await tester.ensureVisible(
-      find.byKey(const Key('dashboard-open-notification-history')),
-    );
-    await tester.tap(
-      find.byKey(const Key('dashboard-open-notification-history')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Notification History Route'), findsOneWidget);
+  testWidgets('home refreshes spending and budget after app resume',
+      (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    for (final entry in [
+      ('january', DateTime(2026, 1, 31, 12), 10000, 100000),
+      ('february', DateTime(2026, 2, 1, 12), 40000, 200000),
+    ]) {
+      await db.into(db.transactions).insert(TransactionsCompanion.insert(
+            localId: entry.$1,
+            type: 'expense',
+            amount: entry.$3,
+            occurredAt: entry.$2,
+            createdAt: entry.$2,
+            lastModifiedAt: entry.$2,
+          ));
+      final monthKey =
+          '${entry.$2.year}-${entry.$2.month.toString().padLeft(2, '0')}';
+      await db.into(db.budgets).insert(BudgetsCompanion.insert(
+            localId: entry.$1,
+            monthKey: monthKey,
+            amountLimit: entry.$4,
+            createdAt: entry.$2,
+            lastModifiedAt: entry.$2,
+          ));
+    }
+    var currentTime = DateTime(2026, 1, 31, 23, 59);
+    final router = _buildRouter();
+    addTearDown(router.dispose);
+    try {
+      await tester.pumpWidget(_DashboardTestApp(
+        router: router,
+        database: db,
+        currentTime: () => currentTime,
+      ));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('기록된 지출 1건 · ₩10,000'), findsOneWidget);
+      expect(find.textContaining('예산 ₩100,000'), findsOneWidget);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      currentTime = DateTime(2026, 2, 1, 8);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('기록된 지출 1건 · ₩40,000'), findsOneWidget);
+      expect(find.textContaining('예산 ₩200,000'), findsOneWidget);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
   });
 
   testWidgets('weather header and detected recurring spending coexist',
@@ -228,16 +284,25 @@ class _DashboardTestApp extends StatelessWidget {
     required this.router,
     this.snapshot = const DetectedRecurringSpendSnapshot(groups: [], excludedKeys: {}),
     this.pendingNotifications,
+    this.database,
+    this.currentTime,
   });
 
   final GoRouter router;
   final DetectedRecurringSpendSnapshot snapshot;
   final Stream<int>? pendingNotifications;
+  final AppDatabase? database;
+  final DateTime Function()? currentTime;
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       overrides: [
+        if (database != null) appDatabaseProvider.overrideWithValue(database!),
+        if (currentTime != null)
+          detectedRecurringClockProvider.overrideWith(
+            (ref) => Stream.value(currentTime!()),
+          ),
         dashboardPendingNotificationCountProvider.overrideWith(
           (ref) => pendingNotifications ?? Stream.value(0),
         ),
@@ -259,9 +324,10 @@ class _DashboardTestApp extends StatelessWidget {
             state.state = {...state.state}..remove(key);
           },
         )),
-        dashboardSummaryProvider.overrideWith(
-          (ref) => Stream.value(_fakeDashboardSummary()),
-        ),
+        if (database == null)
+          dashboardSummaryProvider.overrideWith(
+            (ref) => Stream.value(_fakeDashboardSummary()),
+          ),
         totalActiveAccountBalanceProvider.overrideWith(
           (ref) => const AsyncData(0),
         ),

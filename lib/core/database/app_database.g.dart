@@ -4996,9 +4996,38 @@ class $NotificationHistoriesTable extends NotificationHistories
   late final GeneratedColumn<DateTime> detectedAt = GeneratedColumn<DateTime>(
       'detected_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _eventIdMeta =
+      const VerificationMeta('eventId');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, packageName, amount, type, merchant, suggestedCategory, detectedAt];
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+      'event_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('legacy'));
+  static const VerificationMeta _transactionIdMeta =
+      const VerificationMeta('transactionId');
+  @override
+  late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
+      'transaction_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        packageName,
+        amount,
+        type,
+        merchant,
+        suggestedCategory,
+        detectedAt,
+        eventId,
+        status,
+        transactionId
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5051,6 +5080,20 @@ class $NotificationHistoriesTable extends NotificationHistories
     } else if (isInserting) {
       context.missing(_detectedAtMeta);
     }
+    if (data.containsKey('event_id')) {
+      context.handle(_eventIdMeta,
+          eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+          _transactionIdMeta,
+          transactionId.isAcceptableOrUnknown(
+              data['transaction_id']!, _transactionIdMeta));
+    }
     return context;
   }
 
@@ -5074,6 +5117,12 @@ class $NotificationHistoriesTable extends NotificationHistories
           DriftSqlType.string, data['${effectivePrefix}suggested_category']),
       detectedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}detected_at'])!,
+      eventId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}event_id']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      transactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}transaction_id']),
     );
   }
 
@@ -5092,6 +5141,9 @@ class NotificationHistory extends DataClass
   final String? merchant;
   final String? suggestedCategory;
   final DateTime detectedAt;
+  final String? eventId;
+  final String status;
+  final String? transactionId;
   const NotificationHistory(
       {required this.id,
       required this.packageName,
@@ -5099,7 +5151,10 @@ class NotificationHistory extends DataClass
       required this.type,
       this.merchant,
       this.suggestedCategory,
-      required this.detectedAt});
+      required this.detectedAt,
+      this.eventId,
+      required this.status,
+      this.transactionId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -5114,6 +5169,13 @@ class NotificationHistory extends DataClass
       map['suggested_category'] = Variable<String>(suggestedCategory);
     }
     map['detected_at'] = Variable<DateTime>(detectedAt);
+    if (!nullToAbsent || eventId != null) {
+      map['event_id'] = Variable<String>(eventId);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<String>(transactionId);
+    }
     return map;
   }
 
@@ -5130,6 +5192,13 @@ class NotificationHistory extends DataClass
           ? const Value.absent()
           : Value(suggestedCategory),
       detectedAt: Value(detectedAt),
+      eventId: eventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(eventId),
+      status: Value(status),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
     );
   }
 
@@ -5145,6 +5214,9 @@ class NotificationHistory extends DataClass
       suggestedCategory:
           serializer.fromJson<String?>(json['suggestedCategory']),
       detectedAt: serializer.fromJson<DateTime>(json['detectedAt']),
+      eventId: serializer.fromJson<String?>(json['eventId']),
+      status: serializer.fromJson<String>(json['status']),
+      transactionId: serializer.fromJson<String?>(json['transactionId']),
     );
   }
   @override
@@ -5158,6 +5230,9 @@ class NotificationHistory extends DataClass
       'merchant': serializer.toJson<String?>(merchant),
       'suggestedCategory': serializer.toJson<String?>(suggestedCategory),
       'detectedAt': serializer.toJson<DateTime>(detectedAt),
+      'eventId': serializer.toJson<String?>(eventId),
+      'status': serializer.toJson<String>(status),
+      'transactionId': serializer.toJson<String?>(transactionId),
     };
   }
 
@@ -5168,7 +5243,10 @@ class NotificationHistory extends DataClass
           String? type,
           Value<String?> merchant = const Value.absent(),
           Value<String?> suggestedCategory = const Value.absent(),
-          DateTime? detectedAt}) =>
+          DateTime? detectedAt,
+          Value<String?> eventId = const Value.absent(),
+          String? status,
+          Value<String?> transactionId = const Value.absent()}) =>
       NotificationHistory(
         id: id ?? this.id,
         packageName: packageName ?? this.packageName,
@@ -5179,6 +5257,10 @@ class NotificationHistory extends DataClass
             ? suggestedCategory.value
             : this.suggestedCategory,
         detectedAt: detectedAt ?? this.detectedAt,
+        eventId: eventId.present ? eventId.value : this.eventId,
+        status: status ?? this.status,
+        transactionId:
+            transactionId.present ? transactionId.value : this.transactionId,
       );
   NotificationHistory copyWithCompanion(NotificationHistoriesCompanion data) {
     return NotificationHistory(
@@ -5193,6 +5275,11 @@ class NotificationHistory extends DataClass
           : this.suggestedCategory,
       detectedAt:
           data.detectedAt.present ? data.detectedAt.value : this.detectedAt,
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      status: data.status.present ? data.status.value : this.status,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
     );
   }
 
@@ -5205,14 +5292,17 @@ class NotificationHistory extends DataClass
           ..write('type: $type, ')
           ..write('merchant: $merchant, ')
           ..write('suggestedCategory: $suggestedCategory, ')
-          ..write('detectedAt: $detectedAt')
+          ..write('detectedAt: $detectedAt, ')
+          ..write('eventId: $eventId, ')
+          ..write('status: $status, ')
+          ..write('transactionId: $transactionId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, packageName, amount, type, merchant, suggestedCategory, detectedAt);
+  int get hashCode => Object.hash(id, packageName, amount, type, merchant,
+      suggestedCategory, detectedAt, eventId, status, transactionId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5223,7 +5313,10 @@ class NotificationHistory extends DataClass
           other.type == this.type &&
           other.merchant == this.merchant &&
           other.suggestedCategory == this.suggestedCategory &&
-          other.detectedAt == this.detectedAt);
+          other.detectedAt == this.detectedAt &&
+          other.eventId == this.eventId &&
+          other.status == this.status &&
+          other.transactionId == this.transactionId);
 }
 
 class NotificationHistoriesCompanion
@@ -5235,6 +5328,9 @@ class NotificationHistoriesCompanion
   final Value<String?> merchant;
   final Value<String?> suggestedCategory;
   final Value<DateTime> detectedAt;
+  final Value<String?> eventId;
+  final Value<String> status;
+  final Value<String?> transactionId;
   const NotificationHistoriesCompanion({
     this.id = const Value.absent(),
     this.packageName = const Value.absent(),
@@ -5243,6 +5339,9 @@ class NotificationHistoriesCompanion
     this.merchant = const Value.absent(),
     this.suggestedCategory = const Value.absent(),
     this.detectedAt = const Value.absent(),
+    this.eventId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.transactionId = const Value.absent(),
   });
   NotificationHistoriesCompanion.insert({
     this.id = const Value.absent(),
@@ -5252,6 +5351,9 @@ class NotificationHistoriesCompanion
     this.merchant = const Value.absent(),
     this.suggestedCategory = const Value.absent(),
     required DateTime detectedAt,
+    this.eventId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.transactionId = const Value.absent(),
   })  : packageName = Value(packageName),
         amount = Value(amount),
         type = Value(type),
@@ -5264,6 +5366,9 @@ class NotificationHistoriesCompanion
     Expression<String>? merchant,
     Expression<String>? suggestedCategory,
     Expression<DateTime>? detectedAt,
+    Expression<String>? eventId,
+    Expression<String>? status,
+    Expression<String>? transactionId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -5273,6 +5378,9 @@ class NotificationHistoriesCompanion
       if (merchant != null) 'merchant': merchant,
       if (suggestedCategory != null) 'suggested_category': suggestedCategory,
       if (detectedAt != null) 'detected_at': detectedAt,
+      if (eventId != null) 'event_id': eventId,
+      if (status != null) 'status': status,
+      if (transactionId != null) 'transaction_id': transactionId,
     });
   }
 
@@ -5283,7 +5391,10 @@ class NotificationHistoriesCompanion
       Value<String>? type,
       Value<String?>? merchant,
       Value<String?>? suggestedCategory,
-      Value<DateTime>? detectedAt}) {
+      Value<DateTime>? detectedAt,
+      Value<String?>? eventId,
+      Value<String>? status,
+      Value<String?>? transactionId}) {
     return NotificationHistoriesCompanion(
       id: id ?? this.id,
       packageName: packageName ?? this.packageName,
@@ -5292,6 +5403,9 @@ class NotificationHistoriesCompanion
       merchant: merchant ?? this.merchant,
       suggestedCategory: suggestedCategory ?? this.suggestedCategory,
       detectedAt: detectedAt ?? this.detectedAt,
+      eventId: eventId ?? this.eventId,
+      status: status ?? this.status,
+      transactionId: transactionId ?? this.transactionId,
     );
   }
 
@@ -5319,6 +5433,15 @@ class NotificationHistoriesCompanion
     if (detectedAt.present) {
       map['detected_at'] = Variable<DateTime>(detectedAt.value);
     }
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<String>(transactionId.value);
+    }
     return map;
   }
 
@@ -5331,7 +5454,292 @@ class NotificationHistoriesCompanion
           ..write('type: $type, ')
           ..write('merchant: $merchant, ')
           ..write('suggestedCategory: $suggestedCategory, ')
-          ..write('detectedAt: $detectedAt')
+          ..write('detectedAt: $detectedAt, ')
+          ..write('eventId: $eventId, ')
+          ..write('status: $status, ')
+          ..write('transactionId: $transactionId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MerchantCategoryRulesTable extends MerchantCategoryRules
+    with TableInfo<$MerchantCategoryRulesTable, MerchantCategoryRule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MerchantCategoryRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _merchantKeyMeta =
+      const VerificationMeta('merchantKey');
+  @override
+  late final GeneratedColumn<String> merchantKey = GeneratedColumn<String>(
+      'merchant_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _categoryIdMeta =
+      const VerificationMeta('categoryId');
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+      'category_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [merchantKey, type, categoryId, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'merchant_category_rules';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<MerchantCategoryRule> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('merchant_key')) {
+      context.handle(
+          _merchantKeyMeta,
+          merchantKey.isAcceptableOrUnknown(
+              data['merchant_key']!, _merchantKeyMeta));
+    } else if (isInserting) {
+      context.missing(_merchantKeyMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+          _categoryIdMeta,
+          categoryId.isAcceptableOrUnknown(
+              data['category_id']!, _categoryIdMeta));
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {merchantKey, type};
+  @override
+  MerchantCategoryRule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MerchantCategoryRule(
+      merchantKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}merchant_key'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      categoryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_id'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MerchantCategoryRulesTable createAlias(String alias) {
+    return $MerchantCategoryRulesTable(attachedDatabase, alias);
+  }
+}
+
+class MerchantCategoryRule extends DataClass
+    implements Insertable<MerchantCategoryRule> {
+  final String merchantKey;
+  final String type;
+  final String categoryId;
+  final DateTime updatedAt;
+  const MerchantCategoryRule(
+      {required this.merchantKey,
+      required this.type,
+      required this.categoryId,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['merchant_key'] = Variable<String>(merchantKey);
+    map['type'] = Variable<String>(type);
+    map['category_id'] = Variable<String>(categoryId);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MerchantCategoryRulesCompanion toCompanion(bool nullToAbsent) {
+    return MerchantCategoryRulesCompanion(
+      merchantKey: Value(merchantKey),
+      type: Value(type),
+      categoryId: Value(categoryId),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MerchantCategoryRule.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MerchantCategoryRule(
+      merchantKey: serializer.fromJson<String>(json['merchantKey']),
+      type: serializer.fromJson<String>(json['type']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'merchantKey': serializer.toJson<String>(merchantKey),
+      'type': serializer.toJson<String>(type),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MerchantCategoryRule copyWith(
+          {String? merchantKey,
+          String? type,
+          String? categoryId,
+          DateTime? updatedAt}) =>
+      MerchantCategoryRule(
+        merchantKey: merchantKey ?? this.merchantKey,
+        type: type ?? this.type,
+        categoryId: categoryId ?? this.categoryId,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MerchantCategoryRule copyWithCompanion(MerchantCategoryRulesCompanion data) {
+    return MerchantCategoryRule(
+      merchantKey:
+          data.merchantKey.present ? data.merchantKey.value : this.merchantKey,
+      type: data.type.present ? data.type.value : this.type,
+      categoryId:
+          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MerchantCategoryRule(')
+          ..write('merchantKey: $merchantKey, ')
+          ..write('type: $type, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(merchantKey, type, categoryId, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MerchantCategoryRule &&
+          other.merchantKey == this.merchantKey &&
+          other.type == this.type &&
+          other.categoryId == this.categoryId &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MerchantCategoryRulesCompanion
+    extends UpdateCompanion<MerchantCategoryRule> {
+  final Value<String> merchantKey;
+  final Value<String> type;
+  final Value<String> categoryId;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MerchantCategoryRulesCompanion({
+    this.merchantKey = const Value.absent(),
+    this.type = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MerchantCategoryRulesCompanion.insert({
+    required String merchantKey,
+    required String type,
+    required String categoryId,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : merchantKey = Value(merchantKey),
+        type = Value(type),
+        categoryId = Value(categoryId),
+        updatedAt = Value(updatedAt);
+  static Insertable<MerchantCategoryRule> custom({
+    Expression<String>? merchantKey,
+    Expression<String>? type,
+    Expression<String>? categoryId,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (merchantKey != null) 'merchant_key': merchantKey,
+      if (type != null) 'type': type,
+      if (categoryId != null) 'category_id': categoryId,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MerchantCategoryRulesCompanion copyWith(
+      {Value<String>? merchantKey,
+      Value<String>? type,
+      Value<String>? categoryId,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MerchantCategoryRulesCompanion(
+      merchantKey: merchantKey ?? this.merchantKey,
+      type: type ?? this.type,
+      categoryId: categoryId ?? this.categoryId,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (merchantKey.present) {
+      map['merchant_key'] = Variable<String>(merchantKey.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MerchantCategoryRulesCompanion(')
+          ..write('merchantKey: $merchantKey, ')
+          ..write('type: $type, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -5353,11 +5761,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OcrDraftsTable ocrDrafts = $OcrDraftsTable(this);
   late final $NotificationHistoriesTable notificationHistories =
       $NotificationHistoriesTable(this);
+  late final $MerchantCategoryRulesTable merchantCategoryRules =
+      $MerchantCategoryRulesTable(this);
   late final Index transactionsTimelineIdx = Index('transactions_timeline_idx',
       'CREATE INDEX transactions_timeline_idx ON transactions (deleted_at, occurred_at DESC, created_at DESC)');
   late final Index transactionsCategoryTimelineIdx = Index(
       'transactions_category_timeline_idx',
       'CREATE INDEX transactions_category_timeline_idx ON transactions (deleted_at, category_id, occurred_at DESC)');
+  late final Index notificationHistoriesEventIdIdx = Index(
+      'notification_histories_event_id_idx',
+      'CREATE UNIQUE INDEX notification_histories_event_id_idx ON notification_histories (event_id) WHERE event_id IS NOT NULL');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5373,8 +5786,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         backupMetadata,
         ocrDrafts,
         notificationHistories,
+        merchantCategoryRules,
         transactionsTimelineIdx,
-        transactionsCategoryTimelineIdx
+        transactionsCategoryTimelineIdx,
+        notificationHistoriesEventIdIdx
       ];
 }
 
@@ -7465,6 +7880,9 @@ typedef $$NotificationHistoriesTableCreateCompanionBuilder
   Value<String?> merchant,
   Value<String?> suggestedCategory,
   required DateTime detectedAt,
+  Value<String?> eventId,
+  Value<String> status,
+  Value<String?> transactionId,
 });
 typedef $$NotificationHistoriesTableUpdateCompanionBuilder
     = NotificationHistoriesCompanion Function({
@@ -7475,6 +7893,9 @@ typedef $$NotificationHistoriesTableUpdateCompanionBuilder
   Value<String?> merchant,
   Value<String?> suggestedCategory,
   Value<DateTime> detectedAt,
+  Value<String?> eventId,
+  Value<String> status,
+  Value<String?> transactionId,
 });
 
 class $$NotificationHistoriesTableFilterComposer
@@ -7512,6 +7933,21 @@ class $$NotificationHistoriesTableFilterComposer
 
   ColumnFilters<DateTime> get detectedAt => $state.composableBuilder(
       column: $state.table.detectedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get eventId => $state.composableBuilder(
+      column: $state.table.eventId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get status => $state.composableBuilder(
+      column: $state.table.status,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get transactionId => $state.composableBuilder(
+      column: $state.table.transactionId,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 }
@@ -7553,6 +7989,21 @@ class $$NotificationHistoriesTableOrderingComposer
       column: $state.table.detectedAt,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get eventId => $state.composableBuilder(
+      column: $state.table.eventId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get status => $state.composableBuilder(
+      column: $state.table.status,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get transactionId => $state.composableBuilder(
+      column: $state.table.transactionId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
 class $$NotificationHistoriesTableTableManager extends RootTableManager<
@@ -7587,6 +8038,9 @@ class $$NotificationHistoriesTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> suggestedCategory = const Value.absent(),
             Value<DateTime> detectedAt = const Value.absent(),
+            Value<String?> eventId = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> transactionId = const Value.absent(),
           }) =>
               NotificationHistoriesCompanion(
             id: id,
@@ -7596,6 +8050,9 @@ class $$NotificationHistoriesTableTableManager extends RootTableManager<
             merchant: merchant,
             suggestedCategory: suggestedCategory,
             detectedAt: detectedAt,
+            eventId: eventId,
+            status: status,
+            transactionId: transactionId,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -7605,6 +8062,9 @@ class $$NotificationHistoriesTableTableManager extends RootTableManager<
             Value<String?> merchant = const Value.absent(),
             Value<String?> suggestedCategory = const Value.absent(),
             required DateTime detectedAt,
+            Value<String?> eventId = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> transactionId = const Value.absent(),
           }) =>
               NotificationHistoriesCompanion.insert(
             id: id,
@@ -7614,6 +8074,9 @@ class $$NotificationHistoriesTableTableManager extends RootTableManager<
             merchant: merchant,
             suggestedCategory: suggestedCategory,
             detectedAt: detectedAt,
+            eventId: eventId,
+            status: status,
+            transactionId: transactionId,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -7637,6 +8100,146 @@ typedef $$NotificationHistoriesTableProcessedTableManager
               NotificationHistory>
         ),
         NotificationHistory,
+        PrefetchHooks Function()>;
+typedef $$MerchantCategoryRulesTableCreateCompanionBuilder
+    = MerchantCategoryRulesCompanion Function({
+  required String merchantKey,
+  required String type,
+  required String categoryId,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$MerchantCategoryRulesTableUpdateCompanionBuilder
+    = MerchantCategoryRulesCompanion Function({
+  Value<String> merchantKey,
+  Value<String> type,
+  Value<String> categoryId,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MerchantCategoryRulesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $MerchantCategoryRulesTable> {
+  $$MerchantCategoryRulesTableFilterComposer(super.$state);
+  ColumnFilters<String> get merchantKey => $state.composableBuilder(
+      column: $state.table.merchantKey,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get categoryId => $state.composableBuilder(
+      column: $state.table.categoryId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$MerchantCategoryRulesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $MerchantCategoryRulesTable> {
+  $$MerchantCategoryRulesTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get merchantKey => $state.composableBuilder(
+      column: $state.table.merchantKey,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get type => $state.composableBuilder(
+      column: $state.table.type,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get categoryId => $state.composableBuilder(
+      column: $state.table.categoryId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+class $$MerchantCategoryRulesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MerchantCategoryRulesTable,
+    MerchantCategoryRule,
+    $$MerchantCategoryRulesTableFilterComposer,
+    $$MerchantCategoryRulesTableOrderingComposer,
+    $$MerchantCategoryRulesTableCreateCompanionBuilder,
+    $$MerchantCategoryRulesTableUpdateCompanionBuilder,
+    (
+      MerchantCategoryRule,
+      BaseReferences<_$AppDatabase, $MerchantCategoryRulesTable,
+          MerchantCategoryRule>
+    ),
+    MerchantCategoryRule,
+    PrefetchHooks Function()> {
+  $$MerchantCategoryRulesTableTableManager(
+      _$AppDatabase db, $MerchantCategoryRulesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer: $$MerchantCategoryRulesTableFilterComposer(
+              ComposerState(db, table)),
+          orderingComposer: $$MerchantCategoryRulesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> merchantKey = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String> categoryId = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MerchantCategoryRulesCompanion(
+            merchantKey: merchantKey,
+            type: type,
+            categoryId: categoryId,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String merchantKey,
+            required String type,
+            required String categoryId,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MerchantCategoryRulesCompanion.insert(
+            merchantKey: merchantKey,
+            type: type,
+            categoryId: categoryId,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MerchantCategoryRulesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $MerchantCategoryRulesTable,
+        MerchantCategoryRule,
+        $$MerchantCategoryRulesTableFilterComposer,
+        $$MerchantCategoryRulesTableOrderingComposer,
+        $$MerchantCategoryRulesTableCreateCompanionBuilder,
+        $$MerchantCategoryRulesTableUpdateCompanionBuilder,
+        (
+          MerchantCategoryRule,
+          BaseReferences<_$AppDatabase, $MerchantCategoryRulesTable,
+              MerchantCategoryRule>
+        ),
+        MerchantCategoryRule,
         PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
@@ -7663,4 +8266,6 @@ class $AppDatabaseManager {
       $$OcrDraftsTableTableManager(_db, _db.ocrDrafts);
   $$NotificationHistoriesTableTableManager get notificationHistories =>
       $$NotificationHistoriesTableTableManager(_db, _db.notificationHistories);
+  $$MerchantCategoryRulesTableTableManager get merchantCategoryRules =>
+      $$MerchantCategoryRulesTableTableManager(_db, _db.merchantCategoryRules);
 }
