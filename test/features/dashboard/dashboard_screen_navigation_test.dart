@@ -26,6 +26,30 @@ import '../../test_support/sqlite_test_setup.dart';
 void main() {
   setUpAll(configureSqliteForTests);
 
+  testWidgets('the home amount identifies the total assets', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final router = _buildRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_DashboardTestApp(router: router));
+    await tester.pumpAndSettle();
+    expect(find.text('총 자산'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('manual preview does not advertise disabled notification capture', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final router = _buildRouter(manualPreview: true);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_DashboardTestApp(router: router));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-open-notification-history')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   test('pending count includes older pending histories and excludes others',
       () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
@@ -461,7 +485,7 @@ class _TestRecurringStore implements RecurringSpendOverrideStore {
   Stream<Set<String>> watchNotRecurringGroupKeys() => Stream.value(const {});
 }
 
-GoRouter _buildRouter() {
+GoRouter _buildRouter({bool manualPreview = false}) {
   return GoRouter(
     initialLocation: '/',
     routes: [

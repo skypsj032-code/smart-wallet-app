@@ -81,3 +81,10 @@ jobs:
           path: 'C:\smart wallet\app\test\visual_review\goldens\*.png'
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Run usability regression checks
+        if: always()
+        shell: pwsh
+        run: |
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s --concurrency=1 -r expanded test/features/dashboard/dashboard_screen_navigation_test.dart test/features/transactions/quick_entry_exit_test.dart
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

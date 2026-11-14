@@ -24,6 +24,32 @@ void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
   setUp(() => SharedPreferences.setMockInitialValues(const {}));
 
+  testWidgets('quick amount continues to review before saving', (tester) async {
+    final harness = await _Harness.open(tester);
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    await tester.pumpAndSettle();
+    final field = find.byWidgetPredicate((widget) =>
+        widget is TextField && widget.decoration?.hintText == '금액');
+    await tester.enterText(field, '12300');
+    await tester.pumpAndSettle();
+    final next = find.widgetWithText(FilledButton, '다음');
+    expect(next, findsOneWidget);
+    expect(tester.getSize(next).height, greaterThanOrEqualTo(48));
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(find.byType(QuickEntryScreen), findsOneWidget);
+    expect(harness.container.read(quickEntryFormProvider).amount, '12300');
+    expect(harness.repository.creates, isEmpty);
+  });
+
+  testWidgets('new expense screen uses a clear Korean heading', (tester) async {
+    final harness = await _Harness.open(tester);
+    harness.router.push('/quick-entry');
+    await tester.pumpAndSettle();
+    expect(find.text('지출 기록'), findsOneWidget);
+    expect(find.text('EXPANDED ENTRY'), findsNothing);
+  });
+
   testWidgets('back asks before discarding a transaction edit', (tester) async {
     final harness = await _Harness.open(tester);
     await harness.edit(tester);
