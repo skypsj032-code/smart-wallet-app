@@ -278,9 +278,14 @@ void main() {
     );
     await open(tester);
     await tester.tap(find.text('별다방'));
+    await _pumpUntil(tester,
+        () => find.text('비슷한 결제가 있어요').evaluate().isNotEmpty,
+        'similar payment warning');
     await tester.pumpAndSettle();
     expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
     expect(find.text('입력 화면'), findsNothing);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
   });
 
   testReview('receipt merchant matching a candidate triggers a warning',
@@ -292,8 +297,13 @@ void main() {
     );
     await open(tester);
     await tester.tap(find.text('별다방'));
+    await _pumpUntil(tester,
+        () => find.text('비슷한 결제가 있어요').evaluate().isNotEmpty,
+        'similar payment warning');
     await tester.pumpAndSettle();
     expect(find.text('비슷한 결제가 있어요'), findsOneWidget);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
   });
 
   testReview('unrelated and deleted transactions do not block a candidate',
@@ -310,9 +320,48 @@ void main() {
     final candidateId = await addHistory(tester, status: 'pending', merchant: '별다방', at: at);
     final container = await open(tester);
     await tester.tap(find.text('별다방'));
+    await _pumpUntil(tester,
+        () => find.text('입력 화면').evaluate().isNotEmpty,
+        'quick entry');
     await tester.pumpAndSettle();
     expect(find.text('비슷한 결제가 있어요'), findsNothing);
     expect(find.text('입력 화면'), findsOneWidget);
+    expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
+  });
+
+  testReview('a disposed confirmation screen does not lock the same alert',
+      (tester) async {
+    final at = DateTime.now();
+    await addTransaction(tester, id: 'manual', at: at, memo: '별다방');
+    final candidateId = await addHistory(
+      tester, status: 'pending', merchant: '별다방', at: at,
+    );
+    await open(tester);
+    await tester.tap(find.text('별다방'));
+    await _pumpUntil(tester,
+        () => find.text('비슷한 결제가 있어요').evaluate().isNotEmpty,
+        'first confirmation');
+    await tester.pumpAndSettle();
+
+    // The route can disappear while its dialog is still open, such as on lock.
+    await tester.pumpWidget(const SizedBox.shrink());
+    activeRouter?.dispose();
+    activeRouter = null;
+    activeContainer?.dispose();
+    activeContainer = null;
+    await tester.pump();
+
+    final container = await open(tester);
+    await tester.tap(find.text('별다방'));
+    await _pumpUntil(tester,
+        () => find.text('비슷한 결제가 있어요').evaluate().isNotEmpty,
+        'confirmation after reopening');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('확인 후 계속'));
+    await _pumpUntil(tester,
+        () => find.text('입력 화면').evaluate().isNotEmpty,
+        'quick entry after reopening');
+    await tester.pumpAndSettle();
     expect(container.read(quickEntryFormProvider).notificationHistoryId, candidateId);
   });
 

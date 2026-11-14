@@ -8,7 +8,7 @@ permissions:
 jobs:
   flutter-tests:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Download pull request source
         shell: pwsh
@@ -62,7 +62,7 @@ jobs:
       - name: Run regression tests
         shell: pwsh
         run: |
-          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s -r expanded
+          & 'C:\smart wallet\flutterw.bat' test --no-pub --timeout 45s --concurrency=1 -r expanded
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   android-preview:

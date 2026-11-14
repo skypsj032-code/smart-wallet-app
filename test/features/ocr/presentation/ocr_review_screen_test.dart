@@ -268,13 +268,25 @@ void main() {
           child: const MaterialApp(home: OcrCaptureScreen()),
         ),
       );
-      await tester.pumpAndSettle();
+      // Camera discovery can stay pending in a widget test, leaving the
+      // preview's indeterminate progress indicator animating indefinitely.
+      // The saved-image retry is available during camera initialization, so
+      // advance only the frames needed for this interaction.
+      await tester.pump();
+      expect(find.text('저장된 사진으로 OCR 재시도'), findsOneWidget);
       await tester.tap(find.text('저장된 사진으로 OCR 재시도'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('기존 영수증 초안을 바꿀까요?'), findsOneWidget);
       await tester.tap(find.text('초안 유지'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('기존 영수증 초안을 바꿀까요?'), findsNothing);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(OcrCaptureScreen)),
+      );
+      expect(container.read(ocrCaptureProvider).rawText, '동네마트\n결제금액 12,000원');
+      expect(container.read(ocrCaptureProvider).imagePath, 'fake-receipt.jpg');
     } finally {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

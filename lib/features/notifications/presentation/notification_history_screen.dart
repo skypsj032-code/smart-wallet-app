@@ -24,8 +24,16 @@ final _notificationHistoryProvider =
       .watch();
 });
 
-/// Protect against repeated taps while a candidate is being opened.
-final _openingHistoryIds = <int>{};
+/// Protect against repeated taps without keeping disposed screens locked.
+class _HistoryOpening {
+  _HistoryOpening(BuildContext context, this.location)
+      : context = WeakReference(context);
+
+  final WeakReference<BuildContext> context;
+  final Uri location;
+}
+
+final _openingHistoryIds = <int, _HistoryOpening>{};
 
 class NotificationHistoryScreen extends ConsumerWidget {
   const NotificationHistoryScreen({super.key});
@@ -235,10 +243,16 @@ Future<bool> confirmReplacingQuickEntryDraft(BuildContext context, WidgetRef ref
 /// The final status check prevents a stale banner from reopening a saved item.
 Future<bool> openNotificationHistoryItem(
     BuildContext context, WidgetRef ref, int historyId) async {
-  if (!_openingHistoryIds.add(historyId)) return false;
+  _HistoryOpening? opening;
   try {
     final router = GoRouter.of(context);
     final startingLocation = router.routeInformationProvider.value.uri;
+    final previous = _openingHistoryIds[historyId];
+    final previousContext = previous?.context.target;
+    if (previousContext != null && previousContext.mounted &&
+        previous!.location == startingLocation) return false;
+    opening = _HistoryOpening(context, startingLocation);
+    _openingHistoryIds[historyId] = opening;
     bool stillHere() => context.mounted &&
         router.routeInformationProvider.value.uri == startingLocation;
     if (ref.read(quickEntrySubmitStateProvider)) {
@@ -347,7 +361,10 @@ Future<bool> openNotificationHistoryItem(
     }
     return false;
   } finally {
-    _openingHistoryIds.remove(historyId);
+    // An old, disposed screen must not unlock a newer attempt for the same ID.
+    if (opening != null && identical(_openingHistoryIds[historyId], opening)) {
+      _openingHistoryIds.remove(historyId);
+    }
   }
 }
 

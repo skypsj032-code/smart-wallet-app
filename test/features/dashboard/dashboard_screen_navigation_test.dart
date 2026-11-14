@@ -145,7 +145,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = _buildRouter();
     addTearDown(router.dispose);
-    final pending = StreamController<int>();
+    final pending = StreamController<int>.broadcast();
     addTearDown(pending.close);
     final semantics = tester.ensureSemantics();
     try {
@@ -153,6 +153,7 @@ void main() {
         router: router,
         pendingNotifications: pending.stream,
       ));
+      await tester.pumpAndSettle();
       pending.add(2);
       await tester.pumpAndSettle();
 
@@ -185,12 +186,11 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    await _seedMonthlyDashboardData(db);
     var currentTime = DateTime(2026, 1, 31, 23, 59);
     final router = _buildRouter();
     addTearDown(router.dispose);
     try {
+      await _seedMonthlyDashboardData(db);
       await tester.pumpWidget(_DashboardTestApp(
         router: router,
         database: db,
@@ -208,8 +208,7 @@ void main() {
       expect(find.textContaining('기록된 지출 1건 · ₩40,000'), findsOneWidget);
       expect(find.textContaining('예산 ₩200,000'), findsOneWidget);
     } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+      await _closeDashboardDatabase(tester, db);
     }
   });
 
@@ -218,12 +217,11 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    await _seedMonthlyDashboardData(db);
     var currentTime = DateTime(2026, 1, 31, 23, 59, 50);
     final router = _buildRouter();
     addTearDown(router.dispose);
     try {
+      await _seedMonthlyDashboardData(db);
       await tester.pumpWidget(_DashboardTestApp(
         router: router,
         database: db,
@@ -239,8 +237,7 @@ void main() {
       expect(find.textContaining('기록된 지출 1건 · ₩40,000'), findsOneWidget);
       expect(find.textContaining('예산 ₩200,000'), findsOneWidget);
     } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
+      await _closeDashboardDatabase(tester, db);
     }
   });
 
@@ -293,6 +290,31 @@ void main() {
       await tester.pump();
     }
   });
+}
+
+Future<void> _closeDashboardDatabase(
+  WidgetTester tester,
+  AppDatabase db,
+) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  // Drift defers closing watched queries with a zero-duration timer.
+  await tester.pump(const Duration(milliseconds: 1));
+  var closed = false;
+  Object? failure;
+  StackTrace? failureStack;
+  db.close().then((_) {
+    closed = true;
+  }, onError: (Object error, StackTrace stack) {
+    failure = error;
+    failureStack = stack;
+    closed = true;
+  });
+  for (var i = 0; i < 200 && !closed; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  if (!closed) fail('Timed out while closing the dashboard database');
+  if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+  await tester.pump(const Duration(milliseconds: 1));
 }
 
 Future<void> _seedMonthlyDashboardData(AppDatabase db) async {
